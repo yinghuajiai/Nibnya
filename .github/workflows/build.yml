@@ -45,6 +45,7 @@ jobs:
 
       - name: Build APK
         env:
+          KEYSTORE_PATH: app/nibnya.keystore
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
