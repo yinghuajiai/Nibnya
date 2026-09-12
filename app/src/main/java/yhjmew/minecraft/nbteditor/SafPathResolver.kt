@@ -39,7 +39,7 @@ object SafPathResolver {
 
             if (docId.isNullOrEmpty()) return null
 
-            resolveExternalStorageDocId(docId!!)
+            resolveExternalStorageDocId(docId)
         } catch (_: Throwable) {
             null
         }
