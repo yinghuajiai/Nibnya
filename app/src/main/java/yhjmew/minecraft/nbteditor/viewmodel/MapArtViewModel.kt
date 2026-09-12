@@ -63,6 +63,7 @@ class MapArtViewModel : ViewModel() {
                 val `is` = context.contentResolver.openInputStream(imageUri)
                 val original = BitmapFactory.decodeStream(`is`)
                 `is`?.close()
+                if (original == null) throw Exception(getString(R.string.msg_processing_error_maybe_the_image_is_too_large))
 
                 val targetW = 128
                 val targetH = 128
@@ -199,6 +200,7 @@ class MapArtViewModel : ViewModel() {
                 val `is` = context.contentResolver.openInputStream(imageUri)
                 var rawSrc = BitmapFactory.decodeStream(`is`)
                 `is`?.close()
+                if (rawSrc == null) throw Exception(getString(R.string.msg_processing_error_maybe_the_image_is_too_large))
 
                 if (rawSrc.width < cols || rawSrc.height < rows) {
                     val scaled = Bitmap.createScaledBitmap(rawSrc, max(rawSrc.width, cols), max(rawSrc.height, rows), true)

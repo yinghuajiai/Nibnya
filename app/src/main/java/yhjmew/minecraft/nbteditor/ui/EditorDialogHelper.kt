@@ -239,9 +239,21 @@ fun MainActivity.showEditValueDialog(key: String, item: JsonObject) {
         try {
             val value = input.text.toString().trim()
             when (type) {
-                in 1..3 -> item.addProperty("v", value.toInt())
+                1 -> {
+                    val b = value.toInt()
+                    if (b < Byte.MIN_VALUE || b > Byte.MAX_VALUE)
+                        throw IllegalArgumentException(getString(R.string.msg_value_out_of_range, "Byte", "-128", "127"))
+                    item.addProperty("v", b.toByte())
+                }
+                2 -> {
+                    val s = value.toInt()
+                    if (s < Short.MIN_VALUE || s > Short.MAX_VALUE)
+                        throw IllegalArgumentException(getString(R.string.msg_value_out_of_range, "Short", "-32768", "32767"))
+                    item.addProperty("v", s.toShort())
+                }
+                3 -> item.addProperty("v", value.toInt())
                 4 -> item.addProperty("v", value.toLong())
-                in 5..6 -> item.addProperty("v", value.toDouble())
+                5, 6 -> item.addProperty("v", value.toDouble())
                 8 -> item.addProperty("v", value)
                 7, 11, 12 -> item.add("v", JsonParser.parseString(value).asJsonArray)
             }

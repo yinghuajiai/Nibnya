@@ -484,4 +484,5 @@ Would you like to create a new empty data set?</string>
     <string name="msg_player">Player</string>
     <string name="msg_map">Map</string>
     <string name="msg_village">Village</string>
+    <string name="msg_value_out_of_range">%1$s value must be between %2$s and %3$s</string>
 </resources>
