@@ -95,6 +95,12 @@ class MainActivity : ComponentActivity() {
             worldVM.setSafPath(uri)
             prefs?.edit()?.putString("saf_tree_uri", uri.toString())?.apply()
             toast(getString(R.string.msg_saf_selected))
+
+            // best-effort：尝试把 SAF Tree Uri 推测为真实路径，成功则直接切换为普通路径
+            val resolved = SafPathResolver.resolveTreeUriToPath(this, uri)
+            if (!resolved.isNullOrEmpty() && SafPathResolver.isProbablyUsablePath(resolved)) {
+                worldVM.switchPath(if (resolved.endsWith("/")) resolved else "$resolved/")
+            }
             showWorldSelector()
         }
     }
@@ -139,7 +145,6 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("UseKtx")
     override fun onCreate(savedInstanceState: Bundle?) {
         CrashHandler.instance!!.init(this)
-        System.setProperty("sun.arch.data.model", "64")
         super.onCreate(savedInstanceState)
 
         NbtTranslator.init(this)
@@ -163,7 +168,14 @@ class MainActivity : ComponentActivity() {
                 val uri = uriStr.toUri()
                 contentResolver.takePersistableUriPermission(uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                worldVM.safTreeUri = uri; worldVM.switchPath("$uri/")
+                worldVM.safTreeUri = uri
+                // best-effort：尝试解析为真实路径，成功则用普通路径
+                val resolved = SafPathResolver.resolveTreeUriToPath(this, uri)
+                if (!resolved.isNullOrEmpty() && SafPathResolver.isProbablyUsablePath(resolved)) {
+                    worldVM.switchPath(if (resolved.endsWith("/")) resolved else "$resolved/")
+                } else {
+                    worldVM.switchPath("$uri/")
+                }
             } catch (_: Exception) { prefs!!.edit { remove("saf_tree_uri") } }
         }
 
@@ -426,7 +438,10 @@ class MainActivity : ComponentActivity() {
         val item = editorVM.wrapRawItem(raw)
         val type = item.get("t").asInt
         if (type == 10) {
-            editorVM.enterFolder(key, item.getAsJsonObject("v"), false, nbtListView!!.firstVisiblePosition)
+            val v = item.get("v")
+            if (v != null && v.isJsonObject) {
+                editorVM.enterFolder(key, v.asJsonObject, false, nbtListView!!.firstVisiblePosition)
+            } else toast(getString(R.string.toast_no_data))
         } else if (type == 9) {
             editorVM.enterFolder(key, editorVM.convertListToMap(item), true, nbtListView!!.firstVisiblePosition)
         } else {

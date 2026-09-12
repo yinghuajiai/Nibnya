@@ -24,7 +24,7 @@ class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
     private var mDefaultHandler: Thread.UncaughtExceptionHandler? = null
 
     fun init(context: Context) {
-        mContext = context
+        mContext = context.applicationContext
         // 获取系统默认的 UncaughtException 处理器
         mDefaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         // 设置该 CrashHandler 为程序的默认处理器
