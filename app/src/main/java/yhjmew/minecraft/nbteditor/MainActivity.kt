@@ -144,7 +144,6 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("UseKtx")
     override fun onCreate(savedInstanceState: Bundle?) {
         CrashHandler.instance!!.init(this)
-        System.setProperty("sun.arch.data.model", "64")
         super.onCreate(savedInstanceState)
 
         NbtTranslator.init(this)

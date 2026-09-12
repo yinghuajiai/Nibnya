@@ -7,6 +7,10 @@ on:
     branches:
       - main
       - ci-release
+  pull_request:
+    branches:
+      - main
+      - ci-release
   workflow_dispatch:
     inputs:
       build_type:
@@ -38,18 +42,24 @@ jobs:
         run: chmod +x gradlew
 
       - name: Decode Release Keystore
-        if: github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' || github.event_name == 'push'
+        if: github.event_name == 'push' || github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both'
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
             > app/nibnya.keystore
 
       - name: Build APK
         env:
+          # 注意：storeFile file(ksPath) 是相对 app/ 模块目录解析的，
+          # 所以这里写 nibnya.keystore 对应 app/nibnya.keystore
+          KEYSTORE_PATH: nibnya.keystore
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR build: assembleDebug"
+            ./gradlew assembleDebug
+          elif [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
             ./gradlew assembleDebug
           elif [ "${{ github.event.inputs.build_type }}" = "both" ]; then
             ./gradlew assembleDebug assembleRelease
@@ -58,7 +68,7 @@ jobs:
           fi
 
       - name: Upload Debug APK
-        if: github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both'
+        if: github.event_name == 'pull_request' || github.event.inputs.build_type == 'debug' || github.event.inputs.build_type == 'both'
         uses: actions/upload-artifact@v4
         with:
           name: Nibnya-debug-${{ github.sha }}
@@ -66,7 +76,7 @@ jobs:
           retention-days: 60
 
       - name: Upload Release APK
-        if: github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both' || github.event_name == 'push'
+        if: github.event_name == 'push' || github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both'
         uses: actions/upload-artifact@v4
         with:
           name: Nibnya-release-${{ github.sha }}

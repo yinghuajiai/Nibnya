@@ -632,4 +632,5 @@
     <string name="btn_recover">恢复</string>
     <string name="btn_discard">丢弃</string>
     <string name="toast_session_restored">已恢复上次编辑</string>
+    <string name="msg_value_out_of_range">%1$s 值必须在 %2$s 到 %3$s 之间</string>
 </resources>
