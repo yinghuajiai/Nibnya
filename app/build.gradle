@@ -27,14 +27,17 @@ android {
             keyPassword 'android'
         }
 
-        // Release 签名
         release {
-            storeFile file('')
-            storePassword ''
-            keyAlias ''
-            keyPassword ''
+        // 从环境变量读取，本地没有时安全跳过
+        def ksPath = System.getenv("KEYSTORE_PATH")
+        if (ksPath) {
+            storeFile file(ksPath)
+            storePassword System.getenv("KEY_STORE_PASSWORD")
+            keyAlias     System.getenv("KEY_ALIAS")
+            keyPassword  System.getenv("KEY_PASSWORD")
         }
     }
+}
 
     // 构建类型配置
     buildTypes {
@@ -51,7 +54,9 @@ android {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release  // 使用 release 签名
+            signingConfig System.getenv("KEYSTORE_PATH") 
+            ? signingConfigs.release 
+            : signingConfigs.debug
         }
     }
 
