@@ -19,12 +19,14 @@ class PlayerDbManager(dbFolderPath: String) {
         File(dbFolder, "LOCK").takeIf { it.exists() }?.delete()
         File(dbFolder, "CURRENT").takeIf { it.exists() }?.delete()
 
-        // 重试打开，处理大目录 list 慢的开销
+        db = openWithRetry()
+    }
+
+    private fun openWithRetry(): DB {
         var lastErr: Exception? = null
         for (attempt in 0 until 3) {
             try {
-                db = DB(dbFolder).also { it.open() }
-                return
+                return DB(dbFolder).also { it.open() }
             } catch (e: Exception) {
                 lastErr = e
                 if (attempt < 2) {
@@ -35,7 +37,7 @@ class PlayerDbManager(dbFolderPath: String) {
                 }
             }
         }
-        throw lastErr ?: Exception(getString(R.string.msg_db_not_open))
+        throw lastErr ?: Exception(getString(R.string.msg_database_is_not_open))
     }
 
     @Throws(Exception::class)
