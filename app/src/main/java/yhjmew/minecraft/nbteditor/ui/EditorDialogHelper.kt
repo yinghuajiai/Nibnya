@@ -152,9 +152,16 @@ private fun MainActivity.addChildToNode(nodeData: JsonObject?) {
             5 -> JsonPrimitive(0.0f); 6 -> JsonPrimitive(0.0)
             8 -> JsonPrimitive(""); 10 -> JsonObject(); else -> JsonPrimitive(0)
         }
-        if (editorVM.isTreeMode.value) data.getAsJsonArray("v").add(newVal)
-        else editorVM.findOriginalListData()?.add(newVal) ?: data.getAsJsonArray("v").add(newVal)
-        refreshAfterEdit(); toast(getString(R.string.toast_added_to_list))
+        if (editorVM.isTreeMode.value) {
+            data.getAsJsonArray("v").add(newVal)
+        } else {
+            editorVM.findOriginalListData()?.add(newVal) ?: data.getAsJsonArray("v").add(newVal)
+            // 从源数组重建假 Map，再刷新列表
+            editorVM.rebuildFakeMapFromSource()
+            nbtAdapter?.refreshKeys()
+        }
+        toast(getString(R.string.toast_added_to_list))
+        return  // 不走到末尾的 refreshAfterEdit
     }
 }
 
@@ -529,6 +536,7 @@ fun MainActivity.showDebugMenu() {
 // 辅助：编辑后刷新
 // ============================================
 private fun MainActivity.refreshAfterEdit() {
+    editorVM.syncListFakeMapToSource()
     if (editorVM.isTreeMode.value) nbtTreeAdapter?.notifyDataSetChanged()
     else nbtAdapter?.refreshKeys()
 }
