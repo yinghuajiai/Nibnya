@@ -183,11 +183,27 @@ class EditorViewModel : ViewModel() {
         _nbtData.value = json
     }
     fun getRootData(): JsonObject? {
+        syncListFakeMapToSource()  // 保存前：将 List 假 Map 同步回源数组
         return if (navigationStack.isEmpty()) {
             _nbtData.value
         } else {
             navigationStack.firstElement()
         }
+    }
+
+    /**
+     * 从源数组重建假 Map（添加/删除 List 元素后需调用）
+     */
+    fun rebuildFakeMapFromSource() {
+        if (navigationStack.isEmpty() || pathStack.isEmpty()) return
+        val parent = navigationStack.lastElement() ?: return
+        val listKey = pathStack.lastElement() ?: return
+        val listEl = parent.get(listKey) ?: return
+        if (!listEl.isJsonObject) return
+        val listObj = listEl.asJsonObject
+        if (listObj.get("t")?.asInt != 9) return
+        if (listObj.get("v") == null || !listObj.get("v")!!.isJsonArray) return
+        _nbtData.value = convertListToMap(listObj)
     }
 
     // ============================================
@@ -250,6 +266,45 @@ class EditorViewModel : ViewModel() {
             fakeMap.add(i.toString(), wrapper)
         }
         return fakeMap
+    }
+
+    /**
+     * 将当前 fakeMap（List 展开后的假 Map）同步回原始 JsonArray
+     * 修复 List (type 9) 编辑后保存丢失数据的问题
+     */
+    fun syncListFakeMapToSource() {
+        if (navigationStack.isEmpty() || pathStack.isEmpty()) return
+
+        val parent = navigationStack.lastElement() ?: return
+        val listKey = pathStack.lastElement() ?: return
+
+        val listEl = parent.get(listKey) ?: return
+        if (!listEl.isJsonObject) return
+
+        val listObj = listEl.asJsonObject
+        if (listObj.get("t")?.asInt != 9) return  // 不是 List
+
+        val v = listObj.get("v")
+        if (v == null || !v.isJsonArray) return
+
+        val fakeMap = _nbtData.value ?: return
+        val sortedKeys = fakeMap.keySet()
+            .mapNotNull { it.toIntOrNull() }
+            .sorted()
+
+        val newArray = JsonArray()
+        for (key in sortedKeys) {
+            val wrapper = fakeMap.get(key.toString())
+            if (wrapper != null && wrapper.isJsonObject) {
+                val wrappedVal = wrapper.asJsonObject.get("v")
+                if (wrappedVal != null) {
+                    newArray.add(wrappedVal)
+                }
+            }
+        }
+
+        // 替换原始数组引用（直接修改 listObj，保证 navigationStack 中的引用同步更新）
+        listObj.add("v", newArray)
     }
 
     fun syncListModeFromPath(path: MutableList<String?>?) {
