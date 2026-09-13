@@ -479,9 +479,7 @@ class WorldViewModel : ViewModel() {
                 // 递归从 SAF 复制 db 文件夹
                 safCopyDirectory(context, dbFolder, workDir)
 
-                File(workDir, "LOCK").delete()
-                File(workDir, "LOG").delete()
-                File(workDir, "LOG.old").delete()
+                cleanLevelDbMeta(workDir)
                 currentWorkingDbPath = workDir.absolutePath
 
                 val dbManager = PlayerDbManager(workDir.absolutePath)
@@ -575,9 +573,7 @@ class WorldViewModel : ViewModel() {
                     runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgePath\"")).waitFor()
                 }
 
-                File(workDir, "LOCK").delete()
-                File(workDir, "LOG").delete()
-                File(workDir, "LOG.old").delete()
+                cleanLevelDbMeta(workDir)
 
                 currentWorkingDbPath = appPrivatePath
 
@@ -698,9 +694,7 @@ class WorldViewModel : ViewModel() {
                     val uniqueId = System.currentTimeMillis().toString()
                     val newWorkDir = File(worksDir(context), "working_db_$uniqueId")
                     smartCopy(oldWorkDir, newWorkDir)
-                    File(newWorkDir, "LOCK").delete()
-                    File(newWorkDir, "LOG").delete()
-                    File(newWorkDir, "LOG.old").delete()
+                    cleanLevelDbMeta(newWorkDir)
 
                     // 先把当前正在编辑的数据写入缓存，确保不遗漏
                     val currentKey = evm.currentTargetKey.value
@@ -1138,11 +1132,27 @@ class WorldViewModel : ViewModel() {
         return try { copyFile(src, dst); true } catch (_: Exception) { false }
     }
 
+    /** LevelDB 元数据，拷贝时必须跳过，否则新实例打开时会读到旧状态 */
+    private val levelDbMetaFiles = setOf("LOCK", "LOG", "LOG.old", "CURRENT", "MANIFEST-000000")
+
+    private fun shouldSkipFile(name: String): Boolean {
+        return name in levelDbMetaFiles || name.startsWith("MANIFEST-")
+    }
+
+    private fun cleanLevelDbMeta(dir: File) {
+        File(dir, "LOCK").takeIf { it.exists() }?.delete()
+        File(dir, "LOG").takeIf { it.exists() }?.delete()
+        File(dir, "LOG.old").takeIf { it.exists() }?.delete()
+        File(dir, "CURRENT").takeIf { it.exists() }?.delete()
+        dir.listFiles { f -> f.name.startsWith("MANIFEST-") }?.forEach { it.delete() }
+    }
+
     private fun copyDirectory(source: File, target: File) {
         if (source.isDirectory) {
             if (!target.exists()) target.mkdirs()
             source.list()?.forEach {
-                if (it != "LOCK") copyDirectory(File(source, it), File(target, it))
+                if (shouldSkipFile(it)) return@forEach
+                copyDirectory(File(source, it), File(target, it))
             }
         } else copyFile(source, target)
     }
@@ -1150,7 +1160,9 @@ class WorldViewModel : ViewModel() {
     private fun safCopyDirectory(context: Context, srcDoc: DocumentFile, dstDir: File) {
         if (!dstDir.exists()) dstDir.mkdirs()
         for (child in srcDoc.listFiles()) {
-            val dstFile = File(dstDir, child.name ?: continue)
+            val name = child.name ?: continue
+            if (shouldSkipFile(name)) continue
+            val dstFile = File(dstDir, name)
             if (child.isDirectory) {
                 safCopyDirectory(context, child, dstFile)
             } else {
@@ -1200,6 +1212,10 @@ class WorldViewModel : ViewModel() {
         var copiedSize = 0L
 
         files.forEach { file ->
+            if (shouldSkipFile(file.name)) {
+                latch.countDown()
+                return@forEach
+            }
             executor.submit {
                 try {
                     if (errorRef.get() != null) return@submit

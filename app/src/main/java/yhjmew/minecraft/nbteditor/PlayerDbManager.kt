@@ -15,14 +15,27 @@ class PlayerDbManager(dbFolderPath: String) {
             dbFolder.mkdirs()
         }
 
-        // 清理 LOCK 文件
-        val lockFile = File(dbFolder, "LOCK")
-        if (lockFile.exists()) {
-            lockFile.delete()
-        }
+        // 清理 LOCK 和 CURRENT 文件（避免旧元数据影响新实例）
+        File(dbFolder, "LOCK").takeIf { it.exists() }?.delete()
+        File(dbFolder, "CURRENT").takeIf { it.exists() }?.delete()
 
-        // Litl 版本的打开方式
-        db = DB(dbFolder).also { it.open() }
+        // 重试打开，处理大目录 list 慢的开销
+        var lastErr: Exception? = null
+        for (attempt in 0 until 3) {
+            try {
+                db = DB(dbFolder).also { it.open() }
+                return
+            } catch (e: Exception) {
+                lastErr = e
+                if (attempt < 2) {
+                    // 再清一次 LOCK/CURRENT
+                    File(dbFolder, "LOCK").takeIf { it.exists() }?.delete()
+                    File(dbFolder, "CURRENT").takeIf { it.exists() }?.delete()
+                    Thread.sleep(150)
+                }
+            }
+        }
+        throw lastErr ?: Exception(getString(R.string.msg_db_not_open))
     }
 
     @Throws(Exception::class)
