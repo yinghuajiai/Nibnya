@@ -79,9 +79,7 @@ class MapArtViewModel : ViewModel() {
             _isGenerating.value = true
             _progressMessage.value = getString(R.string.msg_processing_ing)
             try {
-                val `is` = context.contentResolver.openInputStream(imageUri)
-                val original = BitmapFactory.decodeStream(`is`)
-                `is`?.close()
+                val original = decodeSampledBitmap(context, imageUri, 128, 128)
                 if (original == null) throw Exception(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
 
                 val targetW = 128
@@ -202,13 +200,15 @@ class MapArtViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
             _progressMessage.value = getString(R.string.msg_analyzing_backpack)
+            var db: PlayerDbManager? = null
             try {
                 val wm = worldVM ?: throw Exception(getString(R.string.msg_worldvm_missing))
                 val dbPath = wm.currentWorkingDbPath ?: throw Exception(getString(R.string.msg_db_not_loaded))
 
-                val db = PlayerDbManager(dbPath)
-                val playerData = db.readLocalPlayer()
-                val mapKeys = db.listMapKeys().map { it }.toMutableList()
+                val dbManager = PlayerDbManager(dbPath)
+                db = dbManager
+                val playerData = dbManager.readLocalPlayer()
+                val mapKeys = dbManager.listMapKeys().map { it }.toMutableList()
 
                 // 解析背包
                 var playerRoot = BedrockParser.parseBytes(playerData) ?: JsonObject()
@@ -271,7 +271,7 @@ class MapArtViewModel : ViewModel() {
                     var found = -1
                     for (i in 0..35) if (!occupiedSlots[i]) { found = i; break }
                     if (found < 0) {
-                        db.close()
+                        dbManager.close(); db = null
                         throw Exception(getString(R.string.msg_backpack_is_full_least_1_empty_slot))
                     }
                     found
@@ -286,16 +286,12 @@ class MapArtViewModel : ViewModel() {
                 }
                 val startMapId = if (maxMapId < 0) 0 else (maxMapId + 1)
 
-                // 图片处理
-                val `is` = context.contentResolver.openInputStream(imageUri)
-                var rawSrc = BitmapFactory.decodeStream(`is`)
-                `is`?.close()
+                // 图片处理（降采样解码，避免大图 OOM）
+                var rawSrc = decodeSampledBitmap(context, imageUri, cols * 128, rows * 128)
                 if (rawSrc == null) throw Exception(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
 
                 if (rawSrc.width < cols || rawSrc.height < rows) {
-                    val scaled = Bitmap.createScaledBitmap(rawSrc, max(rawSrc.width, cols), max(rawSrc.height, rows), true)
-                    rawSrc.recycle()
-                    rawSrc = scaled
+                    rawSrc = Bitmap.createScaledBitmap(rawSrc, max(rawSrc.width, cols), max(rawSrc.height, rows), true)
                 }
                 val src = rawSrc
                 val cellW = src.width / cols
@@ -306,7 +302,7 @@ class MapArtViewModel : ViewModel() {
 
                 val itemsMap = ConcurrentHashMap<Int, JsonObject>()
                 val cores = Runtime.getRuntime().availableProcessors()
-                val threadCount = min(cores + 1, 8)
+                val threadCount = max(2, min(cores, 4))  // 限制并发 2~4，避免 Bitmap 同时堆积
                 val executor = Executors.newFixedThreadPool(threadCount)
                 val latch = CountDownLatch(totalMaps)
                 val errorRef = AtomicReference<Throwable?>()
@@ -321,8 +317,10 @@ class MapArtViewModel : ViewModel() {
                                 if (errorRef.get() != null) return@submit
                                 val chunk = Bitmap.createBitmap(src, c * cellW, r * cellH, cellW, cellH)
                                 val scaled = Bitmap.createScaledBitmap(chunk, 128, 128, true)
+                                chunk.recycle()
                                 val pixels = IntArray(128 * 128)
                                 scaled.getPixels(pixels, 0, 128, 0, 0, 128, 128)
+                                scaled.recycle()
                                 val colorsArr = JsonArray()
                                 for (p in pixels) {
                                     colorsArr.add(Color.red(p).toByte())
@@ -348,7 +346,7 @@ class MapArtViewModel : ViewModel() {
                                 mapContent.add("parentMapId", wrapTag(4, -1L))
 
                                 val mapBytes = BedrockParser.writeToBytes(mapContent)
-                                synchronized(db) { db.writeSpecificKey("map_$fMapId", mapBytes) }
+                                synchronized(dbManager) { dbManager.writeSpecificKey("map_$fMapId", mapBytes) }
 
                                 val itemContent = JsonObject()
                                 itemContent.add("Name", wrapTag(8, "minecraft:filled_map"))
@@ -369,8 +367,6 @@ class MapArtViewModel : ViewModel() {
                                 }
                                 itemContent.add("tag", tagTag)
                                 itemsMap[fIndex] = itemContent
-                                chunk.recycle()
-                                scaled.recycle()
                             } catch (e: Throwable) {
                                 errorRef.set(e)
                             } finally { latch.countDown() }
@@ -469,7 +465,7 @@ class MapArtViewModel : ViewModel() {
 
                 //不要再把 写回 DB 这俩行忘了
                 val newPlayerData = BedrockParser.writeToBytes(playerRoot)
-                db.writeLocalPlayer(newPlayerData)
+                dbManager.writeLocalPlayer(newPlayerData)
                 //不要再把 写回 DB 这俩行忘了
 
 // 【核心修复】回填缓存：把地图和玩家数据写入 EditorViewModel
@@ -477,11 +473,13 @@ class MapArtViewModel : ViewModel() {
                 evm.nbtDataCache["~local_player"] = playerRoot
                 evm.setRawNbtData(playerRoot)
 
-                db.close()
+                dbManager.close()
+                db = null
 
                 _isGenerating.value = false
                 _resultMessage.value = "Puzzle:SUCCESS:$totalMaps:$totalLayers:$startMapId:$useSlot"
             } catch (e: Exception) {
+                try { db?.close() } catch (_: Exception) {}
                 AppLogger.error("MapArt", "Map generation failed", e)
                 _isGenerating.value = false
                 _resultMessage.value = getString(R.string.msg_puzzle_error, e.message)
@@ -492,6 +490,23 @@ class MapArtViewModel : ViewModel() {
     // ============================================
     // 辅助
     // ============================================
+    private fun decodeSampledBitmap(context: Context, uri: Uri, reqW: Int, reqH: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val width = bounds.outWidth
+        val height = bounds.outHeight
+        if (width <= 0 || height <= 0) return null
+
+        var inSampleSize = 1
+        while (width / inSampleSize > reqW * 2 || height / inSampleSize > reqH * 2) {
+            inSampleSize *= 2
+        }
+        val opts = BitmapFactory.Options().apply { this.inSampleSize = inSampleSize }
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+        } catch (_: Exception) { null }
+    }
+
     companion object {
         fun wrapTag(type: Int, value: Any?): JsonObject {
             val tag = JsonObject()
