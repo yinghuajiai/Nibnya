@@ -72,7 +72,7 @@ object BedrockParser {
     // 核心写入逻辑
     @Throws(Exception::class)
     fun writeToBytes(rootContent: JsonObject?): ByteArray {
-        val baos = ByteArrayOutputStream()
+        val baos = ByteArrayOutputStream(8192)
         val dos = DataOutputStream(baos)
 
         // 重新包装回 Root Compound
@@ -83,6 +83,7 @@ object BedrockParser {
         dos.writeByte(10)
         writeString(dos, "")
         writeTagPayload(dos, rootWrapper, 10)
+        dos.flush()
         return baos.toByteArray()
     }
 
