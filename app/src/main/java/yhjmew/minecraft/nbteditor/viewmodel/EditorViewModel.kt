@@ -65,6 +65,18 @@ class EditorViewModel : ViewModel() {
     var currentListData: JsonObject? = null
     var lastTreeClickPosition = -1
 
+    /**
+     * 列表模式假 Map 的定位信息：进入 List(9) 时，convertListToMap 生成假 Map，
+     * 但假 Map 与源 JsonArray 断开连接，编辑后必须写回。这里记录每一层假 Map 的
+     * 父容器、List key 和假 Map 本身，保存前统一同步，杜绝丢失。
+     */
+    data class FakeMapInfo(
+        val parent: JsonObject,      // List 标签所在的父容器
+        val listKey: String,        // List 标签的 key
+        val fakeMap: JsonObject     // 当前展开的假 Map
+    )
+    private val fakeMapStack = Stack<FakeMapInfo>()
+
     // ============================================
     // 会话缓存（草稿恢复）
     // ============================================
@@ -77,6 +89,15 @@ class EditorViewModel : ViewModel() {
     fun enterFolder(key: String?, content: JsonObject?, isListMode: Boolean, currentPos: Int) {
         scrollPositionStack.push(currentPos)
         navigationStack.push(_nbtData.value)
+
+        // 若进入的是 List（假 Map），记录定位信息
+        if (isListMode && content != null) {
+            val parent = navigationStack.lastElement() ?: return
+            fakeMapStack.push(FakeMapInfo(parent, key ?: "", content))
+        }
+        // 若进入的是普通 compound，但上层有未写回的假 Map，也要保留其信息
+        // （fakeMapStack 不清空，因为可能还有未同步的上层 List）
+
         pathStack.push(key)
         _nbtData.value = content
         updatePathTitle()
@@ -84,6 +105,11 @@ class EditorViewModel : ViewModel() {
 
     fun goBack(): Boolean {
         if (navigationStack.isEmpty()) return false
+        // 若当前层是假 Map（即将离开），先同步写回，再弹出定位信息
+        if (fakeMapStack.isNotEmpty() && fakeMapStack.peek().fakeMap === _nbtData.value) {
+            syncOneFakeMap(fakeMapStack.peek())
+            fakeMapStack.pop()
+        }
         val parent = navigationStack.pop()
         pathStack.pop()
         _nbtData.value = parent
@@ -166,6 +192,7 @@ class EditorViewModel : ViewModel() {
         navigationStack.clear()
         pathStack.clear()
         scrollPositionStack.clear()
+        fakeMapStack.clear()
         nbtDataCache.clear()
         sessionCacheMap.clear()
         currentListData = null
@@ -195,10 +222,9 @@ class EditorViewModel : ViewModel() {
      * 从源数组重建假 Map（添加/删除 List 元素后需调用）
      */
     fun rebuildFakeMapFromSource() {
-        if (navigationStack.isEmpty() || pathStack.isEmpty()) return
-        val parent = navigationStack.lastElement() ?: return
-        val listKey = pathStack.lastElement() ?: return
-        val listEl = parent.get(listKey) ?: return
+        if (fakeMapStack.isEmpty()) return
+        val info = fakeMapStack.peek()
+        val listEl = info.parent.get(info.listKey) ?: return
         if (!listEl.isJsonObject) return
         val listObj = listEl.asJsonObject
         if (listObj.get("t")?.asInt != 9) return
@@ -232,9 +258,21 @@ class EditorViewModel : ViewModel() {
     }
 
     fun findOriginalListData(): JsonArray? {
+        // 优先用 fakeMapStack 精确定位（当前列表模式下的 List 源数组）
+        if (fakeMapStack.isNotEmpty()) {
+            val info = fakeMapStack.peek()
+            val listEl = info.parent.get(info.listKey)
+            if (listEl != null && listEl.isJsonObject) {
+                val v = listEl.asJsonObject.get("v")
+                if (v != null && v.isJsonArray) return v.asJsonArray
+            }
+            return null
+        }
+        // 兜底：从根数据沿 pathStack 定位（树形模式等）
         if (pathStack.isEmpty()) return null
         try {
-            var current: JsonObject = _nbtData.value ?: return null
+            val root = if (navigationStack.isEmpty()) _nbtData.value else navigationStack.firstElement()
+            var current: JsonObject = root ?: return null
             for (i in 0 until pathStack.size - 1) {
                 val pathKey = pathStack[i] ?: continue
                 val el = current.get(pathKey) ?: return null
@@ -269,48 +307,50 @@ class EditorViewModel : ViewModel() {
     }
 
     /**
-     * 将当前 fakeMap（List 展开后的假 Map）同步回原始 JsonArray
-     * 修复 List (type 9) 编辑后保存丢失数据的问题
+     * 将 fakeMapStack 中所有假 Map 同步回源 JsonArray。
+     * 遍历所有层，从根本上杜绝「编辑假 Map 后忘记写回原数组」导致的丢失。
+     * 不清理栈（用户可能仍在假 Map 层继续编辑），由 goBack 负责逐层弹出。
      */
     fun syncListFakeMapToSource() {
-        if (navigationStack.isEmpty() || pathStack.isEmpty()) return
+        // 从最内层到最外层同步，确保多层嵌套 List 都能写回
+        for (info in fakeMapStack.reversed()) {
+            syncOneFakeMap(info)
+        }
+    }
 
-        val parent = navigationStack.lastElement() ?: return
-        val listKey = pathStack.lastElement() ?: return
+    private fun syncOneFakeMap(info: FakeMapInfo) {
+        try {
+            val listEl = info.parent.get(info.listKey)
+            if (listEl == null || !listEl.isJsonObject) return
+            val listObj = listEl.asJsonObject
+            if (listObj.get("t")?.asInt != 9) return
 
-        val listEl = parent.get(listKey) ?: return
-        if (!listEl.isJsonObject) return
+            val v = listObj.get("v")
+            if (v == null || !v.isJsonArray) return
 
-        val listObj = listEl.asJsonObject
-        if (listObj.get("t")?.asInt != 9) return  // 不是 List
+            val fakeMap = info.fakeMap
+            val sortedKeys = fakeMap.keySet()
+                .mapNotNull { it.toIntOrNull() }
+                .sorted()
 
-        val v = listObj.get("v")
-        if (v == null || !v.isJsonArray) return
-
-        val fakeMap = _nbtData.value ?: return
-        val sortedKeys = fakeMap.keySet()
-            .mapNotNull { it.toIntOrNull() }
-            .sorted()
-
-        val newArray = JsonArray()
-        for (key in sortedKeys) {
-            val wrapper = fakeMap.get(key.toString())
-            if (wrapper != null && wrapper.isJsonObject) {
-                val wrappedVal = wrapper.asJsonObject.get("v")
-                if (wrappedVal != null) {
-                    newArray.add(wrappedVal)
+            val newArray = JsonArray()
+            for (key in sortedKeys) {
+                val wrapper = fakeMap.get(key.toString())
+                if (wrapper != null && wrapper.isJsonObject) {
+                    val wrappedVal = wrapper.asJsonObject.get("v")
+                    if (wrappedVal != null) newArray.add(wrappedVal)
                 }
             }
-        }
-
-        // 替换原始数组引用（直接修改 listObj，保证 navigationStack 中的引用同步更新）
-        listObj.add("v", newArray)
+            // 替换源数组引用（同一引用链，navigationStack 根数据同步更新）
+            listObj.add("v", newArray)
+        } catch (_: Exception) {}
     }
 
     fun syncListModeFromPath(path: MutableList<String?>?) {
         navigationStack.clear()
         pathStack.clear()
         scrollPositionStack.clear()
+        fakeMapStack.clear()
         currentListData = _nbtData.value
         if (path.isNullOrEmpty()) return
 
@@ -324,9 +364,14 @@ class EditorViewModel : ViewModel() {
                 pathStack.push(key)
                 scrollPositionStack.push(0)
                 val v = itemWrapper.get("v")
-                currentPtr = if (type == 10) v.asJsonObject
-                else if (type == 9) convertListToMap(itemWrapper)
-                else break
+                if (type == 10) {
+                    currentPtr = v.asJsonObject
+                } else if (type == 9) {
+                    val fake = convertListToMap(itemWrapper)
+                    // 当前层是 List，记录假 Map 定位信息
+                    fakeMapStack.push(FakeMapInfo(currentPtr!!, key ?: "", fake))
+                    currentPtr = fake
+                } else break
             }
             currentListData = currentPtr
         } catch (_: Exception) {}
