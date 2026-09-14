@@ -471,7 +471,7 @@ class MainActivity : ComponentActivity() {
         val type = node.type
         if ((type == 7 || type == 11 || type == 12) && v.isJsonArray && v.asJsonArray.size() > 500)
             showArrayPaginationDialog(node.key, v.asJsonArray)
-        else showEditValueDialog(node.key, node.value!!.asJsonObject)
+        else showEditValueDialog(node.key, node.value!!.asJsonObject, nbtTreeAdapter!!.getListElementInfo(pos))
     }
 
     private fun listItemClick(pos: Int) {

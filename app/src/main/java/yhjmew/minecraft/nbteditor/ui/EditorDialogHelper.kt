@@ -202,7 +202,7 @@ private fun MainActivity.showNameInputDialog(parent: JsonObject, type: Int) {
 // ============================================
 // 编辑值对话框（带自动填充）
 // ============================================
-fun MainActivity.showEditValueDialog(key: String, item: JsonObject) {
+fun MainActivity.showEditValueDialog(key: String, item: JsonObject, listElementInfo: Pair<JsonArray, Int>? = null) {
     val type = item.get("t").asInt
     if (type == 9 || type == 10) { toast(getString(R.string.toast_click_detail)); return }
 
@@ -264,6 +264,13 @@ fun MainActivity.showEditValueDialog(key: String, item: JsonObject) {
                 5, 6 -> item.addProperty("v", value.toDouble())
                 8 -> item.addProperty("v", value)
                 7, 11, 12 -> item.add("v", JsonParser.parseString(value).asJsonArray)
+            }
+            // List 元素编辑：把新值写回原数组，避免树形模式下临时 wrapper 丢失数据
+            listElementInfo?.let { (arr, idx) ->
+                val newV = item.get("v")
+                if (newV != null && idx >= 0 && idx < arr.size()) {
+                    arr.set(idx, newV)
+                }
             }
             refreshAfterEdit()
         } catch (e: Exception) { toast(getString(R.string.err_save_failed, e.message)) }

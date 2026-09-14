@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.TextView
+import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import yhjmew.minecraft.nbteditor.NbtTranslator.getEmojiIcon
@@ -329,6 +330,22 @@ class NbtTreeAdapter(private val context: Context, rootData: JsonObject?) : Base
         if (position < 0 || position >= visibleNodes.size) return null
         val node = visibleNodes[position]
         return node.value as? JsonObject
+    }
+
+    /**
+     * 若该节点是 List 的子元素，返回其父 List 的原数组和元素下标；
+     * 否则返回 null。用于编辑 List 元素时把新值写回原数组，避免丢失。
+     */
+    fun getListElementInfo(position: Int): Pair<JsonArray, Int>? {
+        if (position < 0 || position >= visibleNodes.size) return null
+        val node = visibleNodes[position]
+        val listNode = node.parent ?: return null
+        if (listNode.type != 9) return null
+        val listWrapper = (listNode.value as? JsonObject) ?: return null
+        val arr = (listWrapper.get("v") as? JsonArray) ?: return null
+        val idx = node.key.toIntOrNull() ?: return null
+        if (idx < 0 || idx >= arr.size()) return null
+        return Pair(arr, idx)
     }
 
     companion object {
