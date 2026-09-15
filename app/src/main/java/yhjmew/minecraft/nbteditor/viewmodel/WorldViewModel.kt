@@ -1138,19 +1138,17 @@ class WorldViewModel : ViewModel() {
         return try { copyFile(src, dst); true } catch (_: Exception) { false }
     }
 
-    /** LevelDB 元数据，拷贝时必须跳过，否则新实例打开时会读到旧状态 */
-    private val levelDbMetaFiles = setOf("LOCK", "LOG", "LOG.old", "CURRENT", "MANIFEST-000000")
+    /** LevelDB 临时/锁文件，拷贝时必须跳过；CURRENT/MANIFEST 是索引必须保留 */
+    private val levelDbMetaFiles = setOf("LOCK", "LOG", "LOG.old")
 
     private fun shouldSkipFile(name: String): Boolean {
-        return name in levelDbMetaFiles || name.startsWith("MANIFEST-")
+        return name in levelDbMetaFiles
     }
 
     private fun cleanLevelDbMeta(dir: File) {
         File(dir, "LOCK").takeIf { it.exists() }?.delete()
         File(dir, "LOG").takeIf { it.exists() }?.delete()
         File(dir, "LOG.old").takeIf { it.exists() }?.delete()
-        File(dir, "CURRENT").takeIf { it.exists() }?.delete()
-        dir.listFiles { f -> f.name.startsWith("MANIFEST-") }?.forEach { it.delete() }
     }
 
     private fun copyDirectory(source: File, target: File) {

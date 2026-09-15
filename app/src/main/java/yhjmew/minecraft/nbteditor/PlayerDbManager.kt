@@ -15,9 +15,10 @@ class PlayerDbManager(dbFolderPath: String) {
             dbFolder.mkdirs()
         }
 
-        // 清理 LOCK 和 CURRENT 文件（避免旧元数据影响新实例）
+        // 清理 LOCK 和 LOG（临时文件，打开时会重建；CURRENT/MANIFEST 是索引不能删）
         File(dbFolder, "LOCK").takeIf { it.exists() }?.delete()
-        File(dbFolder, "CURRENT").takeIf { it.exists() }?.delete()
+        File(dbFolder, "LOG").takeIf { it.exists() }?.delete()
+        File(dbFolder, "LOG.old").takeIf { it.exists() }?.delete()
 
         db = openWithRetry()
     }
@@ -30,9 +31,10 @@ class PlayerDbManager(dbFolderPath: String) {
             } catch (e: Exception) {
                 lastErr = e
                 if (attempt < 2) {
-                    // 再清一次 LOCK/CURRENT
+                    // 再清一次 LOCK/LOG
                     File(dbFolder, "LOCK").takeIf { it.exists() }?.delete()
-                    File(dbFolder, "CURRENT").takeIf { it.exists() }?.delete()
+                    File(dbFolder, "LOG").takeIf { it.exists() }?.delete()
+                    File(dbFolder, "LOG.old").takeIf { it.exists() }?.delete()
                     Thread.sleep(150)
                 }
             }
