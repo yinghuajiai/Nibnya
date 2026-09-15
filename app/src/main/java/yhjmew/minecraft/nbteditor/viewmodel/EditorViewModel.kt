@@ -220,7 +220,7 @@ class EditorViewModel : ViewModel() {
         } else {
             navigationStack.firstElement()
         }
-        AppLogger.info("ListDebug", "getRootData 后: 根数据 keys=${result?.keySet()?.joinToString(\",\") ?: \"null\"}")
+        AppLogger.info("ListDebug", "getRootData 后: 根数据 keys=${result?.keySet()?.joinToString(",") ?: "null"}")
         return result
     }
 
