@@ -73,7 +73,7 @@ class EditorViewModel : ViewModel() {
     data class FakeMapInfo(
         val parent: JsonObject,      // List 标签所在的父容器
         val listKey: String,        // List 标签的 key
-        val fakeMap: JsonObject     // 当前展开的假 Map
+        var fakeMap: JsonObject     // 当前展开的假 Map（增删元素后重建时需更新引用）
     )
     private val fakeMapStack = Stack<FakeMapInfo>()
 
@@ -229,7 +229,9 @@ class EditorViewModel : ViewModel() {
         val listObj = listEl.asJsonObject
         if (listObj.get("t")?.asInt != 9) return
         if (listObj.get("v") == null || !listObj.get("v")!!.isJsonArray) return
-        _nbtData.value = convertListToMap(listObj)
+        val newFakeMap = convertListToMap(listObj)
+        info.fakeMap = newFakeMap          // 更新引用，避免 sync 用旧假 Map
+        _nbtData.value = newFakeMap
     }
 
     // ============================================
