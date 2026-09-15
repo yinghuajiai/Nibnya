@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import yhjmew.minecraft.nbteditor.R
+import yhjmew.minecraft.nbteditor.AppLogger
 import yhjmew.minecraft.nbteditor.BedrockParser
 import yhjmew.minecraft.nbteditor.MainActivity
 import yhjmew.minecraft.nbteditor.NbtAdapter
@@ -94,9 +95,10 @@ class EditorViewModel : ViewModel() {
         if (isListMode && content != null) {
             val parent = navigationStack.lastElement() ?: return
             fakeMapStack.push(FakeMapInfo(parent, key ?: "", content))
+            AppLogger.info("ListDebug", "enterFolder 进入 List: key=$key, fakeMapSize=${content.size()}, fakeMapStack=${fakeMapStack.size}")
+        } else {
+            AppLogger.info("ListDebug", "enterFolder 进入: key=$key, isListMode=$isListMode, contentSize=${content?.size() ?: -1}")
         }
-        // 若进入的是普通 compound，但上层有未写回的假 Map，也要保留其信息
-        // （fakeMapStack 不清空，因为可能还有未同步的上层 List）
 
         pathStack.push(key)
         _nbtData.value = content
@@ -107,6 +109,7 @@ class EditorViewModel : ViewModel() {
         if (navigationStack.isEmpty()) return false
         // 若当前层是假 Map（即将离开），先同步写回，再弹出定位信息
         if (fakeMapStack.isNotEmpty() && fakeMapStack.peek().fakeMap === _nbtData.value) {
+            AppLogger.info("ListDebug", "goBack 离开 List 层，先 sync 再 pop: key=${fakeMapStack.peek().listKey}")
             syncOneFakeMap(fakeMapStack.peek())
             fakeMapStack.pop()
         }
@@ -210,28 +213,33 @@ class EditorViewModel : ViewModel() {
         _nbtData.value = json
     }
     fun getRootData(): JsonObject? {
+        AppLogger.info("ListDebug", "getRootData 前: fakeMapStack=${fakeMapStack.size}, navStack=${navigationStack.size}, pathStack=${pathStack.size}")
         syncListFakeMapToSource()  // 保存前：将 List 假 Map 同步回源数组
-        return if (navigationStack.isEmpty()) {
+        val result = if (navigationStack.isEmpty()) {
             _nbtData.value
         } else {
             navigationStack.firstElement()
         }
+        AppLogger.info("ListDebug", "getRootData 后: 根数据 keys=${result?.keySet()?.joinToString(\",\") ?: \"null\"}")
+        return result
     }
 
     /**
      * 从源数组重建假 Map（添加/删除 List 元素后需调用）
      */
     fun rebuildFakeMapFromSource() {
-        if (fakeMapStack.isEmpty()) return
+        AppLogger.info("ListDebug", "rebuildFakeMapFromSource 调用: fakeMapStack=${fakeMapStack.size}")
+        if (fakeMapStack.isEmpty()) { AppLogger.warn("ListDebug", "rebuild: fakeMapStack 为空，直接返回（可能丢失！）"); return }
         val info = fakeMapStack.peek()
-        val listEl = info.parent.get(info.listKey) ?: return
-        if (!listEl.isJsonObject) return
+        val listEl = info.parent.get(info.listKey) ?: run { AppLogger.warn("ListDebug", "rebuild: parent.get(${info.listKey}) 为 null"); return }
+        if (!listEl.isJsonObject) { AppLogger.warn("ListDebug", "rebuild: listEl 不是 JsonObject"); return }
         val listObj = listEl.asJsonObject
-        if (listObj.get("t")?.asInt != 9) return
-        if (listObj.get("v") == null || !listObj.get("v")!!.isJsonArray) return
+        if (listObj.get("t")?.asInt != 9) { AppLogger.warn("ListDebug", "rebuild: t != 9, t=${listObj.get("t")}"); return }
+        if (listObj.get("v") == null || !listObj.get("v")!!.isJsonArray) { AppLogger.warn("ListDebug", "rebuild: v 不是数组"); return }
         val newFakeMap = convertListToMap(listObj)
         info.fakeMap = newFakeMap          // 更新引用，避免 sync 用旧假 Map
         _nbtData.value = newFakeMap
+        AppLogger.info("ListDebug", "rebuild 完成: 源数组 size=${listObj.get("v")!!.asJsonArray.size()}, 新假Map size=${newFakeMap.size()}")
     }
 
     // ============================================
@@ -263,14 +271,20 @@ class EditorViewModel : ViewModel() {
         // 优先用 fakeMapStack 精确定位（当前列表模式下的 List 源数组）
         if (fakeMapStack.isNotEmpty()) {
             val info = fakeMapStack.peek()
+            AppLogger.info("ListDebug", "findOriginalListData 走 fakeMapStack: listKey=${info.listKey}")
             val listEl = info.parent.get(info.listKey)
             if (listEl != null && listEl.isJsonObject) {
                 val v = listEl.asJsonObject.get("v")
-                if (v != null && v.isJsonArray) return v.asJsonArray
+                if (v != null && v.isJsonArray) {
+                    AppLogger.info("ListDebug", "findOriginalListData 返回数组 size=${v.asJsonArray.size()}")
+                    return v.asJsonArray
+                }
             }
+            AppLogger.warn("ListDebug", "findOriginalListData: fakeMapStack 分支未找到数组")
             return null
         }
         // 兜底：从根数据沿 pathStack 定位（树形模式等）
+        AppLogger.info("ListDebug", "findOriginalListData 走兜底 pathStack: pathStack=${pathStack.size}")
         if (pathStack.isEmpty()) return null
         try {
             val root = if (navigationStack.isEmpty()) _nbtData.value else navigationStack.firstElement()
@@ -314,6 +328,7 @@ class EditorViewModel : ViewModel() {
      * 不清理栈（用户可能仍在假 Map 层继续编辑），由 goBack 负责逐层弹出。
      */
     fun syncListFakeMapToSource() {
+        AppLogger.info("ListDebug", "syncListFakeMapToSource: fakeMapStack=${fakeMapStack.size}")
         // 从最内层到最外层同步，确保多层嵌套 List 都能写回
         for (info in fakeMapStack.reversed()) {
             syncOneFakeMap(info)
@@ -323,12 +338,21 @@ class EditorViewModel : ViewModel() {
     private fun syncOneFakeMap(info: FakeMapInfo) {
         try {
             val listEl = info.parent.get(info.listKey)
-            if (listEl == null || !listEl.isJsonObject) return
+            if (listEl == null || !listEl.isJsonObject) {
+                AppLogger.warn("ListDebug", "sync: parent.get(${info.listKey}) 为 null 或非 Object")
+                return
+            }
             val listObj = listEl.asJsonObject
-            if (listObj.get("t")?.asInt != 9) return
+            if (listObj.get("t")?.asInt != 9) {
+                AppLogger.warn("ListDebug", "sync: listKey=${info.listKey}, t=${listObj.get("t")} != 9")
+                return
+            }
 
             val v = listObj.get("v")
-            if (v == null || !v.isJsonArray) return
+            if (v == null || !v.isJsonArray) {
+                AppLogger.warn("ListDebug", "sync: listKey=${info.listKey}, v 不是数组")
+                return
+            }
 
             val fakeMap = info.fakeMap
             val sortedKeys = fakeMap.keySet()
@@ -345,7 +369,10 @@ class EditorViewModel : ViewModel() {
             }
             // 替换源数组引用（同一引用链，navigationStack 根数据同步更新）
             listObj.add("v", newArray)
-        } catch (_: Exception) {}
+            AppLogger.info("ListDebug", "sync: listKey=${info.listKey}, 假Map=${fakeMap.size()}项 -> 源数组=${newArray.size()}项")
+        } catch (e: Exception) {
+            AppLogger.error("ListDebug", "sync 异常: ${e.message}", e)
+        }
     }
 
     fun syncListModeFromPath(path: MutableList<String?>?) {

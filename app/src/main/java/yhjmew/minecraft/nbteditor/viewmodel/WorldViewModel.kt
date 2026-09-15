@@ -698,8 +698,12 @@ class WorldViewModel : ViewModel() {
 
                     // 先把当前正在编辑的数据写入缓存，确保不遗漏
                     val currentKey = evm.currentTargetKey.value
+                    AppLogger.info("ListDebug", "saveAndPushBack(玩家): currentKey=$currentKey, dataToSave keys=${dataToSave?.keySet()?.joinToString(",") { it } ?: "null"}")
                     if (currentKey != null && dataToSave != null) {
                         evm.nbtDataCache[currentKey] = dataToSave
+                        AppLogger.info("ListDebug", "saveAndPushBack(玩家): nbtDataCache[$currentKey] 已更新为 dataToSave")
+                    } else {
+                        AppLogger.warn("ListDebug", "saveAndPushBack(玩家): currentKey=$currentKey 或 dataToSave=null，未更新缓存!")
                     }
 
                     // 遍历缓存，写入全部修改过的数据
@@ -721,6 +725,7 @@ class WorldViewModel : ViewModel() {
                         if (data != null) {
                             val bytes = BedrockParser.writeToBytes(data)
                             db.writeSpecificKey(key, bytes)
+                            AppLogger.info("ListDebug", "写DB(遍历allKeys): key=$key, bytes=${bytes.size}, keys=${data.keySet().joinToString(",") { it }}")
                         }
                     }
 
@@ -728,6 +733,7 @@ class WorldViewModel : ViewModel() {
                         if (key != null && data != null) {
                             val bytes = BedrockParser.writeToBytes(data)
                             db.writeSpecificKey(key, bytes)
+                            AppLogger.info("ListDebug", "写DB(遍历缓存): key=$key, bytes=${bytes.size}, keys=${data.keySet().joinToString(",") { it }}")
                         }
                     }
 
