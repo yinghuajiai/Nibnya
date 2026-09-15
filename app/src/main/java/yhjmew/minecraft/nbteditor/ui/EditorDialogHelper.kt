@@ -146,6 +146,7 @@ private fun MainActivity.addChildToNode(nodeData: JsonObject?) {
         }
     } else if (type == 9) {
         val itemType = data.get("itemType").asInt
+        AppLogger.info("ListDebug", "addChildToNode: List itemType=$itemType, isTreeMode=${editorVM.isTreeMode.value}, 当前List v size=${data.get("v")?.asJsonArray?.size() ?: -1}")
         val newVal: JsonElement = when (itemType) {
             1 -> JsonPrimitive(0.toByte()); 2 -> JsonPrimitive(0.toShort())
             3 -> JsonPrimitive(0); 4 -> JsonPrimitive(0L)
@@ -154,8 +155,16 @@ private fun MainActivity.addChildToNode(nodeData: JsonObject?) {
         }
         if (editorVM.isTreeMode.value) {
             data.getAsJsonArray("v").add(newVal)
+            AppLogger.info("ListDebug", "addChildToNode(树形): 直接往 data.v 添加")
         } else {
-            editorVM.findOriginalListData()?.add(newVal) ?: data.getAsJsonArray("v").add(newVal)
+            val target = editorVM.findOriginalListData()
+            if (target != null) {
+                target.add(newVal)
+                AppLogger.info("ListDebug", "addChildToNode(列表): findOriginalListData 找到数组，添加后 size=${target.size()}")
+            } else {
+                data.getAsJsonArray("v").add(newVal)
+                AppLogger.warn("ListDebug", "addChildToNode(列表): findOriginalListData 返回 null，fallback 到 data.v 添加")
+            }
             // 从源数组重建假 Map，再刷新列表
             editorVM.rebuildFakeMapFromSource()
             nbtAdapter?.refreshKeys()
@@ -183,18 +192,25 @@ private fun MainActivity.showNameInputDialog(parent: JsonObject, type: Int) {
         .setPositiveButton(getString(R.string.btn_create)) { _, _ ->
             val name = input.text.toString()
             if (name.isEmpty() || parent.has(name)) { toast(getString(R.string.toast_Invalid_name)); return@setPositiveButton }
+            AppLogger.info("ListDebug", "showNameInputDialog: 新增标签 name=$name, type=$type, parent.keys=${parent.keySet().joinToString(",") { it }}")
             val t = JsonObject().apply { addProperty("t", type) }
             when (type) {
                 1 -> t.addProperty("v", 0.toByte()); 2 -> t.addProperty("v", 0.toShort())
                 3 -> t.addProperty("v", 0); 4 -> t.addProperty("v", 0L)
                 5 -> t.addProperty("v", 0.0f); 6 -> t.addProperty("v", 0.0)
                 7 -> t.add("v", JsonArray()); 8 -> t.addProperty("v", "")
-                9 -> { t.add("v", JsonArray()); t.addProperty("itemType", 10) }
+                9 -> { t.add("v", JsonArray()); t.addProperty("itemType", 10); AppLogger.info("ListDebug", "新增的是 List(9) 标签, itemType=10, v=[]") }
                 10 -> t.add("v", JsonObject()); 11 -> t.add("v", JsonArray())
                 12 -> t.add("v", JsonArray())
             }
             parent.add(name, t)
-            if (nbtAdapter?.data === parent) nbtAdapter?.refreshKeys()
+            AppLogger.info("ListDebug", "新增后 parent.keys=${parent.keySet().joinToString(",") { it }}, 是否已添加=$name=${parent.has(name)}")
+            if (nbtAdapter?.data === parent) {
+                AppLogger.info("ListDebug", "nbtAdapter.data === parent, 走 refreshKeys")
+                nbtAdapter?.refreshKeys()
+            } else {
+                AppLogger.warn("ListDebug", "nbtAdapter.data !== parent，不刷新（parent 可能不是当前显示层）")
+            }
             toast(getString(R.string.toast_created_item, name))
         }.show()
 }
@@ -543,6 +559,7 @@ fun MainActivity.showDebugMenu() {
 // 辅助：编辑后刷新
 // ============================================
 private fun MainActivity.refreshAfterEdit() {
+    AppLogger.info("ListDebug", "refreshAfterEdit 调用: isTreeMode=${editorVM.isTreeMode.value}")
     editorVM.syncListFakeMapToSource()
     if (editorVM.isTreeMode.value) nbtTreeAdapter?.notifyDataSetChanged()
     else nbtAdapter?.refreshKeys()
