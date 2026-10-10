@@ -44,10 +44,10 @@ class MapArtViewModel : ViewModel() {
     // 拼图生成并发设置（独立于文件操作多线程）
     // ============================================
     /** 是否启用拼图生成多线程；关闭则串行（更省内存，但更慢） */
-    var puzzleMultiThread = true
+    private var puzzleMultiThread = true
 
     /** 并发线程数：0 = 自动 */
-    var puzzleThreadCount = 0
+    private var puzzleThreadCount = 0
 
     fun setPuzzleMultiThread(use: Boolean) { puzzleMultiThread = use }
 
