@@ -172,7 +172,7 @@
                         android:id="@+id/tv_info_seed"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Seed: -"
+                        android:text="@string/key_seed_placeholder"
                         android:textSize="10sp"
                         android:textColor="#757575"
                         android:visibility="gone"

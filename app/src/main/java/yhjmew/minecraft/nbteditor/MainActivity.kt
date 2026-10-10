@@ -769,7 +769,7 @@ class MainActivity : ComponentActivity() {
                         if (ok) { toast(getString(R.string.msg_under_repair)); parts.getOrNull(1)?.let { worldVM.loadPlayerData(this, it) } }
                     }
                 }.setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> toast(getString(R.string.toast_operation_canceled_please_check_archive_integrity)) }.setCancelable(false).show()
-        } else AlertDialog.Builder(this).setTitle("Error").setMessage(msg).setPositiveButton(getString(R.string.btn_close), null).show()
+        } else AlertDialog.Builder(this).setTitle(getString(R.string.title_error)).setMessage(msg).setPositiveButton(getString(R.string.btn_close), null).show()
     }
 
     // ============================================

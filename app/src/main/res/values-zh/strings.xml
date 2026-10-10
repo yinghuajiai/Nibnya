@@ -13,6 +13,7 @@
     <string name="btn_cancel">取消</string>
     <string name="btn_later">稍后</string>
     <string name="btn_close">关闭</string>
+    <string name="title_error">错误</string>
     <string name="btn_create">创建</string>
     <string name="btn_delete">删除</string>
     <string name="btn_save">💾 保存修改</string>
@@ -385,6 +386,7 @@
     <string name="key_coordinate">坐标</string>
     <string name="key_game_time">游戏时间</string>
     <string name="key_seed_display">🌱 %1$s</string>
+    <string name="key_seed_placeholder">种子: -</string>
     
     <!-- Difficulty -->
     <string name="key_difficulty_peace">0: 和平</string>

@@ -250,7 +250,7 @@
                 style="?android:attr/borderlessButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:text="🌙 切换到夜间模式"
+                android:text="@string/action_switch_night"
                 android:textColor="#FF9800"
                 android:textSize="14sp"
                 android:gravity="start|center_vertical"
