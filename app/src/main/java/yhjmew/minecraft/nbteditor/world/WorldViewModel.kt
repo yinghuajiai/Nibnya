@@ -98,7 +98,7 @@ class WorldViewModel : ViewModel() {
     /**
      * 并发线程数设置：0 = 自动（按文件规模自适应），>0 = 用户指定
      */
-    var ioThreadCount = 0
+    private var ioThreadCount = 0
 
     fun setIoThreadCount(n: Int) {
         ioThreadCount = if (n < 0) 0 else n
