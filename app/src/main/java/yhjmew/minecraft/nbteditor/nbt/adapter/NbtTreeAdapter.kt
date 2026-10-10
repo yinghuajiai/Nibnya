@@ -110,6 +110,11 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
      * 否则 UI 与数据会不一致。
      */
     fun rebuild() {
+        // 搜索模式下重建 = 重新应用过滤
+        if (filterQuery != null) {
+            filter(filterQuery)
+            return
+        }
         val expanded = collectExpandedPaths()
         visibleNodes.clear()
         rootNode.isExpanded = true
@@ -125,6 +130,95 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
             }
         }
         notifyDataSetChanged()
+    }
+
+    // ============================================
+    // 搜索（树形模式）
+    // ============================================
+    private var filterQuery: String? = null
+
+    fun isFiltering(): Boolean = filterQuery != null
+
+    /**
+     * 树形搜索：只显示「匹配的节点」及其所有祖先（保留层级便于定位）。
+     * 传 null 或空串表示清除过滤，恢复正常树。
+     */
+    fun filter(query: String?) {
+        filterQuery = query?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+        visibleNodes.clear()
+        rootNode.isExpanded = true
+        if (rootData != null) {
+            if (filterQuery == null) buildChildren(rootNode, rootData)
+            else collectMatching(rootNode, rootData)
+        }
+        notifyDataSetChanged()
+    }
+
+    private fun textMatches(key: String): Boolean {
+        val q = filterQuery ?: return true
+        if (key.lowercase().contains(q)) return true
+        val trans = getTranslation(key)
+        return trans != null && trans.lowercase().contains(q)
+    }
+
+    /** 该节点自身，或其任意子孙，是否命中搜索词 */
+    private fun subtreeMatches(node: Node): Boolean {
+        if (textMatches(node.key)) return true
+        val w = node.value as? JsonObject ?: return false
+        val inner = w.get("v") ?: return false
+        return when (node.type) {
+            10 -> inner.isJsonObject && inner.asJsonObject.keySet().any { k ->
+                subtreeMatches(Node(k, inner.asJsonObject.get(k), node.level + 1, node))
+            }
+            9 -> {
+                if (!inner.isJsonArray) false
+                else {
+                    val arr = inner.asJsonArray
+                    val it = w.get("itemType")?.asInt ?: 1
+                    (0 until arr.size()).any { i ->
+                        val wrapper = JsonObject()
+                        wrapper.addProperty("t", it)
+                        wrapper.add("v", arr[i])
+                        subtreeMatches(Node(i.toString(), wrapper, node.level + 1, node))
+                    }
+                }
+            }
+            else -> false
+        }
+    }
+
+    private fun collectMatching(parent: Node, container: JsonObject) {
+        for (k in container.keySet().sorted()) {
+            val v = container.get(k)
+            val node = Node(k, v, parent.level + 1, parent)
+            if (!subtreeMatches(node)) continue
+            node.isExpanded = true
+            visibleNodes.add(node)
+            val w = v as? JsonObject ?: continue
+            val inner = w.get("v") ?: continue
+            when (node.type) {
+                10 -> if (inner.isJsonObject) collectMatching(node, inner.asJsonObject)
+                9 -> if (inner.isJsonArray) collectMatchingList(node, w, inner.asJsonArray)
+            }
+        }
+    }
+
+    private fun collectMatchingList(parent: Node, wrapper: JsonObject, arr: JsonArray) {
+        val itemType = wrapper.get("itemType")?.asInt ?: 1
+        for (i in 0 until arr.size()) {
+            val w = JsonObject()
+            w.addProperty("t", itemType)
+            w.add("v", arr[i])
+            val node = Node(i.toString(), w, parent.level + 1, parent)
+            if (!subtreeMatches(node)) continue
+            node.isExpanded = true
+            visibleNodes.add(node)
+            val inner = w.get("v") ?: continue
+            when (node.type) {
+                10 -> if (inner.isJsonObject) collectMatching(node, inner.asJsonObject)
+                9 -> if (inner.isJsonArray) collectMatchingList(node, w, inner.asJsonArray)
+            }
+        }
     }
 
     fun toggleExpand(position: Int) {
@@ -168,7 +262,9 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
         return t == 9 || t == 10
     }
 
-    fun getNode(position: Int): Node {
+    /** 取节点；位置越界（例如 rebuild 之后位置失效）返回 null，避免崩溃 */
+    fun getNode(position: Int): Node? {
+        if (position < 0 || position >= visibleNodes.size) return null
         return visibleNodes[position]
     }
 

@@ -428,7 +428,8 @@ class MainActivity : ComponentActivity() {
             if (checkFolder(f)) { pendingBackupListFolder = f; worldVM.scanBackups(this, f) }
         }
         findViewById<Button?>(R.id.btn_save)?.setOnClickListener {
-            if (editorVM.isTreeMode.value) { toast(getString(R.string.toast_tree_switch_mode)); return@setOnClickListener }
+            // 树形视图同样支持保存：树上的编辑直接作用于根数据对象图，
+            // getRootData() 返回真正的根，所见即所存。
             val d = editorVM.getRootData() ?: run { toast(getString(R.string.toast_no_data)); return@setOnClickListener }
             val f = etWorldName!!.text.toString().trim()
             if (f.isEmpty() || f == getString(R.string.hint_select_world))
@@ -462,8 +463,8 @@ class MainActivity : ComponentActivity() {
             sc?.isVisible = false; ensureDbLoaded { showGlobalDataDialog() }
         }
         findViewById<View?>(R.id.btn_search_nbt)?.setOnClickListener {
-            if (editorVM.isTreeMode.value) toast(getString(R.string.toast_the_search_function_currently_only_supports_list_mode))
-            else showEditorSearchDialog()
+            // 树形与列表模式都支持搜索
+            showEditorSearchDialog()
         }
         findViewById<View?>(R.id.btn_fullscreen_search)?.setOnClickListener {
             findViewById<View?>(R.id.btn_search_nbt)?.performClick()
@@ -499,12 +500,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun nbtTreeItemClick(pos: Int) {
-        val node = nbtTreeAdapter!!.getNode(pos)
-        val v = node.value!!.asJsonObject.get("v")
+        val node = nbtTreeAdapter!!.getNode(pos) ?: return
+        val valueObj = node.value as? JsonObject ?: return
+        val v = valueObj.get("v") ?: return
         val type = node.type
         if ((type == 7 || type == 11 || type == 12) && v.isJsonArray && v.asJsonArray.size() > 500)
             showArrayPaginationDialog(node.key, v.asJsonArray)
-        else showEditValueDialog(node.key, node.value!!.asJsonObject, nbtTreeAdapter!!.getListElementInfo(pos))
+        else showEditValueDialog(node.key, valueObj, nbtTreeAdapter!!.getListElementInfo(pos))
     }
 
     private fun listItemClick(pos: Int) {
@@ -527,7 +529,7 @@ class MainActivity : ComponentActivity() {
     private fun onNbtLongClick(pos: Int) {
         editorVM.lastTreeClickPosition = pos
         if (editorVM.isTreeMode.value) {
-            val node = nbtTreeAdapter!!.getNode(pos)
+            val node = nbtTreeAdapter!!.getNode(pos) ?: return
             var key = node.key
             val itemData: JsonObject
             if (node.parent == null) {
@@ -565,11 +567,22 @@ class MainActivity : ComponentActivity() {
         editorVM.toggleTreeMode()
         toast(if (editorVM.isTreeMode.value) getString(R.string.toast_tree_switch_mode_blocktopograph)
         else getString(R.string.toast_tree_switch_mode_default))
-        val data = editorVM.nbtData.value ?: return
+
         if (editorVM.isTreeMode.value) {
-            nbtTreeAdapter = NbtTreeAdapter(this, data).also { it.setViewMode(editorVM.viewMode.value) }
+            // 进入树形：始终以「真正的根数据」为根。
+            // 否则从列表模式深层切过来时，树只显示子树，
+            // 而保存写的却是整份数据，容易让用户困惑。
+            val root = editorVM.getRootData() ?: return
+            editorVM.setRawNbtData(root)
+            editorVM.navigationStack.clear()
+            editorVM.pathStack.clear()
+            editorVM.scrollPositionStack.clear()
+            editorVM.lastTreeClickPosition = -1
+            editorVM.currentListData = root
+            nbtTreeAdapter = NbtTreeAdapter(this, root).also { it.setViewMode(editorVM.viewMode.value) }
             nbtListView?.adapter = nbtTreeAdapter
         } else {
+            val data = editorVM.nbtData.value ?: return
             if (nbtTreeAdapter != null && editorVM.lastTreeClickPosition >= 0)
                 editorVM.syncListModeFromPath(nbtTreeAdapter!!.getNodePath(editorVM.lastTreeClickPosition))
             refreshAdapter(editorVM.currentListData ?: data)

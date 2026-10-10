@@ -266,7 +266,6 @@ Would you like to create a new empty data set?</string>
     <string name="toast_switched_std">Cut standard path</string>
     <string name="toast_switched_legacy">The old version path has been cut</string>
     <string name="toast_mode_changed">display mode updated</string>
-    <string name="toast_tree_switch_mode">Please switch back to [Default View] before saving</string>
     <string name="toast_tree_switch_mode_default">Switched to default view</string>
     <string name="toast_tree_switch_mode_blocktopograph">Switched to Blocktopograph tree view</string>
     <string name="toast_saved">Saved</string>
@@ -282,7 +281,6 @@ Would you like to create a new empty data set?</string>
     <string name="toast_the_map_is_generated">The map image (RGBA) is generated!</string>
     <string name="toast_multi_thread_acceleration_enabled">Multi-thread acceleration enabled</string>
     <string name="toast_switched_to_single_threaded_stable_mode">Switched to single-threaded stable mode</string>
-    <string name="toast_the_search_function_currently_only_supports_list_mode">The search function currently only supports list mode (default view)</string>
     <string name="toast_there_is_currently_no_data_to_search">There is currently no data to search</string>
     <string name="toast_view_sync_partially_interrupted">View sync partially interrupted:</string>
     <string name="toast_refreshed_prefix">Refreshed:</string>
