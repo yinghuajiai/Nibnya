@@ -626,7 +626,16 @@ Would you like to create a new empty data set?</string>
     <!-- ============================================ -->
     <string name="about_header">about</string>
     <string name="settings_header">settings</string>
-    <string name="box_enable_multi_thread_acceleration">🚀 Enable multi-thread acceleration</string>
+    <string name="box_enable_multi_thread_acceleration">🚀 Multi-thread file operations</string>
+    <string name="subtitle_io_multithread">Affects save read/write only. Disable to use a single thread.</string>
+    <string name="box_puzzle_multithread">🧩 Multi-thread puzzle generation</string>
+    <string name="subtitle_puzzle_multithread">Disable to lower memory usage, but generation is slower.</string>
+    <string name="label_thread_count">Threads:</string>
+    <string name="thread_count_auto">Auto</string>
+    <string name="thread_count_custom">Custom…</string>
+    <string name="title_custom_thread_count">Custom thread count</string>
+    <string name="hint_thread_count_range">1 - 32</string>
+    <string name="msg_thread_count_invalid">Please enter a number between 1 and 32</string>
     <string name="msg_about_content_full"><![CDATA[NBT Editor (AIDE+ version)<br>Current status: Continuously updated<br><br>Feedback questions/Submit new features? :<br><a href=https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor>Click to visit the GitHub warehouse to submit Issues</a><br>QQ communication group: <a href=https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003>Click to join the NBT editor exchange</a><br>Thank you! ! <br><a href=https://space.bilibili.com/628906424>Yejdhi</a> and <a href=https://github.com/LiteLDev>LeviMC members</a><br>Thanks to them, we have the current ideas and better modification methods]]>.</string>
     <string name="msg_replace_all_data">Replace all data?</string>
     <string name="msg_delete_items_confirm">Delete %d item(s)? This cannot be undone.</string>

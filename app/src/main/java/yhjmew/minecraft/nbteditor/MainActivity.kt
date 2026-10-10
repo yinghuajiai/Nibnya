@@ -185,6 +185,12 @@ class MainActivity : ComponentActivity() {
         }
         worldVM.setUseShizuku(!skipShizuku)
 
+        // 多线程设置：启动时从 prefs 恢复（修复「设置不生效、重启失效」）
+        worldVM.setUseMultiThread(prefs!!.getBoolean("use_multithread", true))
+        worldVM.setIoThreadCount(prefs!!.getInt("io_thread_count", 0))
+        mapVM.setPuzzleMultiThread(prefs!!.getBoolean("puzzle_multithread", true))
+        mapVM.setPuzzleThreadCount(prefs!!.getInt("puzzle_thread_count", 0))
+
         // issue #6：恢复上次使用的路径（避免重启后回退到需 Shizuku 的 Android/data）
         prefs!!.getString("last_path", null)?.let { saved ->
             worldVM.restorePath(saved)
