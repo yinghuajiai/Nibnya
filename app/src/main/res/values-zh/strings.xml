@@ -263,7 +263,6 @@
     <string name="toast_switched_std">已切标准路径</string>
     <string name="toast_switched_legacy">已切旧版路径</string>
     <string name="toast_mode_changed">显示模式已更新</string>
-    <string name="toast_tree_switch_mode">请先切换回[默认视图]再进行保存操作</string>
     <string name="toast_tree_switch_mode_default">已切换至 默认视图</string>
     <string name="toast_tree_switch_mode_blocktopograph">已切换至 Blocktopograph 树状视图</string>
     <string name="toast_saved">已保存</string>
@@ -279,7 +278,6 @@
     <string name="toast_the_map_is_generated">地图画(RGBA) 生成完毕！</string>
     <string name="toast_multi_thread_acceleration_enabled">已启用多线程加速</string>
     <string name="toast_switched_to_single_threaded_stable_mode">已切换为单线程稳定模式</string>
-    <string name="toast_the_search_function_currently_only_supports_list_mode">搜索功能暂仅支持列表模式 (默认视图)</string>
     <string name="toast_there_is_currently_no_data_to_search">当前没有数据可搜索</string>
     <string name="toast_view_sync_partially_interrupted">视图同步部分中断: </string>
     <string name="toast_refreshed_prefix">已刷新: </string>

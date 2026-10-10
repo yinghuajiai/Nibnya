@@ -484,15 +484,22 @@ private fun MainActivity.showSubArrayEditDialog(original: JsonArray, start: Int,
 // ============================================
 fun MainActivity.showEditorSearchDialog() {
     val et = EditText(this).apply { hint = getString(R.string.text_search_key_or_translate); isSingleLine = true }
+
+    // 树形 / 列表两种模式都支持搜索
+    fun applyFilter(q: String?) {
+        if (editorVM.isTreeMode.value) nbtTreeAdapter?.filter(q)
+        else nbtAdapter?.filter(q)
+    }
+
     val dialog = AlertDialog.Builder(this).setTitle(getString(R.string.title_search_nbt_data)).setView(et)
         .setPositiveButton(getString(R.string.btn_close), null)
-        .setNeutralButton(getString(R.string.btn_clear)) { _, _ -> nbtAdapter?.filter(null) }
+        .setNeutralButton(getString(R.string.btn_clear)) { _, _ -> applyFilter(null); et.setText("") }
         .create()
     et.addTextChangedListener(object : TextWatcher {
         override fun afterTextChanged(s: Editable?) {}
         override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
         override fun onTextChanged(s: CharSequence, a: Int, b: Int, c: Int) {
-            nbtAdapter?.filter(s.toString())
+            applyFilter(s.toString())
         }
     })
     dialog.setOnShowListener {
