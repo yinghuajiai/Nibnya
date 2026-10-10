@@ -2,3 +2,12 @@
 NBTEditor.zip
 .juggler/
 TODO.md
+
+# 本地构建环境（不应提交）
+local.properties
+.gradle/
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
