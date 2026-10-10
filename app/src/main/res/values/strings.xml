@@ -13,6 +13,7 @@
     <string name="btn_cancel">Cancel</string>
     <string name="btn_later">Later</string>
     <string name="btn_close">Close</string>
+    <string name="title_error">Error</string>
     <string name="btn_create">Create</string>
     <string name="btn_delete">delete</string>
     <string name="btn_save">💾 Save changes</string>
@@ -388,6 +389,7 @@ Would you like to create a new empty data set?</string>
     <string name="key_coordinate">coordinate</string>
     <string name="key_game_time">game time</string>
     <string name="key_seed_display">🌱 %1$s</string>
+    <string name="key_seed_placeholder">Seed: -</string>
 
     <!-- Difficulty -->
     <string name="key_difficulty_peace">0: Peace</string>
@@ -644,10 +646,10 @@ Would you like to create a new empty data set?</string>
     <string name="copying_progress">Copying %1$d/%2$d (%3$d%%)</string>
 
 
-    <string name="title_crash_found">发现未保存的编辑</string>
-    <string name="msg_session_found">上次编辑 [%s] 时意外退出，是否恢复？</string>
-    <string name="btn_recover">恢复</string>
-    <string name="btn_discard">丢弃</string>
-    <string name="toast_session_restored">已恢复上次编辑</string>
+    <string name="title_crash_found">Unsaved edits found</string>
+    <string name="msg_session_found">Editing [%s] ended unexpectedly. Restore it?</string>
+    <string name="btn_recover">Restore</string>
+    <string name="btn_discard">Discard</string>
+    <string name="toast_session_restored">Previous edit restored</string>
     <string name="msg_value_out_of_range">%1$s value must be between %2$s and %3$s</string>
 </resources>
