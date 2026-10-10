@@ -1,4 +1,4 @@
-package yhjmew.minecraft.nbteditor
+package yhjmew.minecraft.nbteditor.nbt
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement

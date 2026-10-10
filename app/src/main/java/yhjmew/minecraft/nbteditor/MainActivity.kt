@@ -24,15 +24,21 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
-import yhjmew.minecraft.nbteditor.ui.*
-import yhjmew.minecraft.nbteditor.viewmodel.EditorViewModel
-import yhjmew.minecraft.nbteditor.viewmodel.MapArtViewModel
-import yhjmew.minecraft.nbteditor.viewmodel.WorldViewModel
-import yhjmew.minecraft.nbteditor.viewmodel.WorldViewModel.BackupItem
-import yhjmew.minecraft.nbteditor.viewmodel.WorldViewModel.CacheItem
-import yhjmew.minecraft.nbteditor.viewmodel.WorldViewModel.WorldItem
 import java.io.*
 import java.util.*
+import yhjmew.minecraft.nbteditor.editor.dialogs.*
+import yhjmew.minecraft.nbteditor.editor.EditorViewModel
+import yhjmew.minecraft.nbteditor.world.WorldViewModel
+import yhjmew.minecraft.nbteditor.world.WorldViewModel.BackupItem
+import yhjmew.minecraft.nbteditor.world.WorldViewModel.CacheItem
+import yhjmew.minecraft.nbteditor.world.WorldViewModel.WorldItem
+import yhjmew.minecraft.nbteditor.mapart.MapArtViewModel
+import yhjmew.minecraft.nbteditor.mapart.MapArtViewModel.InventorySlotInfo
+import yhjmew.minecraft.nbteditor.nbt.BedrockParser
+import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
+import yhjmew.minecraft.nbteditor.nbt.adapter.NbtAdapter
+import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
+import yhjmew.minecraft.nbteditor.util.CrashHandler
 
 class MainActivity : ComponentActivity() {
 
