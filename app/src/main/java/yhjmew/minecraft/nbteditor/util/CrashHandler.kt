@@ -1,4 +1,4 @@
-package yhjmew.minecraft.nbteditor
+package yhjmew.minecraft.nbteditor.util
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -17,6 +17,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.system.exitProcess
+import yhjmew.minecraft.nbteditor.R
 
 /** 全局异常捕获器 当程序发生未捕获异常时，由该类接管程序，并记录发送错误报告  */
 class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
