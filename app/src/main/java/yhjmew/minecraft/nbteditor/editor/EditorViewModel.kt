@@ -396,7 +396,7 @@ class EditorViewModel : ViewModel() {
                 } else if (type == 9) {
                     val fake = convertListToMap(itemWrapper)
                     // 当前层是 List，记录假 Map 定位信息
-                    fakeMapStack.push(FakeMapInfo(currentPtr!!, key ?: "", fake))
+                    fakeMapStack.push(FakeMapInfo(currentPtr, key ?: "", fake))
                     currentPtr = fake
                 } else break
             }
