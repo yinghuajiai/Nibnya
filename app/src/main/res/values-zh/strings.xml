@@ -216,6 +216,10 @@
     <string name="toast_cleared_short">已清空</string>
     <string name="toast_cleared_all">已清空所有</string>
     <string name="toast_deleted">已删除</string>
+    <string name="toast_root_cannot_delete">根节点不能删除</string>
+    <string name="toast_root_cannot_rename">根节点不能重命名</string>
+    <string name="toast_list_element_no_name">List 元素由下标标识，无法重命名</string>
+    <string name="toast_operation_failed">操作失败</string>
     <string name="toast_renamed">已重命名</string>
     <string name="toast_copied">已复制到剪贴板</string>
     <string name="toast_copy_success">复制成功</string>
