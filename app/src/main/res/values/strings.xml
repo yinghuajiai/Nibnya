@@ -218,6 +218,10 @@ Would you like to create a new empty data set?</string>
     <string name="toast_cleared_short">Cleared</string>
     <string name="toast_cleared_all">Cleared all</string>
     <string name="toast_deleted">Deleted</string>
+    <string name="toast_root_cannot_delete">Root cannot be deleted</string>
+    <string name="toast_root_cannot_rename">Root cannot be renamed</string>
+    <string name="toast_list_element_no_name">List elements have no name to rename</string>
+    <string name="toast_operation_failed">Operation failed</string>
     <string name="toast_renamed">renamed</string>
     <string name="toast_copied">Copied to clipboard</string>
     <string name="toast_copy_success">Copied successfully</string>

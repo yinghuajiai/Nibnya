@@ -26,6 +26,7 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import yhjmew.minecraft.nbteditor.MainActivity
 import yhjmew.minecraft.nbteditor.R
+import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
@@ -85,37 +86,153 @@ fun MainActivity.showRootMenu() {
 fun MainActivity.showLongPressMenu(key: String?, itemData: JsonObject) {
     val ops = arrayOf(getString(R.string.menu_copy), getString(R.string.menu_paste), getString(R.string.menu_delete), getString(R.string.menu_rename), getString(R.string.menu_add_child))
     AlertDialog.Builder(this).setTitle(getString(R.string.title_manage, key)).setItems(ops) { _, w ->
-        var parent: JsonObject?
-        var nodeKey = key
-        var nodeData: JsonObject? = itemData
-
-        if (editorVM.isTreeMode.value && editorVM.lastTreeClickPosition >= 0) {
-            parent = nbtTreeAdapter?.getParentContainer(editorVM.lastTreeClickPosition)
-                ?: editorVM.nbtData.value
-            nbtTreeAdapter?.getNodeKey(editorVM.lastTreeClickPosition)?.let { nodeKey = it }
-            nbtTreeAdapter?.getNodeData(editorVM.lastTreeClickPosition)?.let { nodeData = it }
+        if (editorVM.isTreeMode.value) {
+            handleTreeLongPress(w, key ?: "", itemData)
         } else {
-            parent = nbtAdapter?.data
-        }
-        if (parent == null || nodeKey == null) return@setItems
-
-        when (w) {
-            0 -> {
-                MainActivity.clipboard = nodeData!!.deepCopy()
-                toast(getString(R.string.toast_copied))
-            }
-            1 -> {
-                if (MainActivity.clipboard == null) { toast(getString(R.string.toast_clipboard_empty)); return@setItems }
-                val pasteKey = nodeKey + "_copy"
-                if (parent.has(pasteKey)) { toast(getString(R.string.toast_name_exists)); return@setItems }
-                parent.add(pasteKey, MainActivity.clipboard!!.deepCopy())
-                refreshAfterEdit(); toast(getString(R.string.toast_pasted))
-            }
-            2 -> { parent.remove(nodeKey); refreshAfterEdit(); toast(getString(R.string.toast_deleted)) }
-            3 -> showRenameDialog(nodeKey, nodeData, parent)
-            4 -> addChildToNode(nodeData)
+            handleListLongPress(w, key, itemData)
         }
     }.show()
+}
+
+/**
+ * 列表模式的长按处理（保持原有行为）
+ */
+private fun MainActivity.handleListLongPress(w: Int, key: String?, itemData: JsonObject) {
+    val parent = nbtAdapter?.data ?: return
+    val nodeKey = key ?: return
+    when (w) {
+        0 -> { MainActivity.clipboard = itemData.deepCopy(); toast(getString(R.string.toast_copied)) }
+        1 -> {
+            if (MainActivity.clipboard == null) { toast(getString(R.string.toast_clipboard_empty)); return }
+            val pasteKey = nodeKey + "_copy"
+            if (parent.has(pasteKey)) { toast(getString(R.string.toast_name_exists)); return }
+            parent.add(pasteKey, MainActivity.clipboard!!.deepCopy())
+            refreshAfterEdit(); toast(getString(R.string.toast_pasted))
+        }
+        2 -> { parent.remove(nodeKey); refreshAfterEdit(); toast(getString(R.string.toast_deleted)) }
+        3 -> showRenameDialog(nodeKey, itemData, parent)
+        4 -> addChildToNode(itemData)
+    }
+}
+
+/**
+ * 树形模式的长按处理。
+ * 关键修复：用 getParentRef 区分「父是 compound」和「父是 List」，
+ * 之前统一按 compound 处理，导致 List 元素的删除/粘贴落到错误对象上。
+ */
+private fun MainActivity.handleTreeLongPress(w: Int, fallbackKey: String, fallbackData: JsonObject) {
+    val adapter = nbtTreeAdapter ?: return
+    val pos = editorVM.lastTreeClickPosition
+    // 防止 rebuild 后位置越界（getNode 无边界检查，会抛异常）
+    val node = if (pos in 0 until adapter.count) adapter.getNode(pos) else null
+    val nodeData = node?.value as? JsonObject ?: fallbackData
+    val nodeKey = node?.key ?: fallbackKey
+    val isRoot = node?.parent == null
+
+    when (w) {
+        0 -> {  // 复制
+            MainActivity.clipboard = nodeData.deepCopy()
+            toast(getString(R.string.toast_copied))
+        }
+
+        1 -> {  // 粘贴
+            val clip = MainActivity.clipboard
+            if (clip == null) { toast(getString(R.string.toast_clipboard_empty)); return }
+            if (isRoot) {
+                // 根：作为新字段加入根数据，让用户输入字段名
+                val rootObj = editorVM.nbtData.value ?: return
+                val input = EditText(this).apply { hint = getString(R.string.hint_new_tag_name) }
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.title_paste_as))
+                    .setView(input)
+                    .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                        val n = input.text.toString().trim()
+                        if (n.isEmpty() || rootObj.has(n)) {
+                            toast(getString(R.string.toast_name_empty_or_exists))
+                        } else {
+                            rootObj.add(n, clip.deepCopy())
+                            adapter.rebuild()
+                            toast(getString(R.string.toast_pasted))
+                        }
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
+                return
+            } else {
+                val ref = adapter.getParentRef(pos) ?: run {
+                    toast(getString(R.string.toast_operation_failed)); return
+                }
+                when (ref) {
+                    is NbtTreeAdapter.ParentRef.Compound -> {
+                        val pasteKey = ref.key + "_copy"
+                        if (ref.obj.has(pasteKey)) { toast(getString(R.string.toast_name_exists)); return }
+                        ref.obj.add(pasteKey, clip.deepCopy())
+                    }
+                    is NbtTreeAdapter.ParentRef.ListArr -> {
+                        // List 元素：粘贴即覆盖该元素（clip 可能是 {t,v} 包装，取内层值）
+                        val newVal = if (clip.isJsonObject && clip.asJsonObject.has("v"))
+                            clip.asJsonObject.get("v").deepCopy()
+                        else clip.deepCopy()
+                        if (ref.index in 0 until ref.arr.size()) ref.arr.set(ref.index, newVal)
+                    }
+                }
+            }
+            adapter.rebuild()
+            toast(getString(R.string.toast_pasted))
+        }
+
+        2 -> {  // 删除
+            if (isRoot) { toast(getString(R.string.toast_root_cannot_delete)); return }
+            val ref = adapter.getParentRef(pos) ?: run {
+                toast(getString(R.string.toast_operation_failed)); return
+            }
+            when (ref) {
+                is NbtTreeAdapter.ParentRef.Compound -> ref.obj.remove(ref.key)
+                is NbtTreeAdapter.ParentRef.ListArr -> {
+                    if (ref.index in 0 until ref.arr.size()) ref.arr.remove(ref.index)
+                }
+            }
+            adapter.rebuild()
+            toast(getString(R.string.toast_deleted))
+        }
+
+        3 -> {  // 重命名
+            if (isRoot) { toast(getString(R.string.toast_root_cannot_rename)); return }
+            val ref = adapter.getParentRef(pos)
+            if (ref is NbtTreeAdapter.ParentRef.ListArr) {
+                // List 元素由下标决定，没有独立名字
+                toast(getString(R.string.toast_list_element_no_name))
+                return
+            }
+            val compound = (ref as? NbtTreeAdapter.ParentRef.Compound)?.obj ?: run {
+                toast(getString(R.string.toast_operation_failed)); return
+            }
+            showTreeRenameDialog(nodeKey, nodeData, compound, adapter)
+        }
+
+        4 -> addChildToNode(nodeData)
+    }
+}
+
+/** 树形模式的重命名（完成后重建树） */
+private fun MainActivity.showTreeRenameDialog(
+    oldKey: String,
+    itemData: JsonObject?,
+    parent: JsonObject,
+    adapter: NbtTreeAdapter
+) {
+    val input = EditText(this).apply { setText(oldKey) }
+    AlertDialog.Builder(this).setTitle(getString(R.string.title_rename)).setView(input)
+        .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+            val nk = input.text.toString().trim()
+            if (nk.isEmpty() || parent.has(nk)) {
+                toast(getString(R.string.toast_Invalid_name)); return@setPositiveButton
+            }
+            parent.remove(oldKey)
+            parent.add(nk, itemData)
+            adapter.rebuild()
+            toast(getString(R.string.toast_renamed))
+        }.show()
 }
 
 // ============================================
@@ -157,6 +274,8 @@ private fun MainActivity.addChildToNode(nodeData: JsonObject?) {
         if (editorVM.isTreeMode.value) {
             data.getAsJsonArray("v").add(newVal)
             AppLogger.info("ListDebug", "addChildToNode(树形): 直接往 data.v 添加")
+            // 树形模式：新增元素后必须重建树，否则新元素不显示
+            nbtTreeAdapter?.rebuild()
         } else {
             val target = editorVM.findOriginalListData()
             if (target != null) {
@@ -206,8 +325,11 @@ private fun MainActivity.showNameInputDialog(parent: JsonObject, type: Int) {
             }
             parent.add(name, t)
             AppLogger.info("ListDebug", "新增后 parent.keys=${parent.keySet().joinToString(",") { it }}, 是否已添加=$name=${parent.has(name)}")
-            if (nbtAdapter?.data === parent) {
-                AppLogger.info("ListDebug", "nbtAdapter.data === parent, 走 refreshKeys")
+            if (editorVM.isTreeMode.value) {
+                // 树形模式：重建树，新增的字段才会出现
+                nbtTreeAdapter?.rebuild()
+                AppLogger.info("ListDebug", "树形模式：已 rebuild")
+            } else if (nbtAdapter?.data === parent) {
                 nbtAdapter?.refreshKeys()
             } else {
                 AppLogger.warn("ListDebug", "nbtAdapter.data !== parent，不刷新（parent 可能不是当前显示层）")
@@ -590,8 +712,13 @@ fun MainActivity.showDebugMenu() {
 private fun MainActivity.refreshAfterEdit() {
     AppLogger.info("ListDebug", "refreshAfterEdit 调用: isTreeMode=${editorVM.isTreeMode.value}")
     editorVM.syncListFakeMapToSource()
-    if (editorVM.isTreeMode.value) nbtTreeAdapter?.notifyDataSetChanged()
-    else nbtAdapter?.refreshKeys()
+    if (editorVM.isTreeMode.value) {
+        // 树形模式：结构可能变化（新增/删除/重命名），必须重建节点树，
+        // 仅 notifyDataSetChanged() 不会产生新节点，导致改动看不见。
+        nbtTreeAdapter?.rebuild()
+    } else {
+        nbtAdapter?.refreshKeys()
+    }
 }
 
 // ============================================

@@ -20,7 +20,7 @@ import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getPotionTranslation
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getTranslation
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.parseValue
 
-class NbtTreeAdapter(private val context: Context, rootData: JsonObject?) : BaseAdapter() {
+class NbtTreeAdapter(private val context: Context, private val rootData: JsonObject?) : BaseAdapter() {
     private var currentMode = MODE_RAW
 
     class Node(
@@ -60,6 +60,71 @@ class NbtTreeAdapter(private val context: Context, rootData: JsonObject?) : Base
             children.add(Node(k, v, parent.level + 1, parent))
         }
         visibleNodes.addAll(children)
+    }
+
+    /**
+     * 当前已展开的路径集合（用 key 链表示），用于 rebuild 后恢复展开状态。
+     * 例如 [["Inventory"], ["Inventory", "0"], ["Pos", "0"]]
+     */
+    private fun collectExpandedPaths(): List<List<String>> {
+        val paths = mutableListOf<List<String>>()
+        for (node in visibleNodes) {
+            if (!node.isExpanded) continue
+            if (node.type != 9 && node.type != 10) continue
+            val p = mutableListOf<String>()
+            var n: Node? = node
+            while (n != null && n.parent != null) {
+                p.add(n.key)
+                n = n.parent
+            }
+            p.reverse()
+            if (p.isNotEmpty()) paths.add(p)
+        }
+        return paths
+    }
+
+    /** 按路径查找可见节点（沿当前 visibleNodes 顺序定位） */
+    private fun findByPath(path: List<String>, startSearchIndex: Int): Int {
+        var searchFrom = startSearchIndex
+        var lastFound = -1
+        for (target in path) {
+            var found = false
+            for (i in searchFrom until visibleNodes.size) {
+                val n = visibleNodes[i]
+                // 只在同层级匹配（避免 key 重复时误命中深层）
+                if (n.key == target) {
+                    lastFound = i
+                    searchFrom = i + 1
+                    found = true
+                    break
+                }
+            }
+            if (!found) return lastFound
+        }
+        return lastFound
+    }
+
+    /**
+     * 重建整棵树，并尽量恢复之前的展开状态。
+     * 数据发生增删改（新增字段、删除节点、重命名、List 增删元素）后必须调用，
+     * 否则 UI 与数据会不一致。
+     */
+    fun rebuild() {
+        val expanded = collectExpandedPaths()
+        visibleNodes.clear()
+        rootNode.isExpanded = true
+        if (rootData != null) buildChildren(rootNode, rootData)
+
+        // 恢复展开（逐条路径，外层先展开）
+        for (path in expanded.sortedBy { it.size }) {
+            val pos = findByPath(path, 0)
+            if (pos < 0 || pos >= visibleNodes.size) continue
+            val node = visibleNodes[pos]
+            if ((node.type == 9 || node.type == 10) && !node.isExpanded) {
+                toggleExpand(pos)
+            }
+        }
+        notifyDataSetChanged()
     }
 
     fun toggleExpand(position: Int) {
@@ -305,32 +370,38 @@ class NbtTreeAdapter(private val context: Context, rootData: JsonObject?) : Base
         return path
     }
 
-    fun getParentContainer(position: Int): JsonObject? {
+    /**
+     * 树形模式的「操作父容器」引用。
+     * compound 父：按 key 操作；List 父：按下标操作。
+     * 之前只有 compound 一种，导致 List 元素的删除/重命名会落到错误对象上。
+     */
+    sealed class ParentRef {
+        /** 父是 compound：直接操作该对象的字段 */
+        data class Compound(val obj: JsonObject, val key: String) : ParentRef()
+        /** 父是 List：操作数组的下标 */
+        data class ListArr(val arr: JsonArray, val index: Int) : ParentRef()
+    }
+
+    /** 返回该节点的父容器引用（用于删除/重命名/复制粘贴） */
+    fun getParentRef(position: Int): ParentRef? {
         if (position < 0 || position >= visibleNodes.size) return null
-
         val node = visibleNodes[position]
+        val parent = node.parent ?: return null
+        val parentVal = parent.value as? JsonObject ?: return null
 
-        if (node.parent == null || node.parent!!.value == null) return null
-
-        val parentValue = node.parent!!.value
-        if (parentValue != null && parentValue.isJsonObject) {
-            val parentObj = parentValue.asJsonObject
-            if (parentObj.has("v") && parentObj.get("v").isJsonObject) {
-                return parentObj.getAsJsonObject("v")
+        return when (parent.type) {
+            10 -> {
+                val pObj = (parentVal.get("v") as? JsonObject) ?: return null
+                ParentRef.Compound(pObj, node.key)
             }
+            9 -> {
+                val arr = (parentVal.get("v") as? JsonArray) ?: return null
+                val idx = node.key.toIntOrNull() ?: return null
+                if (idx < 0 || idx >= arr.size()) return null
+                ParentRef.ListArr(arr, idx)
+            }
+            else -> null
         }
-        return null
-    }
-
-    fun getNodeKey(position: Int): String? {
-        if (position < 0 || position >= visibleNodes.size) return null
-        return visibleNodes[position].key
-    }
-
-    fun getNodeData(position: Int): JsonObject? {
-        if (position < 0 || position >= visibleNodes.size) return null
-        val node = visibleNodes[position]
-        return node.value as? JsonObject
     }
 
     /**
