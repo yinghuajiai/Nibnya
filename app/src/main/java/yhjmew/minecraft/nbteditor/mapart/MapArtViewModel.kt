@@ -41,6 +41,37 @@ class MapArtViewModel : ViewModel() {
     var worldVM: WorldViewModel? = null
 
     // ============================================
+    // 拼图生成并发设置（独立于文件操作多线程）
+    // ============================================
+    /** 是否启用拼图生成多线程；关闭则串行（更省内存，但更慢） */
+    var puzzleMultiThread = true
+
+    /** 并发线程数：0 = 自动 */
+    var puzzleThreadCount = 0
+
+    fun setPuzzleMultiThread(use: Boolean) { puzzleMultiThread = use }
+
+    fun setPuzzleThreadCount(n: Int) { puzzleThreadCount = if (n < 0) 0 else n }
+
+    /**
+     * 决定拼图生成使用的线程数。
+     * - 关闭多线程 -> 1（串行）
+     * - 用户指定 -> 用指定值
+     * - 自动 -> 按图片数量自适应（每张地图约 520KB，需控制内存峰值）
+     */
+    private fun resolvePuzzleThreads(totalMaps: Int): Int {
+        if (!puzzleMultiThread) return 1
+        if (puzzleThreadCount > 0) return puzzleThreadCount
+        val cores = Runtime.getRuntime().availableProcessors()
+        return when {
+            totalMaps <= 1 -> 1
+            totalMaps <= 4 -> min(2, cores)
+            totalMaps <= 16 -> min(3, cores)
+            else -> max(2, min(cores, 4))   // 大量地图时限制并发，避免 Bitmap 堆积
+        }
+    }
+
+    // ============================================
     // 状态
     // ============================================
     private val _isGenerating = MutableStateFlow(false)
@@ -301,8 +332,10 @@ class MapArtViewModel : ViewModel() {
                 _progressMessage.value = getString(R.string.msg_generating_maps, totalMaps)
 
                 val itemsMap = ConcurrentHashMap<Int, JsonObject>()
-                val cores = Runtime.getRuntime().availableProcessors()
-                val threadCount = max(2, min(cores, 4))  // 限制并发 2~4，避免 Bitmap 同时堆积
+                // 拼图生成并发设置（独立于文件拷贝开关）
+                // puzzleMultiThread=false 时串行（省内存）；puzzleThreadCount=0 表示自动
+                val threadCount = resolvePuzzleThreads(totalMaps)
+                AppLogger.info("MapArt", "拼图生成并发: ${if (threadCount <= 1) "串行" else "$threadCount 线程"}（共 $totalMaps 张）")
                 val executor = Executors.newFixedThreadPool(threadCount)
                 val latch = CountDownLatch(totalMaps)
                 val errorRef = AtomicReference<Throwable?>()

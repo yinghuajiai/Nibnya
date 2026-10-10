@@ -451,13 +451,41 @@ fun MainActivity.showAppInfoDialog() {
         }
     }
 
-    dialogView.findViewById<CheckBox?>(R.id.cb_dialog_multithread)?.let {
-        it.isChecked = prefs?.getBoolean("use_multithread", true) ?: true
-        it.setOnCheckedChangeListener { _, c ->
+    // ① 文件操作多线程
+    dialogView.findViewById<CheckBox?>(R.id.cb_dialog_multithread)?.let { cb ->
+        cb.isChecked = prefs?.getBoolean("use_multithread", true) ?: true
+        cb.setOnCheckedChangeListener { _, c ->
             worldVM.setUseMultiThread(c)
             prefs?.edit()?.putBoolean("use_multithread", c)?.apply()
+            // 关闭多线程时，并发数选择失效（置灰）
+            dialogView.findViewById<LinearLayout?>(R.id.layout_io_thread_count)?.alpha =
+                if (c) 1f else 0.4f
         }
     }
+    setupThreadCountSpinner(
+        dialogView, R.id.sp_io_thread_count, R.id.layout_io_thread_count,
+        prefKey = "io_thread_count",
+        enabled = prefs?.getBoolean("use_multithread", true) ?: true,
+        onChanged = { worldVM.setIoThreadCount(it) }
+    )
+
+    // ② 拼图生成多线程
+    dialogView.findViewById<CheckBox?>(R.id.cb_dialog_puzzle_multithread)?.let { cb ->
+        cb.isChecked = prefs?.getBoolean("puzzle_multithread", true) ?: true
+        cb.setOnCheckedChangeListener { _, c ->
+            mapVM.setPuzzleMultiThread(c)
+            prefs?.edit()?.putBoolean("puzzle_multithread", c)?.apply()
+            dialogView.findViewById<LinearLayout?>(R.id.layout_puzzle_thread_count)?.alpha =
+                if (c) 1f else 0.4f
+        }
+    }
+    setupThreadCountSpinner(
+        dialogView, R.id.sp_puzzle_thread_count, R.id.layout_puzzle_thread_count,
+        prefKey = "puzzle_thread_count",
+        enabled = prefs?.getBoolean("puzzle_multithread", true) ?: true,
+        onChanged = { mapVM.setPuzzleThreadCount(it) }
+    )
+
     dialogView.findViewById<CheckBox?>(R.id.cb_skip_shizuku)?.let {
         it.isChecked = prefs?.getBoolean("skip_shizuku", false) ?: false
         it.setOnCheckedChangeListener { _, c ->
@@ -564,4 +592,99 @@ private fun MainActivity.refreshAfterEdit() {
     editorVM.syncListFakeMapToSource()
     if (editorVM.isTreeMode.value) nbtTreeAdapter?.notifyDataSetChanged()
     else nbtAdapter?.refreshKeys()
+}
+
+// ============================================
+// 并发线程数选择器（自动 / 2 / 4 / 8 / 自定义…）
+// ============================================
+
+/**
+ * 绑定一个线程数 Spinner。
+ * @param onChanged 最终值回调：0 = 自动，>0 = 指定线程数
+ * @param enabled   父开关是否开启（关闭时置灰禁用）
+ */
+private fun MainActivity.setupThreadCountSpinner(
+    root: View,
+    spinnerId: Int,
+    containerId: Int,
+    prefKey: String,
+    enabled: Boolean,
+    onChanged: (Int) -> Unit
+) {
+    val spinner = root.findViewById<Spinner?>(spinnerId) ?: return
+    val container = root.findViewById<LinearLayout?>(containerId)
+
+    // 选项：自动 / 2 / 4 / 8 / 自定义…
+    val labels = listOf(
+        getString(R.string.thread_count_auto), "2", "4", "8",
+        getString(R.string.thread_count_custom)
+    )
+    val values = listOf(0, 2, 4, 8, -1)  // -1 代表「自定义…」
+
+    val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
+    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    spinner.adapter = adapter
+
+    // 读取已保存的值并选中对应项
+    val saved = prefs?.getInt(prefKey, 0) ?: 0
+    val presetIdx = values.indexOf(saved)
+    if (presetIdx >= 0) {
+        spinner.setSelection(presetIdx)
+    } else {
+        // 自定义值：显示为「自定义 (N)」
+        labelsMutable(adapter, labels, saved)
+        spinner.setSelection(labels.size - 1)
+    }
+
+    spinner.isEnabled = enabled
+    container?.alpha = if (enabled) 1f else 0.4f
+
+    spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+            val v = values[position]
+            if (v == -1) {
+                // 「自定义…」：弹出输入框
+                showCustomThreadDialog(prefKey, saved) { n ->
+                    prefs?.edit()?.putInt(prefKey, n)?.apply()
+                    onChanged(n)
+                    labelsMutable(adapter, labels, n)
+                    spinner.setSelection(labels.size - 1)
+                }
+            } else {
+                prefs?.edit()?.putInt(prefKey, v)?.apply()
+                onChanged(v)
+            }
+        }
+        override fun onNothingSelected(parent: AdapterView<*>?) {}
+    }
+}
+
+/** 把「自定义…」那一项的文字刷新为「自定义 (N)」 */
+private fun labelsMutable(adapter: ArrayAdapter<String>, labels: List<String>, n: Int) {
+    if (adapter.count == labels.size) {
+        adapter.remove(labels.last())
+        adapter.add("${labels.last().removeSuffix("…")} ($n)")
+        adapter.notifyDataSetChanged()
+    }
+}
+
+private fun MainActivity.showCustomThreadDialog(prefKey: String, current: Int, onOk: (Int) -> Unit) {
+    val input = EditText(this).apply {
+        inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        hint = getString(R.string.hint_thread_count_range)
+        setText(if (current > 0) current.toString() else "")
+    }
+    AlertDialog.Builder(this)
+        .setTitle(getString(R.string.title_custom_thread_count))
+        .setView(input)
+        .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+            val n = input.text.toString().trim().toIntOrNull()
+            if (n == null || n < 1 || n > 32) {
+                toast(getString(R.string.msg_thread_count_invalid))
+            } else {
+                onOk(n)
+            }
+        }
+        .setNegativeButton(getString(R.string.btn_cancel), null)
+        .show()
 }

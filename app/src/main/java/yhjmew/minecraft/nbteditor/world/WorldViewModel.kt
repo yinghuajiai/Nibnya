@@ -95,6 +95,58 @@ class WorldViewModel : ViewModel() {
         useMultiThread = use
     }
 
+    /**
+     * 并发线程数设置：0 = 自动（按文件规模自适应），>0 = 用户指定
+     */
+    var ioThreadCount = 0
+
+    fun setIoThreadCount(n: Int) {
+        ioThreadCount = if (n < 0) 0 else n
+    }
+
+    /**
+     * 自动模式下的自适应线程数：
+     * 文件多且大 -> 多线程；文件少或小 -> 少线程（避免线程切换开销）。
+     */
+    private fun autoThreadCount(totalBytes: Long, fileCount: Int): Int {
+        val cores = Runtime.getRuntime().availableProcessors()
+        return when {
+            // 太小：不值得并行
+            totalBytes < 256 * 1024 || fileCount < 4 -> 1
+            // 小规模：轻度并行
+            totalBytes < 4L * 1024 * 1024 -> min(2, cores)
+            // 中等：核心数
+            totalBytes < 64L * 1024 * 1024 -> min(cores, 4)
+            // 大存档：I/O 密集，线程数可略高于核心数
+            else -> min(cores + 1, 8)
+        }
+    }
+
+    /**
+     * 解析最终使用的线程数。
+     * @return 1 表示走单线程
+     */
+    private fun resolveThreadCount(totalBytes: Long, fileCount: Int): Int {
+        if (!useMultiThread) return 1
+        if (ioThreadCount > 0) return ioThreadCount
+        return autoThreadCount(totalBytes, fileCount)
+    }
+
+    /** 递归统计目录总字节数与文件数（用于智能判断是否值得并行） */
+    private fun measureTree(dir: File): Pair<Long, Int> {
+        var bytes = 0L
+        var count = 0
+        try {
+            dir.walkTopDown().forEach { f ->
+                if (f.isFile) {
+                    bytes += f.length()
+                    count++
+                }
+            }
+        } catch (_: Exception) {}
+        return Pair(bytes, count)
+    }
+
     private val _worldList = MutableStateFlow<List<WorldItem>>(emptyList())
     val worldList: StateFlow<List<WorldItem>> = _worldList.asStateFlow()
 
@@ -1204,13 +1256,55 @@ class WorldViewModel : ViewModel() {
     // ============================================
     // 文件操作
     // ============================================
+    /** 拷贝缓冲区：64KB（原为 1KB，大文件时系统调用次数减少 64 倍） */
+    private val copyBufferSize = 64 * 1024
+
+    /** 零拷贝的阈值：大文件用 FileChannel.transferTo，小文件走普通流更划算 */
+    private val zeroCopyThreshold = 512L * 1024
+
     private fun copyFile(src: File, dst: File) {
+        // 大文件走零拷贝（免用户态↔内核态数据搬运），小文件用流即可
+        if (src.length() >= zeroCopyThreshold) {
+            try {
+                copyFileZeroCopy(src, dst)
+                return
+            } catch (_: Exception) {
+                // 零拷贝失败（某些 SAF/虚拟文件系统不支持），回退到流式
+            }
+        }
+        copyFileStream(src, dst)
+    }
+
+    /**
+     * FileChannel.transferTo 零拷贝。
+     * 在 Linux/Android 上可直接由内核在 fd 间搬运数据，避免 64KB 缓冲区的往返。
+     */
+    private fun copyFileZeroCopy(src: File, dst: File) {
+        FileInputStream(src).channel.use { inCh ->
+            FileOutputStream(dst).channel.use { outCh ->
+                var pos = 0L
+                val size = inCh.size()
+                while (pos < size) {
+                    val moved = inCh.transferTo(pos, size - pos, outCh)
+                    if (moved <= 0) break
+                    pos += moved
+                }
+            }
+        }
+    }
+
+    private fun copyFileStream(src: File, dst: File) {
         val `in` = FileInputStream(src)
         val out = FileOutputStream(dst)
-        val buf = ByteArray(1024)
-        var len: Int
-        while ((`in`.read(buf).also { len = it }) > 0) out.write(buf, 0, len)
-        `in`.close(); out.close()
+        try {
+            val buf = ByteArray(copyBufferSize)
+            var len: Int
+            while ((`in`.read(buf).also { len = it }) > 0) out.write(buf, 0, len)
+            out.flush()
+        } finally {
+            try { `in`.close() } catch (_: Exception) {}
+            try { out.close() } catch (_: Exception) {}
+        }
     }
 
     private fun copyFileNative(src: File, dst: File): Boolean {
@@ -1262,62 +1356,82 @@ class WorldViewModel : ViewModel() {
         f.delete()
     }
 
-    // 删掉旧的简化版 smartCopy，替换为：
+    /**
+     * 统一拷贝入口：
+     * - 目录：按「总大小 + 文件数」智能决定是否并行、用几个线程
+     * - 文件：直接拷
+     */
     private fun smartCopy(src: File, dst: File) {
-        if (useMultiThread && src.isDirectory) {
-            copyDirectoryParallel(src, dst)
-        } else {
-            copyDirectory(src, dst)
+        if (!src.isDirectory) {
+            copyFile(src, dst)
+            return
         }
-    }
-
-    private fun copyDirectoryParallel(source: File, target: File) {
-        if (!target.exists()) target.mkdirs()
-
-        val files = source.listFiles() ?: return
-        val totalFiles = files.size
-        if (totalFiles == 0) return
-
-        // 小文件用单线程
-        if (totalFiles < 10) {
-            files.forEach { copyDirectory(File(source, it.name), File(target, it.name)) }
+        if (!useMultiThread) {
+            copyDirectory(src, dst)
             return
         }
 
-        val cores = Runtime.getRuntime().availableProcessors()
-        val threadCount = min(cores + 1, 8)
-        val executor = Executors.newFixedThreadPool(threadCount)
+        // 统计规模，决定线程数（自动降级：小规模走单线程）
+        val (totalBytes, fileCount) = measureTree(src)
+        val threads = resolveThreadCount(totalBytes, fileCount)
+        if (threads <= 1) {
+            copyDirectory(src, dst)
+        } else {
+            copyDirectoryParallel(src, dst, threads)
+        }
+    }
+
+    /** 递归收集待拷贝的 (源文件, 目标文件) 与需要创建的目录 */
+    private fun collectCopyPlan(
+        source: File, target: File,
+        files: MutableList<Pair<File, File>>,
+        dirs: MutableList<File>
+    ) {
+        if (source.isDirectory) {
+            dirs.add(target)
+            source.listFiles()?.forEach { child ->
+                if (shouldSkipFile(child.name)) return@forEach
+                collectCopyPlan(child, File(target, child.name), files, dirs)
+            }
+        } else if (source.isFile) {
+            files.add(Pair(source, target))
+        }
+    }
+
+    /**
+     * 多线程拷贝：先收集完整清单（单线程、极快），再并行拷贝文件。
+     * 这样只创建一个线程池，不会像递归实现那样为每个子目录新建线程池。
+     */
+    private fun copyDirectoryParallel(source: File, target: File, threads: Int) {
+        AppLogger.info("Copy", "多线程拷贝: $threads 线程, $source -> $target")
+        val files = mutableListOf<Pair<File, File>>()
+        val dirs = mutableListOf<File>()
+        collectCopyPlan(source, target, files, dirs)
+
+        // 建目录（必须先于文件）
+        dirs.forEach { if (!it.exists()) it.mkdirs() }
+        if (files.isEmpty()) return
+
+        val totalFiles = files.size
+        val totalSize = files.sumOf { it.first.length() }
+        val executor = Executors.newFixedThreadPool(threads)
         val latch = CountDownLatch(totalFiles)
         val errorRef = AtomicReference<Throwable?>()
+        val completed = java.util.concurrent.atomic.AtomicInteger(0)
+        val copiedSize = java.util.concurrent.atomic.AtomicLong(0L)
 
-        var completed = 0
-        val totalSize = files.sumOf { it.length() }
-        var copiedSize = 0L
-
-        files.forEach { file ->
-            if (shouldSkipFile(file.name)) {
-                latch.countDown()
-                return@forEach
-            }
+        files.forEach { (srcFile, dstFile) ->
             executor.submit {
                 try {
                     if (errorRef.get() != null) return@submit
+                    dstFile.parentFile?.let { if (!it.exists()) it.mkdirs() }
+                    copyFile(srcFile, dstFile)
 
-                    val srcFile = File(source, file.name)
-                    val dstFile = File(target, file.name)
-
-                    if (srcFile.isDirectory) {
-                        copyDirectoryParallel(srcFile, dstFile)
-                    } else {
-                        copyFile(srcFile, dstFile)
-                    }
-
-                    synchronized(this) {
-                        completed++
-                        copiedSize += file.length()
-                        val progress = (copiedSize * 100 / maxOf(totalSize, 1)).toInt()
-                        _progressMessage.value = getString(R.string.copying_progress, completed, totalFiles, progress)
-                    }
+                    val done = completed.incrementAndGet()
+                    val bytes = copiedSize.addAndGet(srcFile.length())
+                    val progress = (bytes * 100 / maxOf(totalSize, 1)).toInt()
+                    _progressMessage.value =
+                        getString(R.string.copying_progress, done, totalFiles, progress)
                 } catch (e: Throwable) {
                     errorRef.set(e)
                 } finally {

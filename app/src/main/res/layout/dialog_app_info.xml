@@ -159,16 +159,83 @@
             android:paddingTop="0dp"
             android:visibility="gone">
 
-            <!-- 1. 多线程 -->
+            <!-- 1. 文件操作多线程 -->
             <CheckBox
                 android:id="@+id/cb_dialog_multithread"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/box_enable_multi_thread_acceleration"
-                android:textSize="14sp"
-                android:layout_marginBottom="12dp" />
+                android:textSize="14sp" />
 
-            <!-- 2. Shizuku -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_io_multithread"
+                android:textSize="12sp"
+                android:textColor="#888888"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:id="@+id/layout_io_thread_count"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_thread_count"
+                    android:textSize="13sp" />
+
+                <Spinner
+                    android:id="@+id/sp_io_thread_count"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <!-- 2. 拼图生成多线程 -->
+            <CheckBox
+                android:id="@+id/cb_dialog_puzzle_multithread"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/box_puzzle_multithread"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_puzzle_multithread"
+                android:textSize="12sp"
+                android:textColor="#888888"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:id="@+id/layout_puzzle_thread_count"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_thread_count"
+                    android:textSize="13sp" />
+
+                <Spinner
+                    android:id="@+id/sp_puzzle_thread_count"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <!-- 3. Shizuku -->
             <CheckBox
     android:id="@+id/cb_skip_shizuku"
     android:layout_width="match_parent"
@@ -177,7 +244,7 @@
     android:textSize="14sp"
     android:layout_marginBottom="12dp" />
 
-            <!-- 3. 日夜模式 -->
+            <!-- 4. 日夜模式 -->
             <Button
                 android:id="@+id/btn_dialog_theme"
                 style="?android:attr/borderlessButtonStyle"
