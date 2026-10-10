@@ -168,6 +168,56 @@ class WorldViewModel : ViewModel() {
         _currentPath.value = newPath
     }
 
+    /**
+     * issue #6：启动时恢复上次使用的路径（由 MainActivity 从 prefs 读出后注入）
+     */
+    fun restorePath(savedPath: String?) {
+        if (!savedPath.isNullOrBlank()) {
+            _currentPath.value = savedPath
+            AppLogger.info("Path", "恢复上次路径: $savedPath")
+        }
+    }
+
+    // ============================================
+    // 路径可写性判断（issue #6）
+    // ============================================
+
+    /**
+     * 该路径是否走 Android/data 受限目录（Android 11+ 需要 Shizuku 或 MANAGE_EXTERNAL_STORAGE）
+     */
+    fun isRestrictedPath(path: String = _currentPath.value): Boolean {
+        return path.contains("Android/data") || path.contains("Android/obb")
+    }
+
+    /**
+     * 实际探测目标目录是否可直接写入（不靠猜测）。
+     * 通过创建并删除一个临时文件来判断，比 canWrite() 可靠。
+     */
+    fun canWriteDirectly(targetDir: File): Boolean {
+        return try {
+            if (!targetDir.exists()) {
+                // 不存在则尝试创建
+                if (!targetDir.mkdirs()) return false
+            }
+            if (!targetDir.isDirectory) return false
+            val probe = File(targetDir, ".nbt_write_test_${System.currentTimeMillis()}")
+            val ok = probe.createNewFile()
+            if (ok) probe.delete()
+            ok
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 判断保存目标是否需要 Shizuku（受限路径 且 无法直接写）
+     */
+    fun needsShizukuFor(targetPath: String): Boolean {
+        val dir = File(targetPath).let { if (it.isDirectory) it else it.parentFile }
+        if (dir == null) return false
+        return !canWriteDirectly(dir)
+    }
+
     fun setSafPath(uri: android.net.Uri) {
         safTreeUri = uri
         _currentPath.value = "$uri/"
@@ -532,7 +582,8 @@ class WorldViewModel : ViewModel() {
                 if (srcDirFile.exists() && srcDirFile.canRead() && srcDirFile.listFiles() != null) {
                     useNative = true
                 } else if (!canUseShizuku) {
-                    throw Exception(getString(R.string.toast_err_permission_denied_shizuku))
+                    // issue #6：给出可操作的提示，而不是笼统的「需要 Shizuku」
+                    throw Exception(getString(R.string.msg_cannot_read_need_permission_or_path, srcPath))
                 }
 
                 // 清理锁
@@ -741,20 +792,37 @@ class WorldViewModel : ViewModel() {
                     db.close()
 
                     val mcDbPath = "${resolveWorldPath(folder)}db/"
-                    if (checkShizukuAvailable()) {
-                        // Shizuku 模式：通过桥接目录
-                        val bridgeSave = MainActivity.BRIDGE_ROOT + "save_db_$uniqueId"
-                        runShizukuCmd(arrayOf("sh", "-c", "mkdir -p \"${MainActivity.BRIDGE_ROOT}\"")).waitFor()
-                        createNoMedia()
-                        runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
-                        smartCopy(newWorkDir, File(bridgeSave))
-                        runShizukuCmd(arrayOf("sh", "-c", "cp -rf \"$bridgeSave/.\" \"$mcDbPath\"")).waitFor()
-                        runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
-                    } else {
-                        // 直接文件访问
-                        val mcDbDir = File(mcDbPath)
-                        if (!mcDbDir.exists()) mcDbDir.mkdirs()
-                        smartCopy(newWorkDir, mcDbDir)
+                    val mcDbDir = File(mcDbPath)
+
+                    // issue #6：按「可写性」决定写入方式，而不是单纯看有没有 Shizuku
+                    // 1) 先尝试直接文件写入（Download/games 等公共目录可写）
+                    var savedDirectly = false
+                    if (canWriteDirectly(mcDbDir)) {
+                        try {
+                            smartCopy(newWorkDir, mcDbDir)
+                            savedDirectly = true
+                            AppLogger.info("Save", "玩家数据直接写入成功: $mcDbPath")
+                        } catch (e: Exception) {
+                            AppLogger.warn("Save", "直接写入失败，尝试 Shizuku: ${e.message}")
+                        }
+                    }
+
+                    // 2) 直接写失败，且 Shizuku 可用 -> 走桥接
+                    if (!savedDirectly) {
+                        if (checkShizukuAvailable()) {
+                            val bridgeSave = MainActivity.BRIDGE_ROOT + "save_db_$uniqueId"
+                            runShizukuCmd(arrayOf("sh", "-c", "mkdir -p \"${MainActivity.BRIDGE_ROOT}\"")).waitFor()
+                            createNoMedia()
+                            runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
+                            smartCopy(newWorkDir, File(bridgeSave))
+                            val cp = runShizukuCmd(arrayOf("sh", "-c", "cp -rf \"$bridgeSave/.\" \"$mcDbPath\""))
+                            cp.waitFor()
+                            runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
+                            AppLogger.info("Save", "玩家数据经 Shizuku 写入: $mcDbPath")
+                        } else {
+                            // 3) 都不行 -> 明确报错，提示用户处理权限/换路径
+                            throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
+                        }
                     }
 
                     deleteRecursive(oldWorkDir)
@@ -769,18 +837,28 @@ class WorldViewModel : ViewModel() {
 
                     val workingFile = File(currentWorkingFileOrDir!!)
                     val targetPath = "${resolveWorldPath(folder)}level.dat"
-                    var success = copyFileNative(workingFile, File(targetPath))
+                    val targetFile = File(targetPath)
+
+                    // issue #6：先试直接写，失败再用 Shizuku，都不行给明确提示
+                    var success = copyFileNative(workingFile, targetFile)
+                    if (success) {
+                        AppLogger.info("Save", "level.dat 直接写入成功: $targetPath")
+                    }
 
                     if (!success && checkShizukuAvailable()) {
                         // Shizuku 降级
                         val bridgeFile = MainActivity.BRIDGE_ROOT + "level.dat"
                         File(MainActivity.BRIDGE_ROOT).mkdirs()
                         copyFile(workingFile, File(bridgeFile))
-                        runShizukuCmd(arrayOf("sh", "-c", "cp \"$bridgeFile\" \"$targetPath\"")).waitFor()
+                        val cp = runShizukuCmd(arrayOf("sh", "-c", "cp \"$bridgeFile\" \"$targetPath\""))
+                        cp.waitFor()
                         success = true
+                        AppLogger.info("Save", "level.dat 经 Shizuku 写入: $targetPath")
                     }
 
-                    if (!success) throw Exception(getString(R.string.msg_write_to_game_dir_failed))
+                    if (!success) {
+                        throw Exception(getString(R.string.msg_save_need_permission_or_path, targetPath))
+                    }
                     _toastMessage.value = getString(R.string.toast_level_dat_saved)
                 }
                 _isLoading.value = false

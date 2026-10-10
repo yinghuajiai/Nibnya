@@ -11,6 +11,7 @@
     <!-- ============================================ -->
     <string name="btn_confirm">确定</string>
     <string name="btn_cancel">取消</string>
+    <string name="btn_later">稍后</string>
     <string name="btn_close">关闭</string>
     <string name="btn_create">创建</string>
     <string name="btn_delete">删除</string>
@@ -148,6 +149,10 @@
     <string name="msg_the_source_directory_appears_to_be_empty">源目录似乎是空的 (或 Shizuku 没权限读取): \n</string>
     <string name="msg_failed_to_create_staging_directory">中转目录创建失败 (Unknown Error): </string>
     <string name="msg_write_to_game_dir_failed">写入游戏目录失败（权限？）</string>
+    <string name="msg_save_need_permission_or_path">无法写入：\n%1$s\n\n此路径需要 Shizuku，或在系统设置里授予「所有文件访问权限」，或切换到可写路径（例如 Download）。</string>
+    <string name="msg_save_direct_success">已保存（直接文件访问）</string>
+    <string name="msg_save_via_shizuku">已保存（经 Shizuku）</string>
+    <string name="msg_cannot_read_need_permission_or_path">无法读取：\n%1$s\n\n此路径需要 Shizuku，或在系统设置里授予「所有文件访问权限」，或切换到可读路径。</string>
     <string name="msg_copy_process_interrupted">复制过程中断</string>
     <string name="msg_the_length_must_be_an_even_number">长度必须是偶数</string>
     <string name="msg_hex_format_error">Hex 格式错误，请检查输入 (必须是偶数长度，0-9, A-F)</string>
