@@ -11,6 +11,7 @@
     <!-- ============================================ -->
     <string name="btn_confirm">Sure</string>
     <string name="btn_cancel">Cancel</string>
+    <string name="btn_later">Later</string>
     <string name="btn_close">Close</string>
     <string name="btn_create">Create</string>
     <string name="btn_delete">delete</string>
@@ -150,6 +151,10 @@ Would you like to create a new empty data set?</string>
     <string name="msg_the_source_directory_appears_to_be_empty">The source directory appears to be empty (or Shizuku does not have permission to read it):</string>
     <string name="msg_failed_to_create_staging_directory">Failed to create staging directory (Unknown Error):</string>
     <string name="msg_write_to_game_dir_failed">Failed to write to game directory (permissions?)</string>
+    <string name="msg_save_need_permission_or_path">Cannot write to:\n%1$s\n\nThis path requires Shizuku, or grant "All files access" in system settings, or switch to a writable path (e.g. Download).</string>
+    <string name="msg_save_direct_success">Saved (direct file access)</string>
+    <string name="msg_save_via_shizuku">Saved (via Shizuku)</string>
+    <string name="msg_cannot_read_need_permission_or_path">Cannot read:\n%1$s\n\nThis path requires Shizuku, or grant "All files access" in system settings, or switch to a readable path.</string>
     <string name="msg_copy_process_interrupted">Copy process interrupted</string>
     <string name="msg_the_length_must_be_an_even_number">The length must be an even number</string>
     <string name="msg_hex_format_error">Hex format error, please check the input (must be even length, 0-9, A-F)</string>

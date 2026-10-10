@@ -104,9 +104,18 @@ class MainActivity : ComponentActivity() {
             )
             worldVM.setSafPath(uri)
             prefs?.edit()?.putString("saf_tree_uri", uri.toString())?.apply()
+            prefs?.edit()?.putString("last_path", "$uri/")?.apply()
             toast(getString(R.string.msg_saf_selected))
             showWorldSelector()
         }
+    }
+
+    /**
+     * issue #6：统一切换路径 + 持久化，避免重启后回退到 Android/data（需 Shizuku）
+     */
+    private fun applyPath(newPath: String) {
+        worldVM.switchPath(newPath)
+        prefs?.edit()?.putString("last_path", newPath)?.apply()
     }
 
     internal val puzzleImageLauncher = registerForActivityResult(
@@ -176,6 +185,17 @@ class MainActivity : ComponentActivity() {
         }
         worldVM.setUseShizuku(!skipShizuku)
 
+        // issue #6：恢复上次使用的路径（避免重启后回退到需 Shizuku 的 Android/data）
+        prefs!!.getString("last_path", null)?.let { saved ->
+            worldVM.restorePath(saved)
+            // 若是 SAF 路径，同步恢复 tree uri 状态
+            if (saved.startsWith("content://")) {
+                try {
+                    worldVM.safTreeUri = saved.trimEnd('/').toUri()
+                } catch (_: Exception) {}
+            }
+        }
+
 //        prefs!!.getString("saf_tree_uri", null)?.let { uriStr ->
 //            try {
 //                val uri = uriStr.toUri()
@@ -218,8 +238,9 @@ class MainActivity : ComponentActivity() {
                                 toast(getString(R.string.toast_open_settings_failed))
                             }
                         }
-                        .setNegativeButton(getString(R.string.btn_cancel), null)
-                        .setCancelable(false)
+                        // issue #6：不再阻断，用户可稍后处理（自定义路径可能根本不需要此权限）
+                        .setNegativeButton(getString(R.string.btn_later), null)
+                        .setCancelable(true)
                         .show()
                 }
             }
@@ -590,22 +611,23 @@ class MainActivity : ComponentActivity() {
     // 世界选择 / 路径（轻量包装）
     // ============================================
     private fun showWorldSelector() {
-        // 检查是否需要 Shizuku 但不可用
-        if (!prefs!!.getBoolean("skip_shizuku", false) &&
-            (worldVM.currentPath.value == PATH_STANDARD || worldVM.currentPath.value == PATH_LEGACY)) {
+        // issue #6：只有受限路径（Android/data 等）才需要 Shizuku；
+        // 公共目录（Download、games/...）用 File API 即可，不打扰用户。
+        val path = worldVM.currentPath.value
+        val needsShizuku = worldVM.isRestrictedPath(path)
+        if (!prefs!!.getBoolean("skip_shizuku", false) && needsShizuku) {
             when (val status = worldVM.checkShizukuStatus(applicationContext)) {
                 is WorldViewModel.ShizukuStatus.NotInstalled -> {
                     showShizukuNotInstalledDialog()
                     return
                 }
                 is WorldViewModel.ShizukuStatus.NotRunning -> {
+                    // 非阻断：提示后可继续（可能靠 MANAGE_EXTERNAL_STORAGE 直接访问）
                     toast(getString(R.string.toast_shizuku_not_running))
-                    return
                 }
                 is WorldViewModel.ShizukuStatus.PermissionDenied -> {
                     worldVM.requestShizukuPermission()
                     toast(getString(R.string.toast_shizuku_permission_failed))
-                    return
                 }
                 is WorldViewModel.ShizukuStatus.Available -> {
                     // 继续
@@ -641,7 +663,8 @@ class MainActivity : ComponentActivity() {
                 pendingWorldSelector = true
                 worldVM.scanWorlds(this)
             }
-            .setCancelable(false)
+            // issue #6：非阻断，用户可稍后再处理
+            .setCancelable(true)
             .show()
     }
 
@@ -653,13 +676,13 @@ class MainActivity : ComponentActivity() {
                     0 -> {
                     worldVM.safTreeUri = null
                     prefs?.edit()?.remove("saf_tree_uri")?.apply()
-                    worldVM.switchPath(PATH_STANDARD)
+                    applyPath(PATH_STANDARD)
                     showWorldSelector()
                 }
                     1 -> {
                     worldVM.safTreeUri = null
                     prefs?.edit()?.remove("saf_tree_uri")?.apply()
-                    worldVM.switchPath(PATH_LEGACY)
+                    applyPath(PATH_LEGACY)
                     showWorldSelector()
                 }
                     2 -> showCustomPathDialog()
@@ -676,7 +699,7 @@ class MainActivity : ComponentActivity() {
                 if (p.isNotEmpty()) {
                     worldVM.safTreeUri = null
                     prefs?.edit()?.remove("saf_tree_uri")?.apply()
-                    worldVM.switchPath(if (p.endsWith("/")) p else "$p/")
+                    applyPath(if (p.endsWith("/")) p else "$p/")
                     showWorldSelector()
                 }
             }.show()
