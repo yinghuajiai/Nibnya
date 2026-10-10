@@ -530,15 +530,8 @@ class MainActivity : ComponentActivity() {
         editorVM.lastTreeClickPosition = pos
         if (editorVM.isTreeMode.value) {
             val node = nbtTreeAdapter!!.getNode(pos) ?: return
-            var key = node.key
-            val itemData: JsonObject
-            if (node.parent == null) {
-                key = "ROOT"
-                itemData = JsonObject().apply { addProperty("t", 10); add("v", editorVM.nbtData.value) }
-            } else if (node.value != null && node.value!!.isJsonObject) {
-                itemData = node.value!!.asJsonObject
-            } else return
-            showLongPressMenu(key, itemData)
+            val value = node.value as? JsonObject ?: return
+            showLongPressMenu(node.key, value)
         } else {
             val key = nbtAdapter!!.getKey(pos)
             val raw = nbtAdapter!!.data!!.get(key)

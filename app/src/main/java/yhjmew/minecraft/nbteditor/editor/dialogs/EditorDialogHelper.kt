@@ -123,11 +123,13 @@ private fun MainActivity.handleListLongPress(w: Int, key: String?, itemData: Jso
 private fun MainActivity.handleTreeLongPress(w: Int, fallbackKey: String, fallbackData: JsonObject) {
     val adapter = nbtTreeAdapter ?: return
     val pos = editorVM.lastTreeClickPosition
-    // 防止 rebuild 后位置越界（getNode 无边界检查，会抛异常）
+    // 防止 rebuild 后位置越界（getNode 有边界检查，越界返回 null）
     val node = if (pos in 0 until adapter.count) adapter.getNode(pos) else null
     val nodeData = node?.value as? JsonObject ?: fallbackData
     val nodeKey = node?.key ?: fallbackKey
-    val isRoot = node?.parent == null
+    // 注意：根级字段的 parent 是虚拟 ROOT（不是 null），它们是普通字段，
+    // 可以正常删除/重命名；真正的虚拟 ROOT 节点不会出现在可见列表里。
+    val isRoot = node == null
 
     when (w) {
         0 -> {  // 复制
