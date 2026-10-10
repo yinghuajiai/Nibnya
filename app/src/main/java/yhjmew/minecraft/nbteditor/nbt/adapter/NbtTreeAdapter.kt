@@ -483,6 +483,14 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
         if (position < 0 || position >= visibleNodes.size) return null
         val node = visibleNodes[position]
         val parent = node.parent ?: return null
+
+        // 父是虚拟 ROOT（哨兵节点，value == null）：
+        // 根级字段直接挂在根数据对象上，key 就是字段名。
+        if (parent === rootNode) {
+            val root = rootData ?: return null
+            return ParentRef.Compound(root, node.key)
+        }
+
         val parentVal = parent.value as? JsonObject ?: return null
 
         return when (parent.type) {
