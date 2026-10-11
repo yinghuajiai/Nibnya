@@ -224,6 +224,11 @@ Would you like to create a new empty data set?</string>
     <string name="toast_operation_failed">Operation failed</string>
     <string name="toast_renamed">renamed</string>
     <string name="toast_copied">Copied to clipboard</string>
+    <string name="title_copy_as">Copy as…</string>
+    <string name="clip_format_json">JSON (for re-import)</string>
+    <string name="clip_format_snbt">SNBT (in-game format)</string>
+    <string name="clip_format_text">Plain text (readable)</string>
+    <string name="toast_copied_format">Copied (%1$s) — in-app &amp; system clipboard</string>
     <string name="toast_copy_success">Copied successfully</string>
     <string name="toast_copy_failed">Copy failed:</string>
     <string name="toast_data_covered">Data covered!</string>

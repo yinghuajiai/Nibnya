@@ -15,6 +15,7 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import androidx.core.view.isVisible
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.io.File
 import java.util.Locale
@@ -291,29 +292,27 @@ private fun MainActivity.copyPlayerJson(key: String) {
         try {
             val db = PlayerDbManager(worldVM.currentWorkingDbPath!!)
             val data = db.readSpecificKey(key); db.close()
-            val json = BedrockParser.parseBytes(data).toString()
-            runOnUiThread {
-                (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                    .setPrimaryClip(ClipData.newPlainText("PLAYER_DATA", json))
-                toast(getString(R.string.toast_copied))
-            }
+            val obj = BedrockParser.parseBytes(data) ?: JsonObject()
+            runOnUiThread { copyNbtToClipboard(obj) }
         } catch (e: Exception) { runOnUiThread { toast(getString(R.string.msg_copy_failed, e)) } }
     }.start()
 }
 
 private fun MainActivity.pastePlayerJson(targetKey: String, onSuccess: Runnable?) {
-    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    if (!cm.hasPrimaryClip()) { toast(getString(R.string.toast_clipboard_empty)); return }
-    val clip = cm.primaryClip ?: return
+    val clipEl = getPasteSource()
+    if (clipEl == null) { toast(getString(R.string.toast_clipboard_empty)); return }
 
     AlertDialog.Builder(this)
         .setTitle(getString(R.string.title_overwrite_warning))
         .setMessage(getString(R.string.msg_full_overwrite_confirm, targetKey))
         .setPositiveButton(getString(R.string.btn_cover)) { _, _ ->
-            val jsonStr = cm.primaryClip!!.getItemAt(0).text.toString()
             Thread {
                 try {
-                    val jo = JsonParser.parseString(jsonStr).asJsonObject
+                    // 兼容两种来源：裸 compound，或 {t,v} 包装
+                    val jo = if (clipEl.isJsonObject) {
+                        val o = clipEl.asJsonObject
+                        if (o.has("t") && o.has("v") && o.get("v").isJsonObject) o.getAsJsonObject("v") else o
+                    } else throw IllegalArgumentException(getString(R.string.err_json_parse))
                     val bytes = BedrockParser.writeToBytes(jo)
                     val db = PlayerDbManager(worldVM.currentWorkingDbPath!!)
                     db.writeSpecificKey(targetKey, bytes); db.close()

@@ -30,6 +30,58 @@ import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
+import yhjmew.minecraft.nbteditor.util.NbtClipboard
+
+// ============================================
+// 剪贴板（复制 / 粘贴）
+// ============================================
+
+/**
+ * 复制 NBT 到剪贴板：
+ * - 应用内保留**结构化**副本并存盘（进程被杀也不丢，粘贴时可精确还原类型）
+ * - 同时按所选格式写入**系统剪贴板**，可粘到微信/记事本等其他应用
+ *
+ * 之前只写应用内存却提示「已复制到剪贴板」，用户切到别处粘贴会发现是空的。
+ */
+internal fun MainActivity.copyNbtToClipboard(element: JsonElement) {
+    val labels = arrayOf(
+        getString(R.string.clip_format_json),
+        getString(R.string.clip_format_snbt),
+        getString(R.string.clip_format_text)
+    )
+    AlertDialog.Builder(this)
+        .setTitle(getString(R.string.title_copy_as))
+        .setItems(labels) { _, w ->
+            val fmt = when (w) {
+                NbtClipboard.FORMAT_SNBT -> NbtClipboard.FORMAT_SNBT
+                NbtClipboard.FORMAT_TEXT -> NbtClipboard.FORMAT_TEXT
+                else -> NbtClipboard.FORMAT_JSON
+            }
+            // 1) 应用内（结构化 + 落盘）
+            NbtClipboard.set(this, element)
+            // 2) 系统剪贴板（按格式转成文本）
+            NbtClipboard.writeToSystemClipboard(this, element, fmt)
+            toast(getString(R.string.toast_copied_format, labels[w]))
+        }
+        .setNegativeButton(getString(R.string.btn_cancel), null)
+        .show()
+}
+
+/**
+ * 取粘贴来源：
+ * 1. 优先用应用内剪贴板（保留类型信息，最准确）
+ * 2. 应用内为空时，尝试从系统剪贴板读取（自动识别 JSON / SNBT），
+ *    这样从别的来源复制的内容也能直接粘进来
+ */
+internal fun MainActivity.getPasteSource(): JsonElement? {
+    NbtClipboard.get(this)?.let { return it }
+    val fromSystem = NbtClipboard.readFromSystemClipboard(this)
+    if (fromSystem != null) {
+        NbtClipboard.set(this, fromSystem)
+        return fromSystem
+    }
+    return null
+}
 
 // ============================================
 // 根菜单
@@ -41,34 +93,36 @@ fun MainActivity.showRootMenu() {
         when (w) {
             0 -> showAddChildDialog(current)
             1 -> {
-                if (MainActivity.clipboard == null) { toast(getString(R.string.toast_clipboard_empty)); return@setItems }
+                val clip = getPasteSource()
+                if (clip == null) { toast(getString(R.string.toast_clipboard_empty)); return@setItems }
                 val input = EditText(this).apply { hint = getString(R.string.hint_new_tag_name) }
                 AlertDialog.Builder(this).setTitle(getString(R.string.title_paste_as)).setView(input)
                     .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                         val n = input.text.toString()
                         if (n.isNotEmpty() && !current.has(n)) {
-                            current.add(n, MainActivity.clipboard!!.deepCopy())
+                            current.add(n, clip.deepCopy())
                             refreshAfterEdit(); toast(getString(R.string.toast_pasted))
                         } else toast(getString(R.string.toast_name_empty_or_exists))
                     }.show()
             }
             2 -> {
-                (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                    .setPrimaryClip(ClipData.newPlainText("NBT", current.toString()))
-                toast(getString(R.string.toast_copy_success))
+                copyNbtToClipboard(current)
             }
             3 -> {
-                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                if (!cm.hasPrimaryClip()) { toast(getString(R.string.toast_clipboard_empty)); return@setItems }
+                val clip = NbtClipboard.readFromSystemClipboard(this)
+                if (clip == null || !clip.isJsonObject) {
+                    toast(getString(R.string.toast_clipboard_empty)); return@setItems
+                }
+                val newObj = clip.asJsonObject
+                // 若粘进来的是标签包装 {t,v}，取其内层 compound
+                val incoming = if (newObj.has("t") && newObj.has("v") && newObj.get("v").isJsonObject)
+                    newObj.getAsJsonObject("v") else newObj
                 AlertDialog.Builder(this).setTitle(getString(R.string.msg_confirm_replace)).setMessage(getString(R.string.msg_replace_all_data))
                     .setPositiveButton(getString(R.string.btn_replace)) { _, _ ->
-                        try {
-                            val text = cm.primaryClip!!.getItemAt(0).text ?: return@setPositiveButton
-                            val newObj = JsonParser.parseString(text.toString()).asJsonObject
-                            ArrayList(current.keySet()).forEach { current.remove(it) }
-                            newObj.entrySet().forEach { current.add(it.key, it.value) }
-                            refreshAfterEdit(); toast(getString(R.string.toast_replaced))
-                        } catch (_: Exception) { toast(getString(R.string.err_json_parse)) }
+                        ArrayList(current.keySet()).forEach { current.remove(it) }
+                        incoming.entrySet().forEach { current.add(it.key, it.value.deepCopy()) }
+                        NbtClipboard.set(this, incoming)
+                        refreshAfterEdit(); toast(getString(R.string.toast_replaced))
                     }.setNegativeButton(getString(R.string.btn_cancel), null).show()
             }
             4 -> AlertDialog.Builder(this).setTitle(getString(R.string.dialog_danger_title)).setMessage(getString(R.string.btn_confirm_clear))
@@ -101,12 +155,13 @@ private fun MainActivity.handleListLongPress(w: Int, key: String?, itemData: Jso
     val parent = nbtAdapter?.data ?: return
     val nodeKey = key ?: return
     when (w) {
-        0 -> { MainActivity.clipboard = itemData.deepCopy(); toast(getString(R.string.toast_copied)) }
+        0 -> copyNbtToClipboard(itemData)
         1 -> {
-            if (MainActivity.clipboard == null) { toast(getString(R.string.toast_clipboard_empty)); return }
+            val clip = getPasteSource()
+            if (clip == null) { toast(getString(R.string.toast_clipboard_empty)); return }
             val pasteKey = nodeKey + "_copy"
             if (parent.has(pasteKey)) { toast(getString(R.string.toast_name_exists)); return }
-            parent.add(pasteKey, MainActivity.clipboard!!.deepCopy())
+            parent.add(pasteKey, clip.deepCopy())
             refreshAfterEdit(); toast(getString(R.string.toast_pasted))
         }
         2 -> { parent.remove(nodeKey); refreshAfterEdit(); toast(getString(R.string.toast_deleted)) }
@@ -132,13 +187,10 @@ private fun MainActivity.handleTreeLongPress(w: Int, fallbackKey: String, fallba
     val isRoot = node == null
 
     when (w) {
-        0 -> {  // 复制
-            MainActivity.clipboard = nodeData.deepCopy()
-            toast(getString(R.string.toast_copied))
-        }
+        0 -> copyNbtToClipboard(nodeData)
 
         1 -> {  // 粘贴
-            val clip = MainActivity.clipboard
+            val clip = getPasteSource()
             if (clip == null) { toast(getString(R.string.toast_clipboard_empty)); return }
             if (isRoot) {
                 // 根：作为新字段加入根数据，让用户输入字段名
