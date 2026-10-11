@@ -30,6 +30,8 @@ import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
+import yhjmew.minecraft.nbteditor.util.DraftAutoSaver
+import yhjmew.minecraft.nbteditor.util.DraftStore
 import yhjmew.minecraft.nbteditor.util.NbtClipboard
 import yhjmew.minecraft.nbteditor.util.NbtExporter
 
@@ -726,6 +728,9 @@ fun MainActivity.showAppInfoDialog() {
         onChanged = { mapVM.setPuzzleThreadCount(it) }
     )
 
+    // ---- 草稿箱设置 ----
+    setupDraftSettings(dialogView)
+
     dialogView.findViewById<CheckBox?>(R.id.cb_skip_shizuku)?.let {
         it.isChecked = prefs?.getBoolean("skip_shizuku", false) ?: false
         it.setOnCheckedChangeListener { _, c ->
@@ -830,6 +835,8 @@ fun MainActivity.showDebugMenu() {
 private fun MainActivity.refreshAfterEdit() {
     AppLogger.info("ListDebug", "refreshAfterEdit 调用: isTreeMode=${editorVM.isTreeMode.value}")
     editorVM.syncListFakeMapToSource()
+    // 标记草稿待保存：由 DraftAutoSaver 按用户设定的间隔写盘
+    DraftAutoSaver.markDirty()
     if (editorVM.isTreeMode.value) {
         // 树形模式：结构可能变化（新增/删除/重命名），必须重建节点树，
         // 仅 notifyDataSetChanged() 不会产生新节点，导致改动看不见。
@@ -837,6 +844,187 @@ private fun MainActivity.refreshAfterEdit() {
     } else {
         nbtAdapter?.refreshKeys()
     }
+}
+
+// ============================================
+// 草稿箱设置（自动保存间隔 / 单位 / 数量上限 / 保留原始数据）
+// ============================================
+
+/** 单位换算：0=秒 1=分 2=时 */
+private fun unitFactor(unit: Int): Long = when (unit) {
+    1 -> 60_000L
+    2 -> 3_600_000L
+    else -> 1_000L
+}
+
+private fun MainActivity.setupDraftSettings(root: android.view.View) {
+    var initializing = true
+
+    val intervalSp = root.findViewById<Spinner?>(R.id.sp_draft_interval)
+    val unitSp = root.findViewById<Spinner?>(R.id.sp_draft_interval_unit)
+    val maxSp = root.findViewById<Spinner?>(R.id.sp_draft_max)
+    val cbAuto = root.findViewById<CheckBox?>(R.id.cb_draft_autosave)
+    val cbKeep = root.findViewById<CheckBox?>(R.id.cb_draft_keep_original)
+
+    // 当前值（从 prefs 读，缺省：30 秒 / 上限 10）
+    var interval = prefs?.getInt("draft_interval", 30) ?: 30
+    var unit = prefs?.getInt("draft_interval_unit", 0) ?: 0      // 0=秒
+    var maxDrafts = prefs?.getInt("draft_max", DraftStore.DEFAULT_MAX_DRAFTS)
+        ?: DraftStore.DEFAULT_MAX_DRAFTS
+
+    /** 把当前设置应用到自动保存器 */
+    fun applyAll() {
+        val ms = if (interval <= 0) 0L else interval.toLong() * unitFactor(unit)
+        DraftAutoSaver.setInterval(ms)
+        DraftAutoSaver.maxDrafts = maxDrafts
+        DraftStore.pruneTo(this, maxDrafts)
+        prefs?.edit()?.putInt("draft_interval", interval)?.apply()
+        prefs?.edit()?.putInt("draft_interval_unit", unit)?.apply()
+        prefs?.edit()?.putInt("draft_max", maxDrafts)?.apply()
+        // 单位选择在「关闭」时无意义，置灰
+        unitSp?.isEnabled = interval > 0
+        unitSp?.alpha = if (interval > 0) 1f else 0.4f
+        cbAuto?.isChecked = interval > 0
+    }
+
+    // ① 自动保存开关：关 = interval 0
+    cbAuto?.isChecked = interval > 0
+    cbAuto?.setOnCheckedChangeListener { _, checked ->
+        if (initializing) return@setOnCheckedChangeListener
+        if (!checked) {
+            interval = 0
+            // 记住关闭前的值，重新打开时能恢复
+            prefs?.edit()?.putInt("draft_interval_off_bak", interval)?.apply()
+            intervalSp?.setSelection(0)   // 「关闭」
+        } else {
+            var restored = 30
+            // 优先用上次的值（自定义间隔存在 prefs）
+            val lastCustom = prefs?.getInt("draft_interval_last", 30) ?: 30
+            restored = if (lastCustom > 0) lastCustom else 30
+            interval = restored
+            val idx = DRAFT_INTERVAL_VALUES.indexOf(restored)
+            intervalSp?.setSelection(if (idx >= 0) idx else DRAFT_INTERVAL_VALUES.size - 1)
+        }
+        applyAll()
+    }
+
+    // ② 间隔
+    val intervalLabels = listOf(
+        getString(R.string.draft_interval_off), "2", "4", "8",
+        getString(R.string.thread_count_custom)
+    )
+    intervalSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, intervalLabels)
+        .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+    // ③ 单位
+    val unitLabels = listOf(
+        getString(R.string.unit_seconds), getString(R.string.unit_minutes), getString(R.string.unit_hours)
+    )
+    unitSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, unitLabels)
+        .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+    // ④ 数量上限
+    val maxLabels = listOf("5", "10", "20", getString(R.string.thread_count_custom))
+    val maxValues = listOf(5, 10, 20, -1)
+    maxSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, maxLabels)
+        .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+    // 初始化回显
+    run {
+        val idx = DRAFT_INTERVAL_VALUES.indexOf(interval)
+        intervalSp?.setSelection(if (interval <= 0) 0 else if (idx >= 0) idx else DRAFT_INTERVAL_VALUES.size - 1)
+        unitSp?.setSelection(unit.coerceIn(0, 2))
+        val mIdx = maxValues.indexOf(maxDrafts)
+        maxSp?.setSelection(if (mIdx >= 0) mIdx else maxValues.size - 1)
+    }
+    applyAll()
+
+    intervalSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (initializing) return
+            val valAt = DRAFT_INTERVAL_VALUES.getOrNull(position)
+            if (valAt == null || valAt == -1) {
+                // 「自定义…」
+                showCustomNumberDialog(
+                    getString(R.string.title_custom_interval), 1, 999,
+                    getString(R.string.msg_draft_interval_invalid),
+                    if (interval > 0) interval else 30
+                ) { n ->
+                    interval = n
+                    prefs?.edit()?.putInt("draft_interval_last", n)?.apply()
+                    applyAll()
+                }
+            } else {
+                interval = valAt
+                if (valAt > 0) prefs?.edit()?.putInt("draft_interval_last", valAt)?.apply()
+                applyAll()
+            }
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    unitSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (initializing) return
+            unit = position.coerceIn(0, 2)
+            applyAll()
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    maxSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (initializing) return
+            val valAt = maxValues.getOrNull(position) ?: return
+            if (valAt == -1) {
+                showCustomNumberDialog(
+                    getString(R.string.title_custom_draft_max), 1, 99,
+                    getString(R.string.msg_draft_max_invalid), maxDrafts
+                ) { n ->
+                    maxDrafts = n
+                    applyAll()
+                }
+            } else {
+                maxDrafts = valAt
+                applyAll()
+            }
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    // ⑤ 保留原始数据
+    cbKeep?.isChecked = prefs?.getBoolean("draft_keep_original", false) ?: false
+    DraftAutoSaver.keepOriginal = cbKeep?.isChecked ?: false
+    cbKeep?.setOnCheckedChangeListener { _, c ->
+        DraftAutoSaver.keepOriginal = c
+        prefs?.edit()?.putBoolean("draft_keep_original", c)?.apply()
+    }
+
+    initializing = false
+}
+
+/** 「关闭 / 2 / 4 / 8 / 自定义」对应的秒数；-1 表示自定义 */
+private val DRAFT_INTERVAL_VALUES = listOf(0, 2, 4, 8, -1)
+
+/** 通用「输入一个数字」对话框（带范围校验） */
+private fun MainActivity.showCustomNumberDialog(
+    title: String, min: Int, max: Int, invalidMsg: String,
+    current: Int, onOk: (Int) -> Unit
+) {
+    val input = EditText(this).apply {
+        inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        hint = "$min - $max"
+        setText(if (current in min..max) current.toString() else "")
+    }
+    AlertDialog.Builder(this)
+        .setTitle(title)
+        .setView(input)
+        .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+            val n = input.text.toString().trim().toIntOrNull()
+            if (n == null || n < min || n > max) toast(invalidMsg) else onOk(n)
+        }
+        .setNegativeButton(getString(R.string.btn_cancel), null)
+        .show()
 }
 
 // ============================================

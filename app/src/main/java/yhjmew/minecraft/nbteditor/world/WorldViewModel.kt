@@ -41,13 +41,14 @@ import yhjmew.minecraft.nbteditor.nbt.BedrockParser
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
-import yhjmew.minecraft.nbteditor.util.SessionStore
+import yhjmew.minecraft.nbteditor.util.DraftAutoSaver
+import yhjmew.minecraft.nbteditor.util.DraftStore
 
 /**
  * 世界/存档/路径/文件 I/O 的 ViewModel
  * 加载完成后通过 editorVM 写入数据
  */
-class WorldViewModel : ViewModel() {
+class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
     /** Activity 创建后注入 */
     var editorVM: EditorViewModel? = null
@@ -410,7 +411,6 @@ class WorldViewModel : ViewModel() {
             evm.saveSession(currentWorkingDbPath)
             persistSession(context)
             if (evm.tryRestoreSession("level.dat")) return
-            if (tryDiskSession(context, "level.dat", folderName) { loadLevelDatViaSaf(context, folderName) }) return
         }
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -445,6 +445,9 @@ class WorldViewModel : ViewModel() {
                 evm.scrollPositionStack.clear()
                 evm.currentListData = json
                 evm.updatePathTitle()
+
+                // 进入编辑态：启动草稿自动保存并记录原始数据
+                onEditStarted(context, "level.dat", json)
 
                 updateWorldInfoFromNbt(json)
                 _currentWorldFolder.value = folderName
@@ -500,114 +503,108 @@ class WorldViewModel : ViewModel() {
     }
 
     // ============================================
-    // 会话落盘 / 恢复（防止进程被杀丢失未保存编辑）
+    // 草稿箱：自动落盘（防止进程被杀 / 崩溃丢失未保存编辑）
     // ============================================
-    private val _pendingSession = MutableStateFlow<SessionStore.Persisted?>(null)
-    val pendingSession: StateFlow<SessionStore.Persisted?> = _pendingSession.asStateFlow()
-
-    /** 用户选择「丢弃」后重新加载时，跳过会话检查 */
-    private var skipSessionCheck = false
-
-    /** 「丢弃」后要重放的动作（重新加载原存档） */
-    private var pendingReload: (() -> Unit)? = null
+    // 只负责「把未保存的编辑写进草稿箱」。找回方式是用户主动打开
+    // 「草稿箱」（主页「恢复备份」→「草稿箱」），**不再自动弹窗打扰**。
 
     /** 把当前编辑内容落盘（供 Activity 在 onStop 时调用，防进程被杀） */
     fun persistSessionNow(context: Context) = persistSession(context)
 
-    /** 把当前编辑内容落盘 */
-    private fun persistSession(context: Context) {
-        // 「丢弃」后的重新加载不应把刚删掉的会话又写回去
-        if (skipSessionCheck) return
-        val evm = editorVM ?: return
-        val data = evm.nbtData.value ?: return
+    /**
+     * 当前编辑内容的快照。供 DraftAutoSaver 定时落盘 / 崩溃时紧急落盘使用。
+     * @return null 表示当前没有可保存的内容
+     */
+    override fun snapshotForDraft(): DraftAutoSaver.DraftSnapshot? {
+        val evm = editorVM ?: return null
+        val data = evm.nbtData.value ?: return null
         val isPlayer = evm.isEditingPlayer.value
-
-        // level.dat 固定用 "level.dat" 作 key；
-        // 只有玩家/其它 key 模式才记 targetKey —— 否则会把 _currentTargetKey 的
-        // 默认值 "~local_player" 写进世界数据的会话里，恢复时标签张冠李戴。
+        // level.dat 固定用 "level.dat"；只有玩家模式才记 targetKey，
+        // 否则会把 _currentTargetKey 的默认值 "~local_player" 写进世界数据草稿，
+        // 导致草稿箱里标签张冠李戴。
         val key = if (isPlayer) evm.currentTargetKey.value else "level.dat"
-        if (key.isNullOrBlank()) return
+        if (key.isNullOrBlank()) return null
+        return DraftAutoSaver.DraftSnapshot(
+            sessionKey = key,
+            data = data,
+            isPlayerMode = isPlayer,
+            targetKey = if (isPlayer) evm.currentTargetKey.value else null,
+            dbPath = currentWorkingDbPath,
+            folder = lastLoadedWorldFolder
+        )
+    }
 
-        SessionStore.save(
-            context, key, data,
-            isPlayer,
-            if (isPlayer) evm.currentTargetKey.value else null,
-            currentWorkingDbPath,
-            lastLoadedWorldFolder
+    /** 立即落盘一份草稿 */
+    private fun persistSession(context: Context) {
+        val snap = snapshotForDraft() ?: return
+        DraftStore.save(
+            context = context,
+            sessionKey = snap.sessionKey,
+            data = snap.data,
+            isPlayerMode = snap.isPlayerMode,
+            targetKey = snap.targetKey,
+            dbPath = snap.dbPath,
+            folder = snap.folder,
+            // 原始数据由 DraftAutoSaver 按开关携带，这里只写当前数据
+            originalData = null,
+            maxDrafts = DraftAutoSaver.maxDrafts
         )
     }
 
     /**
-     * 内存恢复失败时，尝试从磁盘恢复。
+     * 从草稿箱恢复一份草稿到编辑器。
      *
-     * 两道防串档校验：
-     * 1. 存档目录（folder）必须一致 —— 否则会是「在 B 世界弹出 A 世界的未保存编辑」
-     * 2. 玩家会话还要比对工作目录（dbPath）
-     *
-     * @param folderHint 当前要加载的存档目录
-     * @param retry 用户选择「丢弃」后重新加载的动作
+     * 注意：**不自动保存** —— 只把数据套用到编辑器，用户确认无误后自己点「保存修改」。
+     * 恢复前先把当前正在编辑的内容落盘，避免丢失当前进度。
      */
-    private fun tryDiskSession(
-        context: Context,
-        sessionKey: String,
-        folderHint: String?,
-        retry: () -> Unit
-    ): Boolean {
-        if (skipSessionCheck) return false
-        val p = SessionStore.load(context, sessionKey) ?: return false
-
-        // 存档目录不一致 -> 清理并跳过
-        if (p.folder != null && folderHint != null && p.folder != folderHint) {
-            SessionStore.remove(context, sessionKey)
-            return false
-        }
-        // 玩家会话：工作目录也必须一致
-        if (p.isPlayerMode && p.dbPath != null && currentWorkingDbPath != null &&
-            p.dbPath != currentWorkingDbPath
-        ) {
-            SessionStore.remove(context, sessionKey)
-            return false
-        }
-
-        pendingReload = retry
-        _pendingSession.value = p
-        return true
-    }
-
-    fun clearPendingSession() { _pendingSession.value = null; pendingReload = null }
-
-    /** 用户选择「恢复」 */
-    fun applyPendingSession() {
+    fun restoreDraft(context: Context, draft: DraftStore.Draft) {
         val evm = editorVM ?: return
-        val p = _pendingSession.value ?: return
-        _pendingSession.value = null
-        pendingReload = null
-        evm.setEditingPlayer(p.isPlayerMode)
-        // 非玩家模式不要设 targetKey（否则标题/标签会显示成 ~local_player）
-        evm.setTargetKey(if (p.isPlayerMode) p.targetKey else null)
-        evm.setRawNbtData(p.data)
-        evm.nbtDataCache[p.sessionKey] = p.data
+
+        // 1) 先落盘当前内容，避免被覆盖丢失
+        persistSession(context)
+
+        // 2) 套用草稿数据
+        evm.setEditingPlayer(draft.isPlayerMode)
+        // 世界数据不要设 targetKey（否则标题/标签会显示成 ~local_player）
+        evm.setTargetKey(if (draft.isPlayerMode) draft.targetKey else null)
+        evm.setRawNbtData(draft.data)
+        evm.nbtDataCache[draft.sessionKey] = draft.data
         evm.navigationStack.clear()
         evm.pathStack.clear()
         evm.scrollPositionStack.clear()
         evm.updatePathTitle()
-        _currentWorldFolder.value = p.folder
-        _toastMessage.value = getString(R.string.toast_session_restored)
+
+        // 3) 恢复保存目标：玩家数据需要 dbPath，level.dat 需要存档目录
+        draft.dbPath?.takeIf { it.isNotBlank() }?.let { currentWorkingDbPath = it }
+        draft.folder?.takeIf { it.isNotBlank() }?.let {
+            lastLoadedWorldFolder = it
+            _currentWorldFolder.value = it
+        }
+
+        // 4) 进入编辑状态，启动草稿自动保存
+        DraftAutoSaver.start()
+
+        // 5) 明确提示：还需要手动保存才会写入磁盘
+        _toastMessage.value = getString(R.string.toast_draft_restored)
     }
 
-    /** 用户选择「丢弃」：清掉会话并重新加载 */
-    fun discardPendingSession(context: Context) {
-        val p = _pendingSession.value ?: return
-        _pendingSession.value = null
-        SessionStore.remove(context, p.sessionKey)
-        val retry = pendingReload
-        pendingReload = null
-        skipSessionCheck = true
-        try {
-            retry?.invoke()
-        } finally {
-            skipSessionCheck = false
-        }
+    /**
+     * 保存成功后调用：停掉自动保存，并清除对应的草稿。
+     * @param sessionKey 与 snapshotForDraft 里使用的 key 一致
+     */
+    private fun onSavedSuccessfully(context: Context, sessionKey: String?) {
+        DraftAutoSaver.stop()
+        if (!sessionKey.isNullOrBlank()) DraftStore.remove(context, sessionKey)
+    }
+
+    /**
+     * 加载存档成功后调用：进入编辑态并记录「改动前的原始数据」。
+     * @param key      草稿 key（与 snapshotForDraft 一致）
+     * @param original 刚加载进来的原始数据，供「对比改动」使用
+     */
+    private fun onEditStarted(context: Context, key: String, original: JsonObject?) {
+        DraftAutoSaver.rememberOriginal(key, original)
+        DraftAutoSaver.start()
     }
 
     // ============================================
@@ -623,7 +620,6 @@ class WorldViewModel : ViewModel() {
             evm.reset()
             lastLoadedWorldFolder = folder
         } else if (evm.tryRestoreSession("level.dat")) return
-        else if (tryDiskSession(context, "level.dat", folder) { loadLevelDat(context, folder) }) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -663,6 +659,9 @@ class WorldViewModel : ViewModel() {
                 evm.currentListData = json
                 evm.updatePathTitle()
 
+                // 进入编辑态：启动草稿自动保存并记录原始数据
+                onEditStarted(context, "level.dat", json)
+
                 // 更新世界信息
                 updateWorldInfoFromNbt(json)
 
@@ -686,9 +685,6 @@ class WorldViewModel : ViewModel() {
         evm.saveSession(currentWorkingDbPath)
         persistSession(context)
         if (onSuccess == null && evm.tryRestoreSession("~local_player")) return
-        if (onSuccess == null &&
-            tryDiskSession(context, "~local_player", folderName) { loadPlayerDataViaSaf(context, folderName, onSuccess) }
-        ) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -726,6 +722,9 @@ class WorldViewModel : ViewModel() {
                 evm.scrollPositionStack.clear()
                 evm.updatePathTitle()
 
+                // 进入编辑态：启动草稿自动保存并记录原始数据
+                onEditStarted(context, "~local_player", playerDataObj)
+
                 _currentWorldFolder.value = folderName
                 _isLoading.value = false
                 _toastMessage.value = NbtTranslator.getString(R.string.toast_player_loaded_success)
@@ -748,7 +747,6 @@ class WorldViewModel : ViewModel() {
         evm.saveSession(currentWorkingDbPath)
         persistSession(context)
         if (evm.tryRestoreSession("~local_player")) return
-        if (tryDiskSession(context, "~local_player", folder) { loadPlayerData(context, folder) }) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -825,6 +823,9 @@ class WorldViewModel : ViewModel() {
                 evm.scrollPositionStack.clear()
                 evm.updatePathTitle()
 
+                // 进入编辑态：启动草稿自动保存并记录原始数据
+                onEditStarted(context, "~local_player", playerDataObj)
+
                 _currentWorldFolder.value = folder
                 _isLoading.value = false
                 _toastMessage.value = getString(R.string.toast_player_loaded_success)
@@ -850,7 +851,6 @@ class WorldViewModel : ViewModel() {
         evm.saveSession(currentWorkingDbPath)
         persistSession(context)
         if (evm.tryRestoreSession(keyName)) return
-        if (tryDiskSession(context, keyName, lastLoadedWorldFolder) { loadSpecificKey(context, keyName) }) return
         if (evm.nbtDataCache.containsKey(keyName)) {
             evm.setTargetKey(keyName)
             evm.setEditingPlayer(true)
@@ -888,6 +888,9 @@ class WorldViewModel : ViewModel() {
                 evm.pathStack.clear()
                 evm.scrollPositionStack.clear()
                 evm.updatePathTitle()
+
+                // 进入编辑态：启动草稿自动保存并记录原始数据
+                onEditStarted(context, keyName, jsonData)
                 _isLoading.value = false
                 _toastMessage.value = getString(R.string.toast_loaded, keyName)
             } catch (e: Exception) {
@@ -1011,7 +1014,7 @@ class WorldViewModel : ViewModel() {
                     deleteRecursive(oldWorkDir)
                     currentWorkingDbPath = newWorkDir.absolutePath
                     // 已成功写回磁盘，会话不再需要
-                    evm.currentTargetKey.value?.let { SessionStore.remove(context, it) }
+                    onSavedSuccessfully(context, evm.currentTargetKey.value)
                     _toastMessage.value = getString(R.string.toast_player_saved)
                 } else {
                     if (currentWorkingFileOrDir == null) {
@@ -1045,7 +1048,7 @@ class WorldViewModel : ViewModel() {
                         throw Exception(getString(R.string.msg_save_need_permission_or_path, targetPath))
                     }
                     // 已成功写回磁盘，会话不再需要
-                    SessionStore.remove(context, "level.dat")
+                    onSavedSuccessfully(context, "level.dat")
                     _toastMessage.value = getString(R.string.toast_level_dat_saved)
                 }
                 _isLoading.value = false
@@ -1155,6 +1158,9 @@ class WorldViewModel : ViewModel() {
                     evm.pathStack.clear()
                     evm.scrollPositionStack.clear()
                     evm.updatePathTitle()
+
+                    // 进入编辑态：启动草稿自动保存并记录原始数据
+                    onEditStarted(context, "~local_player", json)
                     _toastMessage.value = getString(R.string.toast_player_restored)
                 } else {
                     val target = File(worksDir(context), MainActivity.LEVEL_DAT_NAME)
@@ -1171,6 +1177,9 @@ class WorldViewModel : ViewModel() {
                     evm.scrollPositionStack.clear()
                     evm.currentListData = json
                     evm.updatePathTitle()
+
+                    // 进入编辑态：启动草稿自动保存并记录原始数据
+                    onEditStarted(context, "level.dat", json)
                     updateWorldInfoFromNbt(json)
                     _toastMessage.value = getString(R.string.toast_level_restored)
                 }

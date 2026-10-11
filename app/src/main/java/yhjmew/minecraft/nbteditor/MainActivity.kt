@@ -39,9 +39,10 @@ import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.adapter.NbtAdapter
 import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
 import yhjmew.minecraft.nbteditor.util.CrashHandler
+import yhjmew.minecraft.nbteditor.util.DraftAutoSaver
+import yhjmew.minecraft.nbteditor.util.DraftStore
 import yhjmew.minecraft.nbteditor.util.NbtClipboard
 import yhjmew.minecraft.nbteditor.util.NbtExporter
-import yhjmew.minecraft.nbteditor.util.SessionStore
 
 class MainActivity : ComponentActivity() {
 
@@ -221,6 +222,17 @@ class MainActivity : ComponentActivity() {
         worldVM.setUseMultiThread(prefs!!.getBoolean("use_multithread", true))
         // 恢复上次的 NBT 剪贴板内容（进程被杀/重启后仍可用）
         NbtClipboard.init(this)
+
+        // 草稿箱自动保存：恢复设置并初始化
+        DraftAutoSaver.init(this)
+        DraftAutoSaver.keepOriginal = prefs!!.getBoolean("draft_keep_original", false)
+        DraftAutoSaver.maxDrafts = prefs!!.getInt("draft_max", DraftStore.DEFAULT_MAX_DRAFTS)
+        run {
+            val iv = prefs!!.getInt("draft_interval", 30)
+            val unit = prefs!!.getInt("draft_interval_unit", 0)
+            val factor = when (unit) { 1 -> 60_000L; 2 -> 3_600_000L; else -> 1_000L }
+            DraftAutoSaver.setInterval(if (iv <= 0) 0L else iv.toLong() * factor)
+        }
         worldVM.setIoThreadCount(prefs!!.getInt("io_thread_count", 0))
         mapVM.setPuzzleMultiThread(prefs!!.getBoolean("puzzle_multithread", true))
         mapVM.setPuzzleThreadCount(prefs!!.getInt("puzzle_thread_count", 0))
@@ -311,36 +323,10 @@ class MainActivity : ComponentActivity() {
         restoreSavedState(savedInstanceState)
     }
 
-    /**
-     * 意外退出后的会话恢复询问。
-     * 复用既有字符串：发现未保存的编辑 / 上次编辑 [x] 时意外退出，是否恢复？
-     */
-    private fun showSessionRestoreDialog(session: SessionStore.Persisted) {
-        // 标签必须反映「实际在编辑什么」：
-        // 玩家模式 -> 对应的 key（如 ~local_player）；世界数据 -> 存档名
-        // （之前一律优先用 targetKey，而它默认是 ~local_player，
-        //   于是编辑世界数据时会错显示成「上次编辑 [~local_player]」）
-        val label = if (session.isPlayerMode) {
-            session.targetKey ?: session.folder ?: "~local_player"
-        } else {
-            session.folder?.takeIf { it.isNotBlank() } ?: getString(R.string.level_dat_label)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.title_crash_found))
-            .setMessage(getString(R.string.msg_session_found, label))
-            .setPositiveButton(getString(R.string.btn_recover)) { _, _ ->
-                worldVM.applyPendingSession()
-            }
-            .setNegativeButton(getString(R.string.btn_discard)) { _, _ ->
-                worldVM.discardPendingSession(this)
-            }
-            .setCancelable(false)
-            .show()
-    }
-
     override fun onStop() {
         super.onStop()
-        // 进程随时可能被系统回收，离开前台前把未保存的编辑落盘
+        // 进程随时可能被系统回收，离开前台前把未保存的编辑落盘到「草稿箱」
+        // （崩溃场景由 CrashHandler 负责，它会在进程终止前再抢救一次）
         worldVM.persistSessionNow(this)
     }
 
@@ -380,12 +366,6 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             worldVM.toastMessage.collect { it?.let { toast(it); worldVM.clearToast() } }
-        }
-        // 意外退出后的会话恢复询问
-        lifecycleScope.launch {
-            worldVM.pendingSession.collect { session ->
-                if (session != null) showSessionRestoreDialog(session)
-            }
         }
         lifecycleScope.launch {
             mapVM.resultMessage.collect { msg -> msg?.let { handleResult(it); mapVM.clearResult() } }
@@ -497,8 +477,22 @@ class MainActivity : ComponentActivity() {
         findViewById<Button?>(R.id.btn_clear_cache)?.setOnClickListener { worldVM.scanCache(this) }
 
         findViewById<Button?>(R.id.btn_backup_history)?.setOnClickListener {
-            val f = etWorldName!!.text.toString()
-            if (checkFolder(f)) { pendingBackupListFolder = f; worldVM.scanBackups(this, f) }
+            // 备份与草稿箱拼一个入口，各自独立菜单
+            val opts = arrayOf(
+                getString(R.string.btn_restore),
+                getString(R.string.btn_draft_box)
+            )
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.title_backup_or_draft))
+                .setItems(opts) { _, w ->
+                    if (w == 0) {
+                        // 备份：按存档划分，需要先确定是哪个存档
+                        val f = etWorldName!!.text.toString()
+                        if (checkFolder(f)) { pendingBackupListFolder = f; worldVM.scanBackups(this, f) }
+                    } else {
+                        showDraftBoxDialog()
+                    }
+                }.show()
         }
         findViewById<Button?>(R.id.btn_save)?.setOnClickListener {
             // 树形视图同样支持保存：树上的编辑直接作用于根数据对象图，
@@ -836,6 +830,67 @@ class MainActivity : ComponentActivity() {
         AlertDialog.Builder(this).setTitle(getString(R.string.dialog_backup_title)).setView(lv)
             .setNeutralButton(getString(R.string.btn_close), null).show()
         lv.setOnItemClickListener { _, _, p, _ -> worldVM.restoreBackup(this, list[p]) }
+    }
+
+    // ============================================
+    // 草稿箱
+    // ============================================
+
+    /** 距今多久的本地化文案（避免在 util 层硬编码中文） */
+    private fun agoTextOf(minutes: Long): String = when {
+        minutes < 1 -> getString(R.string.draft_ago_just_now)
+        minutes < 60 -> getString(R.string.draft_ago_minutes, minutes)
+        minutes < 60 * 24 -> getString(R.string.draft_ago_hours, minutes / 60)
+        else -> getString(R.string.draft_ago_days, minutes / (60 * 24))
+    }
+
+    /**
+     * 草稿箱：列出未保存的编辑，由用户主动找回。
+     * 与「备份」分离 —— 备份是已保存状态的快照，草稿是未保存的改动。
+     */
+    private fun showDraftBoxDialog() {
+        val drafts = DraftStore.list(this)
+        if (drafts.isEmpty()) {
+            toast(getString(R.string.msg_no_drafts)); return
+        }
+        val lv = ListView(this).apply {
+            adapter = ArrayAdapter(
+                this@MainActivity, android.R.layout.simple_list_item_1,
+                drafts.map { d ->
+                    val origin = if (d.isPlayerMode) getString(R.string.msg_player) else getString(R.string.msg_map)
+                    val orig = if (d.hasOriginal()) " · ${getString(R.string.draft_has_original)}" else ""
+                    "${d.label()}  [$origin]\n${d.timeText()} · ${agoTextOf(d.minutesAgo())}$orig"
+                }
+            )
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_draft_box))
+            .setView(lv)
+            .setNeutralButton(getString(R.string.btn_clear_drafts)) { _, _ ->
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.dialog_danger_title))
+                    .setMessage(getString(R.string.msg_clear_drafts_confirm))
+                    .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
+                        DraftStore.clearAll(this); toast(getString(R.string.toast_drafts_cleared))
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null).show()
+            }
+            .setNegativeButton(getString(R.string.btn_close), null)
+            .show()
+
+        lv.setOnItemClickListener { _, _, p, _ -> worldVM.restoreDraft(this, drafts[p]) }
+        lv.setOnItemLongClickListener { _, _, p, _ ->
+            val d = drafts[p]
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.title_delete_draft))
+                .setMessage(getString(R.string.msg_delete_draft_confirm, d.label()))
+                .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                    DraftStore.remove(this, d.sessionKey)
+                    toast(getString(R.string.toast_draft_deleted))
+                }
+                .setNegativeButton(getString(R.string.btn_cancel), null).show()
+            true
+        }
     }
 
     private fun showErrorDialog(msg: String) {
