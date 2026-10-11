@@ -33,6 +33,14 @@ class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
     }
 
     override fun uncaughtException(thread: Thread, ex: Throwable) {
+        // 崩溃前抢救未保存的编辑：写入草稿箱，用户下次可从「草稿箱」找回。
+        // 必须放在最前面（进程随时可能被终止），并全程容错 ——
+        // 崩溃时状态可能已不稳定，落盘失败也不能影响后续的错误日志。
+        try {
+            DraftAutoSaver.persistNow()
+        } catch (_: Throwable) {
+        }
+
         if (!handleException(ex) && mDefaultHandler != null) {
             // 如果用户没有处理则让系统默认的异常处理器来处理
             mDefaultHandler!!.uncaughtException(thread, ex)

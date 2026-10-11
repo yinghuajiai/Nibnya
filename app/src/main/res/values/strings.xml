@@ -547,6 +547,22 @@ Choose a folder instead — that works without any permission.</string>
     <!-- ============================================ -->
     <!-- Backup Module -->
     <!-- ============================================ -->
+    <string name="btn_draft_box">📝 Draft Box</string>
+    <string name="title_backup_or_draft">Backup / Draft Box</string>
+    <string name="title_draft_box">📝 Draft Box (tap to restore, long press to delete)</string>
+    <string name="msg_no_drafts">No drafts</string>
+    <string name="draft_ago_just_now">just now</string>
+    <string name="draft_ago_minutes">%1$d min ago</string>
+    <string name="draft_ago_hours">%1$d h ago</string>
+    <string name="draft_ago_days">%1$d d ago</string>
+    <string name="draft_has_original">has original</string>
+    <string name="btn_clear_drafts">Clear all drafts</string>
+    <string name="msg_clear_drafts_confirm">Delete ALL drafts? This cannot be undone.</string>
+    <string name="toast_drafts_cleared">All drafts cleared</string>
+    <string name="title_delete_draft">Delete draft</string>
+    <string name="msg_delete_draft_confirm">Delete draft "%1$s"?</string>
+    <string name="toast_draft_deleted">Draft deleted</string>
+    <string name="toast_draft_restored">Restored to editor — remember to tap "Save" to write to disk</string>
     <string name="btn_restore">🕒 Restore backup</string>
     <string name="toast_level_restored">The world backup has been restored</string>
     <string name="toast_level_dat_saved">level.dat saved</string>
@@ -580,6 +596,22 @@ Choose a folder instead — that works without any permission.</string>
     <string name="msg_shizuku_recommend_install">It is recommended to install Shizuku for full functionality. Go to download?</string>
     <string name="msg_all_files_permission_required">Android 11+ requires "All Files Access" permission to read/write legacy paths (/games/...), please grant on the next page</string>
     <string name="msg_storage_permission_required">NBT Editor requires storage permission to read/write saves, please go to settings to grant manually</string>
+    <string name="box_draft_autosave">📝 Auto-save drafts while editing</string>
+    <string name="subtitle_draft_autosave">Unsent edits are kept in Draft Box; recover them anytime. 0 = off</string>
+    <string name="label_draft_interval">Interval:</string>
+    <string name="label_draft_max">Max drafts:</string>
+    <string name="box_draft_keep_original">🧩 Also keep the pre-edit original</string>
+    <string name="subtitle_draft_keep_original">Enables change comparison, but doubles draft size</string>
+    <string name="draft_interval_off">Off</string>
+    <string name="unit_seconds">sec</string>
+    <string name="unit_minutes">min</string>
+    <string name="unit_hours">hour</string>
+    <string name="title_custom_interval">Custom interval (1-999)</string>
+    <string name="msg_draft_interval_invalid">Please enter a number between 1 and 999</string>
+    <string name="title_custom_draft_max">Custom max drafts (1-99)</string>
+    <string name="msg_draft_max_invalid">Please enter a number between 1 and 99</string>
+    <string name="draft_max_value">%1$d</string>
+    <string name="subtitle_draft_max">Oldest drafts are deleted when the limit is reached</string>
     <string name="box_skip_shizuku">Skip Shizuku (for Android 10 and below)</string>
     <string name="toast_shizuku_init">shizuku init: %s</string>
 
@@ -660,13 +692,5 @@ Choose a folder instead — that works without any permission.</string>
     <string name="msg_full_overwrite_confirm">Full overwrite %s? This is irreversible.</string>
     <string name="msg_delete_all_type_data">Delete all %1$d %2$s data? Cannot undo!</string>
     <string name="copying_progress">Copying %1$d/%2$d (%3$d%%)</string>
-
-
-    <string name="title_crash_found">Unsaved edits found</string>
-    <string name="msg_session_found">Editing [%s] ended unexpectedly. Restore it?</string>
-    <string name="level_dat_label">World data (level.dat)</string>
-    <string name="btn_recover">Restore</string>
-    <string name="btn_discard">Discard</string>
-    <string name="toast_session_restored">Previous edit restored</string>
     <string name="msg_value_out_of_range">%1$s value must be between %2$s and %3$s</string>
 </resources>

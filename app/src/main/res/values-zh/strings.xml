@@ -544,6 +544,22 @@
     <!-- ============================================ -->
     <!-- Backup Module -->
     <!-- ============================================ -->
+    <string name="btn_draft_box">📝 草稿箱</string>
+    <string name="title_backup_or_draft">备份 / 草稿箱</string>
+    <string name="title_draft_box">📝 草稿箱（点击恢复，长按删除）</string>
+    <string name="msg_no_drafts">暂无草稿</string>
+    <string name="draft_ago_just_now">刚刚</string>
+    <string name="draft_ago_minutes">%1$d 分钟前</string>
+    <string name="draft_ago_hours">%1$d 小时前</string>
+    <string name="draft_ago_days">%1$d 天前</string>
+    <string name="draft_has_original">含有原始数据</string>
+    <string name="btn_clear_drafts">清空全部草稿</string>
+    <string name="msg_clear_drafts_confirm">删除全部草稿？无法撤销</string>
+    <string name="toast_drafts_cleared">已清空全部草稿</string>
+    <string name="title_delete_draft">删除草稿</string>
+    <string name="msg_delete_draft_confirm">删除草稿「%1$s」？</string>
+    <string name="toast_draft_deleted">已删除草稿</string>
+    <string name="toast_draft_restored">已恢复到编辑器 —— 请记得点击「保存修改」写入磁盘</string>
     <string name="btn_restore">🕒 恢复备份</string>
     <string name="toast_level_restored">世界备份已恢复</string>
     <string name="toast_level_dat_saved">level.dat 已保存</string>
@@ -577,6 +593,22 @@
     <string name="msg_shizuku_recommend_install">建议安装 Shizuku 以获得完整功能。是否前往下载？</string>
     <string name="msg_all_files_permission_required">Android 11+ 需要"所有文件访问"权限才能读写旧版路径（/games/...），请在下一页授予</string>
     <string name="msg_storage_permission_required">NBT编辑器需要存储权限才能读写存档，请前往设置手动授予</string>
+    <string name="box_draft_autosave">📝 编辑时自动保存草稿</string>
+    <string name="subtitle_draft_autosave">未保存的编辑会存入草稿箱，可随时找回。0 = 关闭</string>
+    <string name="label_draft_interval">间隔：</string>
+    <string name="label_draft_max">草稿上限：</string>
+    <string name="box_draft_keep_original">🧩 同时保存改动前的原始数据</string>
+    <string name="subtitle_draft_keep_original">可对比改动内容，但草稿体积翻倍</string>
+    <string name="draft_interval_off">关闭</string>
+    <string name="unit_seconds">秒</string>
+    <string name="unit_minutes">分</string>
+    <string name="unit_hours">时</string>
+    <string name="title_custom_interval">自定义间隔 (1-999)</string>
+    <string name="msg_draft_interval_invalid">请输入 1 到 999 之间的数字</string>
+    <string name="title_custom_draft_max">自定义草稿上限 (1-99)</string>
+    <string name="msg_draft_max_invalid">请输入 1 到 99 之间的数字</string>
+    <string name="draft_max_value">%1$d</string>
+    <string name="subtitle_draft_max">达到上限后会删除最旧的草稿</string>
     <string name="box_skip_shizuku">跳过 Shizuku（适用于 Android 10 及以下）</string>
     <string name="toast_shizuku_init">shizuku 初始化: %s</string>
 
@@ -657,13 +689,5 @@
     <string name="msg_full_overwrite_confirm">完全覆盖 %s？这是不可逆转的</string>
     <string name="msg_delete_all_type_data">删除所有 %1$d %2$s 数据？无法撤销！</string>
     <string name="copying_progress">复制 %1$d/%2$d (%3$d%%)</string>
-
-
-    <string name="title_crash_found">发现未保存的编辑</string>
-    <string name="msg_session_found">上次编辑 [%s] 时意外退出，是否恢复？</string>
-    <string name="level_dat_label">世界数据 (level.dat)</string>
-    <string name="btn_recover">恢复</string>
-    <string name="btn_discard">丢弃</string>
-    <string name="toast_session_restored">已恢复上次编辑</string>
     <string name="msg_value_out_of_range">%1$s 值必须在 %2$s 到 %3$s 之间</string>
 </resources>
