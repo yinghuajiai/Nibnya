@@ -403,6 +403,15 @@ class WorldViewModel : ViewModel() {
 
     fun loadLevelDatViaSaf(context: Context, folderName: String) {
         val treeUri = safTreeUri ?: return
+        lastLoadedWorldFolder = folderName
+
+        // 与 loadLevelDat 一致的会话处理，避免这条路径丢失未保存编辑
+        editorVM?.let { evm ->
+            evm.saveSession(currentWorkingDbPath)
+            persistSession(context)
+            if (evm.tryRestoreSession("level.dat")) return
+            if (tryDiskSession(context, "level.dat", folderName) { loadLevelDatViaSaf(context, folderName) }) return
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -507,28 +516,59 @@ class WorldViewModel : ViewModel() {
 
     /** 把当前编辑内容落盘 */
     private fun persistSession(context: Context) {
+        // 「丢弃」后的重新加载不应把刚删掉的会话又写回去
+        if (skipSessionCheck) return
         val evm = editorVM ?: return
-        val key = if (evm.isEditingPlayer.value) evm.currentTargetKey.value else "level.dat"
+        val data = evm.nbtData.value ?: return
+        val isPlayer = evm.isEditingPlayer.value
+
+        // level.dat 固定用 "level.dat" 作 key；
+        // 只有玩家/其它 key 模式才记 targetKey —— 否则会把 _currentTargetKey 的
+        // 默认值 "~local_player" 写进世界数据的会话里，恢复时标签张冠李戴。
+        val key = if (isPlayer) evm.currentTargetKey.value else "level.dat"
         if (key.isNullOrBlank()) return
+
         SessionStore.save(
-            context, key, evm.nbtData.value,
-            evm.isEditingPlayer.value, evm.currentTargetKey.value,
-            currentWorkingDbPath, lastLoadedWorldFolder
+            context, key, data,
+            isPlayer,
+            if (isPlayer) evm.currentTargetKey.value else null,
+            currentWorkingDbPath,
+            lastLoadedWorldFolder
         )
     }
 
     /**
      * 内存恢复失败时，尝试从磁盘恢复。
-     * 仅当工作目录一致时才恢复，避免把别的存档的未保存数据串进来。
+     *
+     * 两道防串档校验：
+     * 1. 存档目录（folder）必须一致 —— 否则会是「在 B 世界弹出 A 世界的未保存编辑」
+     * 2. 玩家会话还要比对工作目录（dbPath）
+     *
+     * @param folderHint 当前要加载的存档目录
      * @param retry 用户选择「丢弃」后重新加载的动作
      */
-    private fun tryDiskSession(context: Context, sessionKey: String, retry: () -> Unit): Boolean {
+    private fun tryDiskSession(
+        context: Context,
+        sessionKey: String,
+        folderHint: String?,
+        retry: () -> Unit
+    ): Boolean {
         if (skipSessionCheck) return false
         val p = SessionStore.load(context, sessionKey) ?: return false
-        if (p.dbPath != null && currentWorkingDbPath != null && p.dbPath != currentWorkingDbPath) {
+
+        // 存档目录不一致 -> 清理并跳过
+        if (p.folder != null && folderHint != null && p.folder != folderHint) {
             SessionStore.remove(context, sessionKey)
             return false
         }
+        // 玩家会话：工作目录也必须一致
+        if (p.isPlayerMode && p.dbPath != null && currentWorkingDbPath != null &&
+            p.dbPath != currentWorkingDbPath
+        ) {
+            SessionStore.remove(context, sessionKey)
+            return false
+        }
+
         pendingReload = retry
         _pendingSession.value = p
         return true
@@ -543,7 +583,8 @@ class WorldViewModel : ViewModel() {
         _pendingSession.value = null
         pendingReload = null
         evm.setEditingPlayer(p.isPlayerMode)
-        evm.setTargetKey(p.targetKey)
+        // 非玩家模式不要设 targetKey（否则标题/标签会显示成 ~local_player）
+        evm.setTargetKey(if (p.isPlayerMode) p.targetKey else null)
         evm.setRawNbtData(p.data)
         evm.nbtDataCache[p.sessionKey] = p.data
         evm.navigationStack.clear()
@@ -582,7 +623,7 @@ class WorldViewModel : ViewModel() {
             evm.reset()
             lastLoadedWorldFolder = folder
         } else if (evm.tryRestoreSession("level.dat")) return
-        else if (tryDiskSession(context, "level.dat") { loadLevelDat(context, folder) }) return
+        else if (tryDiskSession(context, "level.dat", folder) { loadLevelDat(context, folder) }) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -646,7 +687,7 @@ class WorldViewModel : ViewModel() {
         persistSession(context)
         if (onSuccess == null && evm.tryRestoreSession("~local_player")) return
         if (onSuccess == null &&
-            tryDiskSession(context, "~local_player") { loadPlayerDataViaSaf(context, folderName, onSuccess) }
+            tryDiskSession(context, "~local_player", folderName) { loadPlayerDataViaSaf(context, folderName, onSuccess) }
         ) return
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -707,7 +748,7 @@ class WorldViewModel : ViewModel() {
         evm.saveSession(currentWorkingDbPath)
         persistSession(context)
         if (evm.tryRestoreSession("~local_player")) return
-        if (tryDiskSession(context, "~local_player") { loadPlayerData(context, folder) }) return
+        if (tryDiskSession(context, "~local_player", folder) { loadPlayerData(context, folder) }) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -809,7 +850,7 @@ class WorldViewModel : ViewModel() {
         evm.saveSession(currentWorkingDbPath)
         persistSession(context)
         if (evm.tryRestoreSession(keyName)) return
-        if (tryDiskSession(context, keyName) { loadSpecificKey(context, keyName) }) return
+        if (tryDiskSession(context, keyName, lastLoadedWorldFolder) { loadSpecificKey(context, keyName) }) return
         if (evm.nbtDataCache.containsKey(keyName)) {
             evm.setTargetKey(keyName)
             evm.setEditingPlayer(true)

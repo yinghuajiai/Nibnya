@@ -316,7 +316,15 @@ class MainActivity : ComponentActivity() {
      * 复用既有字符串：发现未保存的编辑 / 上次编辑 [x] 时意外退出，是否恢复？
      */
     private fun showSessionRestoreDialog(session: SessionStore.Persisted) {
-        val label = session.targetKey ?: session.folder ?: "level.dat"
+        // 标签必须反映「实际在编辑什么」：
+        // 玩家模式 -> 对应的 key（如 ~local_player）；世界数据 -> 存档名
+        // （之前一律优先用 targetKey，而它默认是 ~local_player，
+        //   于是编辑世界数据时会错显示成「上次编辑 [~local_player]」）
+        val label = if (session.isPlayerMode) {
+            session.targetKey ?: session.folder ?: "~local_player"
+        } else {
+            session.folder?.takeIf { it.isNotBlank() } ?: getString(R.string.level_dat_label)
+        }
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.title_crash_found))
             .setMessage(getString(R.string.msg_session_found, label))

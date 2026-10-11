@@ -314,7 +314,6 @@ Choose a folder instead — that works without any permission.</string>
     <string name="toast_error_sidebar_layout_not_found">Error: Sidebar layout not found</string>
     <string name="toast_error_menu_button_not_found">Error: Menu button not found</string>
     <string name="toast_unsaved_changes_restored">Unsaved changes restored</string>
-    <string name="toast_unsaved_editing_session_restored">Unsaved editing session restored</string>
     <string name="toast_dev_mode_hint">Tap 5 more times to enable developer options...</string>
     <string name="toast_count_mismatch">Count mismatch</string>
     <string name="toast_failed">Failed: %s</string>
@@ -665,6 +664,7 @@ Choose a folder instead — that works without any permission.</string>
 
     <string name="title_crash_found">Unsaved edits found</string>
     <string name="msg_session_found">Editing [%s] ended unexpectedly. Restore it?</string>
+    <string name="level_dat_label">World data (level.dat)</string>
     <string name="btn_recover">Restore</string>
     <string name="btn_discard">Discard</string>
     <string name="toast_session_restored">Previous edit restored</string>
