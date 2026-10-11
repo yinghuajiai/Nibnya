@@ -311,7 +311,6 @@
     <string name="toast_error_sidebar_layout_not_found">错误：找不到侧边栏布局</string>
     <string name="toast_error_menu_button_not_found">错误：找不到菜单按钮</string>
     <string name="toast_unsaved_changes_restored">已恢复未保存的修改</string>
-    <string name="toast_unsaved_editing_session_restored">已恢复未保存的编辑会话</string>
     <string name="toast_dev_mode_hint">再点击5次开启开发者选项...</string>
     <string name="toast_count_mismatch">计数不匹配</string>
     <string name="toast_failed">失败: %s</string>
@@ -662,6 +661,7 @@
 
     <string name="title_crash_found">发现未保存的编辑</string>
     <string name="msg_session_found">上次编辑 [%s] 时意外退出，是否恢复？</string>
+    <string name="level_dat_label">世界数据 (level.dat)</string>
     <string name="btn_recover">恢复</string>
     <string name="btn_discard">丢弃</string>
     <string name="toast_session_restored">已恢复上次编辑</string>
