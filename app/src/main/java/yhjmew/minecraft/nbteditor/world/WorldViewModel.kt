@@ -41,6 +41,7 @@ import yhjmew.minecraft.nbteditor.nbt.BedrockParser
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
+import yhjmew.minecraft.nbteditor.util.SessionStore
 
 /**
  * 世界/存档/路径/文件 I/O 的 ViewModel
@@ -490,17 +491,98 @@ class WorldViewModel : ViewModel() {
     }
 
     // ============================================
+    // 会话落盘 / 恢复（防止进程被杀丢失未保存编辑）
+    // ============================================
+    private val _pendingSession = MutableStateFlow<SessionStore.Persisted?>(null)
+    val pendingSession: StateFlow<SessionStore.Persisted?> = _pendingSession.asStateFlow()
+
+    /** 用户选择「丢弃」后重新加载时，跳过会话检查 */
+    private var skipSessionCheck = false
+
+    /** 「丢弃」后要重放的动作（重新加载原存档） */
+    private var pendingReload: (() -> Unit)? = null
+
+    /** 把当前编辑内容落盘（供 Activity 在 onStop 时调用，防进程被杀） */
+    fun persistSessionNow(context: Context) = persistSession(context)
+
+    /** 把当前编辑内容落盘 */
+    private fun persistSession(context: Context) {
+        val evm = editorVM ?: return
+        val key = if (evm.isEditingPlayer.value) evm.currentTargetKey.value else "level.dat"
+        if (key.isNullOrBlank()) return
+        SessionStore.save(
+            context, key, evm.nbtData.value,
+            evm.isEditingPlayer.value, evm.currentTargetKey.value,
+            currentWorkingDbPath, lastLoadedWorldFolder
+        )
+    }
+
+    /**
+     * 内存恢复失败时，尝试从磁盘恢复。
+     * 仅当工作目录一致时才恢复，避免把别的存档的未保存数据串进来。
+     * @param retry 用户选择「丢弃」后重新加载的动作
+     */
+    private fun tryDiskSession(context: Context, sessionKey: String, retry: () -> Unit): Boolean {
+        if (skipSessionCheck) return false
+        val p = SessionStore.load(context, sessionKey) ?: return false
+        if (p.dbPath != null && currentWorkingDbPath != null && p.dbPath != currentWorkingDbPath) {
+            SessionStore.remove(context, sessionKey)
+            return false
+        }
+        pendingReload = retry
+        _pendingSession.value = p
+        return true
+    }
+
+    fun clearPendingSession() { _pendingSession.value = null; pendingReload = null }
+
+    /** 用户选择「恢复」 */
+    fun applyPendingSession() {
+        val evm = editorVM ?: return
+        val p = _pendingSession.value ?: return
+        _pendingSession.value = null
+        pendingReload = null
+        evm.setEditingPlayer(p.isPlayerMode)
+        evm.setTargetKey(p.targetKey)
+        evm.setRawNbtData(p.data)
+        evm.nbtDataCache[p.sessionKey] = p.data
+        evm.navigationStack.clear()
+        evm.pathStack.clear()
+        evm.scrollPositionStack.clear()
+        evm.updatePathTitle()
+        _currentWorldFolder.value = p.folder
+        _toastMessage.value = getString(R.string.toast_session_restored)
+    }
+
+    /** 用户选择「丢弃」：清掉会话并重新加载 */
+    fun discardPendingSession(context: Context) {
+        val p = _pendingSession.value ?: return
+        _pendingSession.value = null
+        SessionStore.remove(context, p.sessionKey)
+        val retry = pendingReload
+        pendingReload = null
+        skipSessionCheck = true
+        try {
+            retry?.invoke()
+        } finally {
+            skipSessionCheck = false
+        }
+    }
+
+    // ============================================
     // 加载 level.dat
     // ============================================
     fun loadLevelDat(context: Context, folder: String) {
         val evm = editorVM ?: return
         evm.saveSession(currentWorkingDbPath)
+        persistSession(context)
 
         val isNewWorld = (lastLoadedWorldFolder == null || lastLoadedWorldFolder != folder)
         if (isNewWorld) {
             evm.reset()
             lastLoadedWorldFolder = folder
         } else if (evm.tryRestoreSession("level.dat")) return
+        else if (tryDiskSession(context, "level.dat") { loadLevelDat(context, folder) }) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -561,7 +643,11 @@ class WorldViewModel : ViewModel() {
     fun loadPlayerDataViaSaf(context: Context, folderName: String, onSuccess: Runnable? = null) {
         val evm = editorVM ?: return
         evm.saveSession(currentWorkingDbPath)
+        persistSession(context)
         if (onSuccess == null && evm.tryRestoreSession("~local_player")) return
+        if (onSuccess == null &&
+            tryDiskSession(context, "~local_player") { loadPlayerDataViaSaf(context, folderName, onSuccess) }
+        ) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -619,7 +705,9 @@ class WorldViewModel : ViewModel() {
     fun loadPlayerData(context: Context, folder: String) {
         val evm = editorVM ?: return
         evm.saveSession(currentWorkingDbPath)
+        persistSession(context)
         if (evm.tryRestoreSession("~local_player")) return
+        if (tryDiskSession(context, "~local_player") { loadPlayerData(context, folder) }) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
@@ -719,7 +807,9 @@ class WorldViewModel : ViewModel() {
     fun loadSpecificKey(context: Context, keyName: String) {
         val evm = editorVM ?: return
         evm.saveSession(currentWorkingDbPath)
+        persistSession(context)
         if (evm.tryRestoreSession(keyName)) return
+        if (tryDiskSession(context, keyName) { loadSpecificKey(context, keyName) }) return
         if (evm.nbtDataCache.containsKey(keyName)) {
             evm.setTargetKey(keyName)
             evm.setEditingPlayer(true)
@@ -879,6 +969,8 @@ class WorldViewModel : ViewModel() {
 
                     deleteRecursive(oldWorkDir)
                     currentWorkingDbPath = newWorkDir.absolutePath
+                    // 已成功写回磁盘，会话不再需要
+                    evm.currentTargetKey.value?.let { SessionStore.remove(context, it) }
                     _toastMessage.value = getString(R.string.toast_player_saved)
                 } else {
                     if (currentWorkingFileOrDir == null) {
@@ -911,6 +1003,8 @@ class WorldViewModel : ViewModel() {
                     if (!success) {
                         throw Exception(getString(R.string.msg_save_need_permission_or_path, targetPath))
                     }
+                    // 已成功写回磁盘，会话不再需要
+                    SessionStore.remove(context, "level.dat")
                     _toastMessage.value = getString(R.string.toast_level_dat_saved)
                 }
                 _isLoading.value = false

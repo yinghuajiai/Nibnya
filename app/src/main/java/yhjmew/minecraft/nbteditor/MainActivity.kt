@@ -39,6 +39,8 @@ import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.adapter.NbtAdapter
 import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
 import yhjmew.minecraft.nbteditor.util.CrashHandler
+import yhjmew.minecraft.nbteditor.util.NbtClipboard
+import yhjmew.minecraft.nbteditor.util.SessionStore
 
 class MainActivity : ComponentActivity() {
 
@@ -187,6 +189,8 @@ class MainActivity : ComponentActivity() {
 
         // 多线程设置：启动时从 prefs 恢复（修复「设置不生效、重启失效」）
         worldVM.setUseMultiThread(prefs!!.getBoolean("use_multithread", true))
+        // 恢复上次的 NBT 剪贴板内容（进程被杀/重启后仍可用）
+        NbtClipboard.init(this)
         worldVM.setIoThreadCount(prefs!!.getInt("io_thread_count", 0))
         mapVM.setPuzzleMultiThread(prefs!!.getBoolean("puzzle_multithread", true))
         mapVM.setPuzzleThreadCount(prefs!!.getInt("puzzle_thread_count", 0))
@@ -277,6 +281,31 @@ class MainActivity : ComponentActivity() {
         restoreSavedState(savedInstanceState)
     }
 
+    /**
+     * 意外退出后的会话恢复询问。
+     * 复用既有字符串：发现未保存的编辑 / 上次编辑 [x] 时意外退出，是否恢复？
+     */
+    private fun showSessionRestoreDialog(session: SessionStore.Persisted) {
+        val label = session.targetKey ?: session.folder ?: "level.dat"
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_crash_found))
+            .setMessage(getString(R.string.msg_session_found, label))
+            .setPositiveButton(getString(R.string.btn_recover)) { _, _ ->
+                worldVM.applyPendingSession()
+            }
+            .setNegativeButton(getString(R.string.btn_discard)) { _, _ ->
+                worldVM.discardPendingSession(this)
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // 进程随时可能被系统回收，离开前台前把未保存的编辑落盘
+        worldVM.persistSessionNow(this)
+    }
+
     private fun initViews() {
         viewMainContent = findViewById(R.id.main_content)
         viewSidebar = findViewById(R.id.sidebar_content)
@@ -313,6 +342,12 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             worldVM.toastMessage.collect { it?.let { toast(it); worldVM.clearToast() } }
+        }
+        // 意外退出后的会话恢复询问
+        lifecycleScope.launch {
+            worldVM.pendingSession.collect { session ->
+                if (session != null) showSessionRestoreDialog(session)
+            }
         }
         lifecycleScope.launch {
             mapVM.resultMessage.collect { msg -> msg?.let { handleResult(it); mapVM.clearResult() } }
@@ -985,7 +1020,6 @@ class MainActivity : ComponentActivity() {
     // Companion
     // ============================================
     companion object {
-        var clipboard: JsonElement? = null
         const val TYPE_PLAYER = 0; const val TYPE_MAP = 1; const val TYPE_VILLAGE = 2
         const val PATH_STANDARD =
             "/storage/emulated/0/Android/data/com.mojang.minecraftpe/files/games/com.mojang/minecraftWorlds/"

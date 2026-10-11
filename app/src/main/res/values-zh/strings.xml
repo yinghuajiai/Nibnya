@@ -222,6 +222,11 @@
     <string name="toast_operation_failed">操作失败</string>
     <string name="toast_renamed">已重命名</string>
     <string name="toast_copied">已复制到剪贴板</string>
+    <string name="title_copy_as">复制为…</string>
+    <string name="clip_format_json">JSON（可再导入）</string>
+    <string name="clip_format_snbt">SNBT（游戏内格式）</string>
+    <string name="clip_format_text">纯文本（方便阅读）</string>
+    <string name="toast_copied_format">已复制（%1$s）— 应用内 + 系统剪贴板</string>
     <string name="toast_copy_success">复制成功</string>
     <string name="toast_copy_failed">复制失败: </string>
     <string name="toast_data_covered">数据已覆盖！</string>
