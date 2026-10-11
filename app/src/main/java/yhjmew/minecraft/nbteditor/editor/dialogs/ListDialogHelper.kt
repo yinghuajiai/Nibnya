@@ -293,7 +293,7 @@ private fun MainActivity.copyPlayerJson(key: String) {
             val db = PlayerDbManager(worldVM.currentWorkingDbPath!!)
             val data = db.readSpecificKey(key); db.close()
             val obj = BedrockParser.parseBytes(data) ?: JsonObject()
-            runOnUiThread { copyNbtToClipboard(obj) }
+            runOnUiThread { showCopyExportDialog(obj, key) }
         } catch (e: Exception) { runOnUiThread { toast(getString(R.string.msg_copy_failed, e)) } }
     }.start()
 }

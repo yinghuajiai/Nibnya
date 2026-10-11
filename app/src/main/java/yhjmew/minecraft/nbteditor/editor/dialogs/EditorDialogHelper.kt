@@ -31,19 +31,25 @@ import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
 import yhjmew.minecraft.nbteditor.util.NbtClipboard
+import yhjmew.minecraft.nbteditor.util.NbtExporter
 
 // ============================================
 // 剪贴板（复制 / 粘贴）
 // ============================================
 
 /**
- * 复制 NBT 到剪贴板：
- * - 应用内保留**结构化**副本并存盘（进程被杀也不丢，粘贴时可精确还原类型）
- * - 同时按所选格式写入**系统剪贴板**，可粘到微信/记事本等其他应用
+ * 复制 / 导出 NBT。两步选择：
  *
- * 之前只写应用内存却提示「已复制到剪贴板」，用户切到别处粘贴会发现是空的。
+ * **第 1 步 选格式**：JSON（可再导入） / SNBT（游戏内格式） / 纯文本（方便阅读）
+ *
+ * **第 2 步 选目标**：
+ * - 复制到剪贴板 —— 应用内保留结构化副本（存盘，进程被杀不丢）并写系统剪贴板
+ * - 保存到下载目录 —— `Download/NbtEditor_Data/Exports/`，需所有文件访问权限
+ * - 选择目录… —— 走 SAF，任何权限都不需要
+ *
+ * 之前只写应用内存却提示「已复制到剪贴板」，用户切到别处粘贴是空的。
  */
-internal fun MainActivity.copyNbtToClipboard(element: JsonElement) {
+internal fun MainActivity.showCopyExportDialog(element: JsonElement, nameHint: String? = null) {
     val labels = arrayOf(
         getString(R.string.clip_format_json),
         getString(R.string.clip_format_snbt),
@@ -57,15 +63,66 @@ internal fun MainActivity.copyNbtToClipboard(element: JsonElement) {
                 NbtClipboard.FORMAT_TEXT -> NbtClipboard.FORMAT_TEXT
                 else -> NbtClipboard.FORMAT_JSON
             }
-            // 1) 应用内（结构化 + 落盘）
-            NbtClipboard.set(this, element)
-            // 2) 系统剪贴板（按格式转成文本）
-            NbtClipboard.writeToSystemClipboard(this, element, fmt)
-            toast(getString(R.string.toast_copied_format, labels[w]))
+            showExportDestDialog(element, fmt, labels[w], nameHint)
         }
         .setNegativeButton(getString(R.string.btn_cancel), null)
         .show()
 }
+
+private fun MainActivity.showExportDestDialog(
+    element: JsonElement,
+    fmt: Int,
+    fmtLabel: String,
+    nameHint: String?
+) {
+    val dests = arrayOf(
+        getString(R.string.export_dest_clipboard),
+        getString(R.string.export_dest_download),
+        getString(R.string.export_dest_choose)
+    )
+    AlertDialog.Builder(this)
+        .setTitle(getString(R.string.title_export_to))
+        .setItems(dests) { _, d ->
+            when (d) {
+                0 -> {
+                    // 应用内结构化副本（落盘）
+                    NbtClipboard.set(this, element)
+                    // 系统剪贴板（按格式转文本）
+                    NbtClipboard.writeToSystemClipboard(this, element, fmt)
+                    toast(getString(R.string.toast_copied_format, fmtLabel))
+                }
+                1 -> exportToDefaultDir(element, fmt, nameHint)
+                2 -> startExportToChosenDir(element, fmt, nameHint)
+            }
+        }
+        .setNegativeButton(getString(R.string.btn_cancel), null)
+        .show()
+}
+
+/** 保存到公共下载目录（需所有文件访问权限；不可写时引导改用 SAF） */
+private fun MainActivity.exportToDefaultDir(element: JsonElement, fmt: Int, nameHint: String?) {
+    val content = NbtClipboard.formatAs(element, fmt)
+    val dir = NbtExporter.defaultExportDir()
+    val fileName = NbtExporter.buildFileName(nameHint, fmt)
+    val saved = NbtExporter.saveToDir(dir, fileName, content)
+    if (saved != null) {
+        toast(getString(R.string.toast_exported_to, saved.absolutePath))
+    } else {
+        // 没权限：提示并引导选目录（SAF 不需要权限）
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.export_dest_download))
+            .setMessage(getString(R.string.msg_export_need_permission))
+            .setPositiveButton(getString(R.string.export_dest_choose)) { _, _ ->
+                startExportToChosenDir(element, fmt, nameHint)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+}
+
+// ============================================
+// 剪贴板（粘贴）
+// ============================================
 
 /**
  * 取粘贴来源：
@@ -106,7 +163,7 @@ fun MainActivity.showRootMenu() {
                     }.show()
             }
             2 -> {
-                copyNbtToClipboard(current)
+                showCopyExportDialog(current, etWorldName?.text?.toString()?.trim())
             }
             3 -> {
                 val clip = NbtClipboard.readFromSystemClipboard(this)
@@ -155,7 +212,7 @@ private fun MainActivity.handleListLongPress(w: Int, key: String?, itemData: Jso
     val parent = nbtAdapter?.data ?: return
     val nodeKey = key ?: return
     when (w) {
-        0 -> copyNbtToClipboard(itemData)
+        0 -> showCopyExportDialog(itemData, nodeKey)
         1 -> {
             val clip = getPasteSource()
             if (clip == null) { toast(getString(R.string.toast_clipboard_empty)); return }
@@ -187,7 +244,7 @@ private fun MainActivity.handleTreeLongPress(w: Int, fallbackKey: String, fallba
     val isRoot = node == null
 
     when (w) {
-        0 -> copyNbtToClipboard(nodeData)
+        0 -> showCopyExportDialog(nodeData, nodeKey)
 
         1 -> {  // 粘贴
             val clip = getPasteSource()

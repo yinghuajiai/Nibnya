@@ -223,6 +223,16 @@
     <string name="toast_renamed">已重命名</string>
     <string name="toast_copied">已复制到剪贴板</string>
     <string name="title_copy_as">复制为…</string>
+    <string name="title_export_to">导出到…</string>
+    <string name="export_dest_clipboard">📋 复制到剪贴板</string>
+    <string name="export_dest_download">💾 保存到下载目录 (NbtEditor_Data/Exports)</string>
+    <string name="export_dest_choose">📁 选择目录…</string>
+    <string name="toast_exported_to">已保存：%1$s</string>
+    <string name="toast_exported_ok">已导出</string>
+    <string name="toast_export_failed">导出失败</string>
+    <string name="msg_export_need_permission">无法写入下载目录（需要「所有文件访问权限」）。
+
+可以改用「选择目录」，这种方式不需要任何权限。</string>
     <string name="clip_format_json">JSON（可再导入）</string>
     <string name="clip_format_snbt">SNBT（游戏内格式）</string>
     <string name="clip_format_text">纯文本（方便阅读）</string>

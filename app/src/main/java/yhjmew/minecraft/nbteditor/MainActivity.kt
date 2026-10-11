@@ -40,6 +40,7 @@ import yhjmew.minecraft.nbteditor.nbt.adapter.NbtAdapter
 import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
 import yhjmew.minecraft.nbteditor.util.CrashHandler
 import yhjmew.minecraft.nbteditor.util.NbtClipboard
+import yhjmew.minecraft.nbteditor.util.NbtExporter
 import yhjmew.minecraft.nbteditor.util.SessionStore
 
 class MainActivity : ComponentActivity() {
@@ -118,6 +119,35 @@ class MainActivity : ComponentActivity() {
     private fun applyPath(newPath: String) {
         worldVM.switchPath(newPath)
         prefs?.edit()?.putString("last_path", newPath)?.apply()
+    }
+
+    // ============================================
+    // 导出到用户自选目录（SAF，无需存储权限）
+    // ============================================
+    /** 待导出的内容（用户选目录期间暂存） */
+    internal var pendingExportContent: String? = null
+    internal var pendingExportName: String? = null
+
+    private val exportDirLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        val content = pendingExportContent
+        val name = pendingExportName
+        pendingExportContent = null
+        pendingExportName = null
+        if (uri == null || content == null || name == null) return@registerForActivityResult
+        if (NbtExporter.saveViaSaf(this, uri, name, content)) {
+            toast(getString(R.string.toast_exported_ok))
+        } else {
+            toast(getString(R.string.toast_export_failed))
+        }
+    }
+
+    /** 让用户选一个目录来保存导出文件 */
+    internal fun startExportToChosenDir(element: JsonElement, fmt: Int, nameHint: String?) {
+        pendingExportContent = NbtClipboard.formatAs(element, fmt)
+        pendingExportName = NbtExporter.buildFileName(nameHint, fmt)
+        exportDirLauncher.launch(null)
     }
 
     internal val puzzleImageLauncher = registerForActivityResult(
