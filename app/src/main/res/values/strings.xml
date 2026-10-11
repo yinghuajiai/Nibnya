@@ -225,6 +225,16 @@ Would you like to create a new empty data set?</string>
     <string name="toast_renamed">renamed</string>
     <string name="toast_copied">Copied to clipboard</string>
     <string name="title_copy_as">Copy as…</string>
+    <string name="title_export_to">Export to…</string>
+    <string name="export_dest_clipboard">📋 Copy to clipboard</string>
+    <string name="export_dest_download">💾 Save to Download (NbtEditor_Data/Exports)</string>
+    <string name="export_dest_choose">📁 Choose a folder…</string>
+    <string name="toast_exported_to">Saved: %1$s</string>
+    <string name="toast_exported_ok">Exported</string>
+    <string name="toast_export_failed">Export failed</string>
+    <string name="msg_export_need_permission">Cannot write to the Download folder (needs "All files access").
+
+Choose a folder instead — that works without any permission.</string>
     <string name="clip_format_json">JSON (for re-import)</string>
     <string name="clip_format_snbt">SNBT (in-game format)</string>
     <string name="clip_format_text">Plain text (readable)</string>
