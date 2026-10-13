@@ -607,6 +607,7 @@ Choose a folder instead — that works without any permission.</string>
     <string name="unit_minutes">min</string>
     <string name="unit_hours">hour</string>
     <string name="title_custom_interval">Custom interval (1-999)</string>
+    <string name="draft_interval_custom">✎</string>
     <string name="msg_draft_interval_invalid">Please enter a number between 1 and 999</string>
     <string name="title_custom_draft_max">Custom max drafts (1-99)</string>
     <string name="msg_draft_max_invalid">Please enter a number between 1 and 99</string>

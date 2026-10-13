@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
+    android:fillViewport="true"
+    android:scrollbars="vertical"
     android:background="@drawable/bg_dialog_rounded">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
 
     <!-- 顶部彩色头部 -->
     <LinearLayout
@@ -276,8 +282,8 @@
 
                 <Spinner
                     android:id="@+id/sp_draft_interval_unit"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
+                    android:layout_width="wrap_content"
+                    android:minWidth="72dp"
                     android:layout_height="wrap_content" />
             </LinearLayout>
 
@@ -358,3 +364,4 @@
     </LinearLayout>
 
 </LinearLayout>
+</ScrollView>
