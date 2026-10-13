@@ -13,6 +13,7 @@
     <string name="btn_cancel">Cancel</string>
     <string name="btn_later">Later</string>
     <string name="btn_close">Close</string>
+    <string name="time_unknown">Unknown time</string>
     <string name="title_error">Error</string>
     <string name="btn_create">Create</string>
     <string name="btn_delete">delete</string>
@@ -43,7 +44,7 @@
     <!-- ============================================ -->
     <string name="dialog_path_title">Select path</string>
     <string name="dialog_custom_path_title">Custom path</string>
-    <string name="dialog_backup_title">Restore backup (long press to manage)</string>
+    <string name="dialog_backup_title">🕒 Restore backup (%1$d)</string>
     <string name="btn_rename">rename</string>
     <string name="btn_detail">Details</string>
     <string name="title_backup_detail">Backup details</string>
@@ -570,7 +571,7 @@ Choose a folder instead — that works without any permission.</string>
     <!-- ============================================ -->
     <string name="btn_draft_box">📝 Draft Box</string>
     <string name="title_backup_or_draft">Backup / Draft Box</string>
-    <string name="title_draft_box">📝 Draft Box (tap to restore, long press to delete)</string>
+    <string name="title_draft_box">📝 Draft Box (%1$d)</string>
     <string name="msg_no_drafts">No drafts</string>
     <string name="draft_ago_just_now">just now</string>
     <string name="draft_ago_minutes">%1$d min ago</string>

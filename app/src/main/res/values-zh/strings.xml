@@ -13,6 +13,7 @@
     <string name="btn_cancel">取消</string>
     <string name="btn_later">稍后</string>
     <string name="btn_close">关闭</string>
+    <string name="time_unknown">未知时间</string>
     <string name="title_error">错误</string>
     <string name="btn_create">创建</string>
     <string name="btn_delete">删除</string>
@@ -43,7 +44,7 @@
     <!-- ============================================ -->
     <string name="dialog_path_title">选择路径</string>
     <string name="dialog_custom_path_title">自定义路径</string>
-    <string name="dialog_backup_title">恢复备份 (长按管理)</string>
+    <string name="dialog_backup_title">🕒 恢复备份 (%1$d)</string>
     <string name="btn_rename">重命名</string>
     <string name="btn_detail">详情</string>
     <string name="title_backup_detail">备份详情</string>
@@ -567,7 +568,7 @@
     <!-- ============================================ -->
     <string name="btn_draft_box">📝 草稿箱</string>
     <string name="title_backup_or_draft">备份 / 草稿箱</string>
-    <string name="title_draft_box">📝 草稿箱（点击恢复，长按删除）</string>
+    <string name="title_draft_box">📝 草稿箱 (%1$d)</string>
     <string name="msg_no_drafts">暂无草稿</string>
     <string name="draft_ago_just_now">刚刚</string>
     <string name="draft_ago_minutes">%1$d 分钟前</string>

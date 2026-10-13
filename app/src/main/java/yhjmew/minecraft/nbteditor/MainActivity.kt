@@ -794,7 +794,12 @@ class MainActivity : ComponentActivity() {
     private fun showWorldSelectorDialog(list: List<WorldItem>) {
         if (list.isEmpty()) { toast(getString(R.string.toast_no_saves_found)); return }
         AlertDialog.Builder(this).setTitle(getString(R.string.select_world_count, list.size))
-            .setItems(list.map { "${it.displayName}\n${it.folderName}" }.toTypedArray()) { _, i ->
+            .setItems(list.map { w ->
+                val line1 = listTitleLine(w.displayName, w.folderName)
+                val line2 = if (w.lastModified > 0)
+                    fullTimeOf(w.lastModified) else getString(R.string.time_unknown)
+                "$line1\n$line2"
+            }.toTypedArray()) { _, i ->
                 val f = list[i].folderName; etWorldName?.setText(f); worldVM.loadLevelDat(this, f)
             }.show()
     }
@@ -830,12 +835,20 @@ class MainActivity : ComponentActivity() {
 
     private fun showBackupDialog(list: List<BackupItem>) {
         if (list.isEmpty()) { toast(getString(R.string.toast_no_backups)); return }
+        val worldName = worldVM.backupWorldName.value
+        val folderId = backupListFolder ?: ""
         val lv = ListView(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1,
-                list.map { "${if (it.isDirectory) "📁" else "📄"} ${it.name}\n${it.time}" })
+                list.map { b ->
+                    val line1 = listTitleLine(worldName, folderId)
+                    val type = if (b.isPlayerData) getString(R.string.msg_local_player)
+                               else getString(R.string.msg_world_data)
+                    val line2 = listSubLine(type, b.time, agoTextOfMillis(b.timestamp))
+                    "$line1\n$line2"
+                })
         }
         val dlg = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_backup_title))
+            .setTitle(getString(R.string.dialog_backup_title, list.size))
             .setView(lv)
             .setNeutralButton(getString(R.string.btn_close), null)
             .create()
@@ -978,6 +991,29 @@ class MainActivity : ComponentActivity() {
     // 草稿箱
     // ============================================
 
+    /** 完整时间：yyyy-MM-dd HH:mm:ss（年到秒）；0 显示「未知时间」 */
+    private fun fullTimeOf(millis: Long): String =
+        if (millis <= 0) getString(R.string.time_unknown)
+        else java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+            .format(java.util.Date(millis))
+
+    /** 列表第 1 行：世界名 + 空格 + 文件夹名(base64 ID) */
+    private fun listTitleLine(worldName: String?, folderId: String): String {
+        val name = worldName?.takeIf { it.isNotBlank() } ?: folderId
+        return if (name == folderId) name else "$name  $folderId"
+    }
+
+    /** 列表第 2 行（草稿/备份）：[类型标签] 完整时间 相对时间 */
+    private fun listSubLine(typeLabel: String, timeText: String, agoText: String): String =
+        "[$typeLabel]  $timeText  $agoText"
+
+    /** 从 timestamp 算出「多久之前」的文案 */
+    private fun agoTextOfMillis(millis: Long): String {
+        if (millis <= 0) return ""
+        val minutes = (System.currentTimeMillis() - millis).coerceAtLeast(0) / 60000
+        return agoTextOf(minutes)
+    }
+
     /** 距今多久的本地化文案（避免在 util 层硬编码中文） */
     private fun agoTextOf(minutes: Long): String = when {
         minutes < 1 -> getString(R.string.draft_ago_just_now)
@@ -1017,14 +1053,16 @@ class MainActivity : ComponentActivity() {
             adapter = ArrayAdapter(
                 this@MainActivity, android.R.layout.simple_list_item_1,
                 drafts.map { d ->
-                    val origin = draftTypeLabel(d)
+                    val line1 = listTitleLine(d.worldName, d.folderId())
+                    val type = draftTypeLabel(d)
                     val orig = if (d.hasOriginal()) " · ${getString(R.string.draft_has_original)}" else ""
-                    "${d.label()}  [$origin]\n${d.timeText()} · ${agoTextOf(d.minutesAgo())}$orig"
+                    val line2 = listSubLine(type, fullTimeOf(d.savedAt), agoTextOf(d.minutesAgo())) + orig
+                    "$line1\n$line2"
                 }
             )
         }
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.title_draft_box))
+            .setTitle(getString(R.string.title_draft_box, drafts.size))
             .setView(lv)
             .setNeutralButton(getString(R.string.btn_clear_drafts)) { _, _ ->
                 AlertDialog.Builder(this)

@@ -58,7 +58,9 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     // ============================================
     data class WorldItem(
         val folderName: String,
-        val displayName: String
+        val displayName: String,
+        /** level.dat 的最后修改时间（毫秒）；0 = 未知 */
+        val lastModified: Long = 0L
     )
 
     data class CacheItem(
@@ -70,8 +72,13 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     data class BackupItem(
         val file: File,
         val name: String,
+        /** 展示用时间（从文件名解析，格式 yyyy-MM-dd HH:mm:ss） */
         val time: String,
-        val isDirectory: Boolean
+        val isDirectory: Boolean,
+        /** 备份类型：level_ = 世界数据，db_ = 玩家数据 */
+        val isPlayerData: Boolean = false,
+        /** 从文件名解析出的时间戳（毫秒）；0 = 解析失败 */
+        val timestamp: Long = 0L
     )
 
     // ============================================
@@ -181,6 +188,15 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
     private val _backupList = MutableStateFlow<List<BackupItem>>(emptyList())
     val backupList: StateFlow<List<BackupItem>> = _backupList.asStateFlow()
+
+    /** 当前备份列表所属存档的世界名（读不到时为 null，UI 回退显示文件夹名） */
+    private val _backupWorldName = MutableStateFlow<String?>(null)
+    val backupWorldName: StateFlow<String?> = _backupWorldName.asStateFlow()
+
+    /** 草稿箱当前筛选的存档名（null = 全部） */
+    private val _draftFilterFolder = MutableStateFlow<String?>(null)
+    val draftFilterFolder: StateFlow<String?> = _draftFilterFolder.asStateFlow()
+    fun setDraftFilterFolder(folder: String?) { _draftFilterFolder.value = folder }
 
     fun clearToast() { _toastMessage.value = null }
     fun clearError() { _errorMessage.value = null }
@@ -294,8 +310,9 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 if (checkLevel.exists() && checkDb.exists()) {
                     // 当前路径本身就是世界文件夹，直接加载
                     val realName = getWorldRealNameByDir(dir) ?: "Unknown"
-                    _worldList.value = listOf(WorldItem(folderName = dir.name, displayName = realName))
-                    _scanResultChannel.trySend(ScanResult(listOf(WorldItem(folderName = dir.name, displayName = realName))))
+                    val item = WorldItem(dir.name, realName, levelDatTime(dir))
+                    _worldList.value = listOf(item)
+                    _scanResultChannel.trySend(ScanResult(listOf(item)))
                     _isLoading.value = false
                     return@launch
                 }
@@ -334,10 +351,12 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
                     if (isValid) {
                         val realName = getWorldRealName(context, name) ?: "Unknown"
-                        result.add(WorldItem(folderName = name, displayName = realName))
+                        result.add(WorldItem(name, realName, levelDatTime(File(fullPath))))
                     }
                 }
 
+                // 按最后游玩时间倒序：最近玩过的排前面
+                result.sortByDescending { it.lastModified }
                 _worldList.value = result
                 _scanResultChannel.trySend(ScanResult(result))
             } catch (e: Exception) {
@@ -530,7 +549,8 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             isPlayerMode = isPlayer,
             targetKey = if (isPlayer) evm.currentTargetKey.value else null,
             dbPath = currentWorkingDbPath,
-            folder = lastLoadedWorldFolder
+            folder = lastLoadedWorldFolder,
+            worldName = _worldNameForTitle.value
         )
     }
 
@@ -547,6 +567,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             folder = snap.folder,
             // 原始数据由 DraftAutoSaver 按开关携带，这里只写当前数据
             originalData = null,
+            worldName = _worldNameForTitle.value,
             maxDrafts = DraftAutoSaver.maxDrafts
         )
     }
@@ -1119,6 +1140,13 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     // ============================================
     fun scanBackups(context: Context, folderName: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            // 世界名：读原存档的 levelname.txt（存档已删则保持 null，UI 显示文件夹名）
+            _backupWorldName.value = try {
+                getWorldRealName(context, folderName)
+            } catch (_: Exception) {
+                null
+            }
+
             val dir = File(backupsDir(context), folderName)
             if (!dir.exists()) {
                 _backupList.value = emptyList()
@@ -1126,10 +1154,40 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             }
             val files = dir.listFiles() ?: emptyArray()
             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-            files.sortByDescending { it.lastModified() }
-            _backupList.value = files.map {
-                BackupItem(it, it.name, sdf.format(Date(it.lastModified())), it.isDirectory)
-            }
+            // 备份文件名由 createBackup 生成：level_<ts>.dat / db_<ts>
+            // 时间从**文件名**解析 —— 目录的 lastModified 对备份目录毫无意义
+            // （之前就因此显示成「文件夹被改动的时间」）
+            val parsed = files.map { f ->
+                val isPlayer = f.name.startsWith("db_")
+                val ts = parseBackupTimestamp(f.name)
+                BackupItem(
+                    file = f,
+                    name = f.name,
+                    time = if (ts > 0) sdf.format(Date(ts)) else sdf.format(Date(f.lastModified())),
+                    isDirectory = f.isDirectory,
+                    isPlayerData = isPlayer,
+                    timestamp = if (ts > 0) ts else f.lastModified()
+                )
+            }.sortedByDescending { it.timestamp }
+            _backupList.value = parsed
+        }
+    }
+
+    /**
+     * 从备份文件名解析时间戳（毫秒）。
+     * 形如 level_2026-10-10_23-33-39.dat 或 db_2026-10-10_23-21-55
+     * @return 0 表示解析失败
+     */
+    private fun parseBackupTimestamp(fileName: String): Long {
+        return try {
+            val body = fileName
+                .removePrefix("level_").removePrefix("db_")
+                .removeSuffix(".dat")
+            val fmt = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault())
+            fmt.isLenient = false
+            fmt.parse(body)?.time ?: 0L
+        } catch (_: Exception) {
+            0L
         }
     }
 
@@ -1492,6 +1550,30 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 }
             }
         }
+    }
+
+    /**
+     * 取世界 level.dat 的最后修改时间（毫秒）。
+     * 原生读不到时（Android/data 无权限）退回 Shizuku 的 stat 命令。
+     * @return 0 表示未知
+     */
+    private fun levelDatTime(worldDir: File): Long {
+        val lf = File(worldDir, "level.dat")
+        try {
+            if (lf.exists() && lf.canRead()) return lf.lastModified()
+        } catch (_: Exception) {
+        }
+        if (checkShizukuAvailable()) {
+            try {
+                val p = runShizukuCmd(arrayOf("sh", "-c", "stat -c %Y \"${lf.absolutePath}\" 2>/dev/null"))
+                val out = BufferedReader(InputStreamReader(p.inputStream)).readLine()?.trim()
+                p.waitFor()
+                // stat 返回秒，转毫秒
+                out?.toLongOrNull()?.takeIf { it > 0 }?.let { return it * 1000L }
+            } catch (_: Exception) {
+            }
+        }
+        return 0L
     }
 
     private fun deleteRecursive(f: File?) {

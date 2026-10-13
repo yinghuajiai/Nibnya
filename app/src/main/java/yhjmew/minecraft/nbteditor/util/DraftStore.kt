@@ -62,6 +62,7 @@ object DraftStore {
         dbPath: String?,
         folder: String?,
         originalData: JsonObject?,
+        worldName: String?,
         maxDrafts: Int
     ) {
         try {
@@ -72,6 +73,7 @@ object DraftStore {
             obj.addProperty("targetKey", targetKey)
             obj.addProperty("dbPath", dbPath)
             obj.addProperty("folder", folder)
+            obj.addProperty("worldName", worldName)
             obj.add("data", data)
             originalData?.let { obj.add("originalData", it) }
 
@@ -130,6 +132,7 @@ object DraftStore {
                 targetKey = obj.str("targetKey"),
                 dbPath = obj.str("dbPath"),
                 folder = obj.str("folder"),
+                worldName = obj.str("worldName"),
                 data = data,
                 originalData = obj.getAsJsonObject("originalData")
             )
@@ -184,15 +187,26 @@ object DraftStore {
         val targetKey: String?,
         val dbPath: String?,
         val folder: String?,
+        /** 世界名（保存时记录，用于列表展示；旧草稿为 null） */
+        val worldName: String?,
         val data: JsonObject,
         /** 可选：进入编辑时的原始数据，用于对比改动 */
         val originalData: JsonObject?
     ) {
-        /** 草稿箱里显示的标题 */
-        fun label(): String = if (isPlayerMode) {
-            targetKey ?: folder ?: "~local_player"
-        } else {
-            folder?.takeIf { it.isNotBlank() } ?: "level.dat"
+        /**
+         * 列表第一行冒号前的「名称」：
+         * 优先世界名，其次玩家 key / 文件夹名。
+         */
+        fun label(): String = when {
+            !worldName.isNullOrBlank() -> worldName
+            isPlayerMode -> targetKey ?: folder ?: "~local_player"
+            else -> folder?.takeIf { it.isNotBlank() } ?: "level.dat"
+        }
+
+        /** 列表第一行的「文件夹名 / base64 ID」部分 */
+        fun folderId(): String = when {
+            isPlayerMode -> folder ?: targetKey ?: "~local_player"
+            else -> folder ?: "level.dat"
         }
 
         fun hasOriginal(): Boolean = originalData != null
