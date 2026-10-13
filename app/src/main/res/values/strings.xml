@@ -44,6 +44,27 @@
     <string name="dialog_path_title">Select path</string>
     <string name="dialog_custom_path_title">Custom path</string>
     <string name="dialog_backup_title">Restore backup (long press to manage)</string>
+    <string name="btn_rename">rename</string>
+    <string name="btn_detail">Details</string>
+    <string name="title_backup_detail">Backup details</string>
+    <string name="label_type">Type:</string>
+    <string name="label_time">Time:</string>
+    <string name="type_file">File</string>
+    <string name="type_folder">Folder</string>
+    <string name="label_size">Size:</string>
+    <string name="label_path">Path:</string>
+    <string name="label_calculating">Calculating…</string>
+    <string name="msg_delete_backup_confirm">Delete this backup?
+
+%1$s
+
+This cannot be undone.</string>
+    <string name="toast_backup_deleted">Backup deleted</string>
+    <string name="toast_backup_renamed">Backup renamed</string>
+    <string name="msg_backup_name_exists">A backup with this name already exists</string>
+    <string name="msg_name_cannot_be_empty">Name cannot be empty</string>
+    <string name="msg_world_data">World data</string>
+    <string name="msg_local_player">Local player</string>
     <string name="dialog_danger_title">⚠️ High energy warning</string>
     <string name="dialog_clear_msg">Are you sure you want to delete [all NBT data] under the current list?\n\nThis action is irreversible!</string>
     <string name="dialog_select_archive_title">Select archive (%d)</string>
