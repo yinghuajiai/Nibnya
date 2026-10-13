@@ -949,21 +949,25 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         val isCustomValue = interval > 0 && DRAFT_INTERVAL_VALUES.indexOf(interval) < 0
         return if (isCustomValue) "$customIcon $interval" else customIcon
     }
-    val intervalLabels = listOf(
+    // 注意：必须用 MutableList。ArrayAdapter.remove()/insert() 会直接操作
+    // 底层集合，若传入 listOf(...) 生成的不可变 List，会抛
+    // UnsupportedOperationException: remove（已在真机崩溃日志中出现过）。
+    val intervalLabels = mutableListOf(
         getString(R.string.draft_interval_off), "2", "4", "8", customLabel()
     )
-    intervalSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, intervalLabels)
-        .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+    val intervalAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, intervalLabels)
+    intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    intervalSp?.adapter = intervalAdapter
 
     // ③ 单位
-    val unitLabels = listOf(
+    val unitLabels = mutableListOf(
         getString(R.string.unit_seconds), getString(R.string.unit_minutes), getString(R.string.unit_hours)
     )
     unitSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, unitLabels)
         .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
 
     // ④ 数量上限
-    val maxLabels = listOf("5", "10", "20", getString(R.string.thread_count_custom))
+    val maxLabels = mutableListOf("5", "10", "20", getString(R.string.thread_count_custom))
     val maxValues = listOf(5, 10, 20, -1)
     maxSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, maxLabels)
         .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
@@ -981,19 +985,17 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
     /** 刷新「自定义」项文字，反映当前自定义值 */
     fun refreshIntervalCustomLabel() {
         val sp = intervalSp ?: return
-        val ad = sp.adapter as? ArrayAdapter<*> ?: return
-        val idx = ad.count - 1
+        val idx = intervalLabels.size - 1
         if (idx < 0) return
         val want = customLabel()
-        val old = ad.getItem(idx)?.toString() ?: return
-        if (old == want) return
+        if (intervalLabels.getOrNull(idx) == want) return
         val was = suppress
         suppress = true
         try {
-            @Suppress("UNCHECKED_CAST")
-            val typed = ad as ArrayAdapter<String>
-            typed.remove(old)
-            typed.insert(want, idx)
+            // 原地修改 + 通知刷新（不要用 adapter.remove/insert，
+            // 且无论如何都不该改动 List 的长度，只改最后一项的文字）
+            intervalLabels[idx] = want
+            intervalAdapter.notifyDataSetChanged()
             // 若当前就是自定义值，保持选中它
             if (interval > 0 && DRAFT_INTERVAL_VALUES.indexOf(interval) < 0) {
                 sp.setSelection(idx)
@@ -1114,7 +1116,9 @@ private fun MainActivity.setupThreadCountSpinner(
     val container = root.findViewById<LinearLayout?>(containerId)
 
     // 选项：自动 / 2 / 4 / 8 / 自定义…
-    val labels = listOf(
+    // 必须用 MutableList —— 不可变 List 上调用 ArrayAdapter.remove 会抛
+    // UnsupportedOperationException（与草稿间隔那处是同一个坑）。
+    val labels = mutableListOf(
         getString(R.string.thread_count_auto), "2", "4", "8",
         getString(R.string.thread_count_custom)
     )
@@ -1124,6 +1128,14 @@ private fun MainActivity.setupThreadCountSpinner(
     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
     spinner.adapter = adapter
 
+    /** 把「自定义…」那一项的文字刷新为「自定义 (N)」（原地改，不动长度） */
+    fun updateCustomLabel(n: Int) {
+        val idx = labels.size - 1
+        if (idx < 0) return
+        labels[idx] = "${getString(R.string.thread_count_custom).removeSuffix("…")} ($n)"
+        adapter.notifyDataSetChanged()
+    }
+
     // 读取已保存的值并选中对应项
     val saved = prefs?.getInt(prefKey, 0) ?: 0
     val presetIdx = values.indexOf(saved)
@@ -1131,7 +1143,7 @@ private fun MainActivity.setupThreadCountSpinner(
         spinner.setSelection(presetIdx)
     } else {
         // 自定义值：显示为「自定义 (N)」
-        labelsMutable(adapter, labels, saved)
+        updateCustomLabel(saved)
         spinner.setSelection(labels.size - 1)
     }
 
@@ -1146,7 +1158,7 @@ private fun MainActivity.setupThreadCountSpinner(
                 showCustomThreadDialog(prefKey, saved) { n ->
                     prefs?.edit()?.putInt(prefKey, n)?.apply()
                     onChanged(n)
-                    labelsMutable(adapter, labels, n)
+                    updateCustomLabel(n)
                     spinner.setSelection(labels.size - 1)
                 }
             } else {
@@ -1155,15 +1167,6 @@ private fun MainActivity.setupThreadCountSpinner(
             }
         }
         override fun onNothingSelected(parent: AdapterView<*>?) {}
-    }
-}
-
-/** 把「自定义…」那一项的文字刷新为「自定义 (N)」 */
-private fun labelsMutable(adapter: ArrayAdapter<String>, labels: List<String>, n: Int) {
-    if (adapter.count == labels.size) {
-        adapter.remove(labels.last())
-        adapter.add("${labels.last().removeSuffix("…")} ($n)")
-        adapter.notifyDataSetChanged()
     }
 }
 
