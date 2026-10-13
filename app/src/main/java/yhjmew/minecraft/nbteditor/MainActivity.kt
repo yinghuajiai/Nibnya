@@ -174,6 +174,9 @@ class MainActivity : ComponentActivity() {
     private var pendingWorldSelector = false
     private var pendingBackupListFolder: String? = null
 
+    /** 当前备份列表所属的存档目录（重命名/删除后据此刷新列表） */
+    private var backupListFolder: String? = null
+
     // ============================================
     // 语言
     // ============================================
@@ -488,7 +491,11 @@ class MainActivity : ComponentActivity() {
                     if (w == 0) {
                         // 备份：按存档划分，需要先确定是哪个存档
                         val f = etWorldName!!.text.toString()
-                        if (checkFolder(f)) { pendingBackupListFolder = f; worldVM.scanBackups(this, f) }
+                        if (checkFolder(f)) {
+                            backupListFolder = f
+                            pendingBackupListFolder = f
+                            worldVM.scanBackups(this, f)
+                        }
                     } else {
                         showDraftBoxDialog()
                     }
@@ -827,9 +834,144 @@ class MainActivity : ComponentActivity() {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1,
                 list.map { "${if (it.isDirectory) "📁" else "📄"} ${it.name}\n${it.time}" })
         }
-        AlertDialog.Builder(this).setTitle(getString(R.string.dialog_backup_title)).setView(lv)
-            .setNeutralButton(getString(R.string.btn_close), null).show()
+        val dlg = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_backup_title))
+            .setView(lv)
+            .setNeutralButton(getString(R.string.btn_close), null)
+            .create()
+        dlg.show()
         lv.setOnItemClickListener { _, _, p, _ -> worldVM.restoreBackup(this, list[p]) }
+        // 标题写着「长按管理」，这里才真正兑现：重命名 / 删除 / 详情
+        lv.setOnItemLongClickListener { _, _, p, _ ->
+            showBackupManageMenu(dlg, list[p]); true
+        }
+    }
+
+    // ============================================
+    // 备份管理（长按）
+    // ============================================
+
+    private fun showBackupManageMenu(dlg: AlertDialog, item: BackupItem) {
+        val opts = arrayOf(
+            getString(R.string.btn_rename),
+            getString(R.string.btn_delete),
+            getString(R.string.btn_detail)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_manage, item.name))
+            .setItems(opts) { _, w ->
+                when (w) {
+                    0 -> showBackupRenameDialog(dlg, item)
+                    1 -> confirmDeleteBackup(dlg, item)
+                    2 -> showBackupDetailDialog(item)
+                }
+            }
+            .show()
+    }
+
+    /** 重命名备份（复用 WorldViewModel.renameBackup） */
+    private fun showBackupRenameDialog(dlg: AlertDialog, item: BackupItem) {
+        val input = EditText(this).apply {
+            setText(item.name)
+            setSelection(item.name.length)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_rename))
+            .setView(input)
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                val newName = input.text.toString().trim()
+                when {
+                    newName.isEmpty() ->
+                        toast(getString(R.string.msg_name_cannot_be_empty))
+                    newName.contains('/') || newName.contains('\\') ->
+                        toast(getString(R.string.toast_Invalid_name))
+                    newName == item.name -> { /* 没改动，忽略 */ }
+                    File(item.file.parentFile, newName).exists() ->
+                        toast(getString(R.string.msg_backup_name_exists))
+                    worldVM.renameBackup(item, newName) -> {
+                        toast(getString(R.string.toast_backup_renamed))
+                        dlg.dismiss(); refreshBackupList()
+                    }
+                    else ->
+                        toast(getString(R.string.toast_rename_failed, item.name))
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    /** 删除备份（复用 WorldViewModel.deleteBackup） */
+    private fun confirmDeleteBackup(dlg: AlertDialog, item: BackupItem) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_delete_backup_confirm, item.name))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                worldVM.deleteBackup(item)
+                toast(getString(R.string.toast_backup_deleted))
+                dlg.dismiss(); refreshBackupList()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    /** 备份详情：类型 / 时间 / 大小 / 路径（目录大小在后台计算） */
+    private fun showBackupDetailDialog(item: BackupItem) {
+        val f = item.file
+        val sb = StringBuilder()
+        sb.append(getString(R.string.label_type))
+            .append(if (item.isDirectory) getString(R.string.type_folder) else getString(R.string.type_file))
+            .append('\n')
+        sb.append(getString(R.string.label_time) + item.time).append('\n')
+        sb.append(getString(R.string.label_size)).append(getString(R.string.label_calculating)).append('\n')
+        sb.append(getString(R.string.label_path)).append('\n').append(f.absolutePath)
+
+        val tv = TextView(this).apply {
+            text = sb.toString()
+            setPadding(48, 32, 48, 32)
+            setTextIsSelectable(true)
+        }
+        val detailDlg = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_backup_detail))
+            .setView(tv)
+            .setPositiveButton(getString(R.string.btn_close), null)
+            .create()
+        detailDlg.show()
+
+        // 大小可能很大，放后台算，算完再刷新这一行
+        Thread {
+            val bytes = sizeOf(f)
+            runOnUiThread {
+                tv.text = sb.toString().replace(
+                    getString(R.string.label_size) + getString(R.string.label_calculating),
+                    getString(R.string.label_size) + formatSize(bytes)
+                )
+            }
+        }.start()
+    }
+
+    /** 递归求大小（文件直接取长度；目录累加） */
+    private fun sizeOf(f: File): Long {
+        if (f.isFile) return f.length()
+        var total = 0L
+        try {
+            f.listFiles()?.forEach { total += sizeOf(it) }
+        } catch (_: Exception) {
+        }
+        return total
+    }
+
+    private fun formatSize(bytes: Long): String = when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0)
+        bytes < 1024L * 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f MB", bytes / 1024.0 / 1024.0)
+        else -> String.format(Locale.getDefault(), "%.2f GB", bytes / 1024.0 / 1024.0 / 1024.0)
+    }
+
+    /** 重命名/删除后刷新列表（关掉旧弹窗，重新扫描会再次弹出） */
+    private fun refreshBackupList() {
+        val f = backupListFolder ?: return
+        pendingBackupListFolder = f
+        worldVM.scanBackups(this, f)
     }
 
     // ============================================
@@ -845,6 +987,24 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * 草稿类型标签。
+     * 注意 level.dat 是「世界数据」，不是「地图」—— msg_map 指的是 map_xxx 地图数据，
+     * 之前这里一律用 msg_map，导致世界数据的草稿被标成 [地图]。
+     */
+    private fun draftTypeLabel(d: DraftStore.Draft): String {
+        val key = d.sessionKey
+        return when {
+            key == "level.dat" -> getString(R.string.msg_world_data)
+            key == "~local_player" -> getString(R.string.msg_local_player)
+            key.startsWith("map_") -> getString(R.string.msg_map)
+            key.startsWith("VILLAGE_") -> getString(R.string.msg_village)
+            key.startsWith("player") -> getString(R.string.msg_player)
+            d.isPlayerMode -> getString(R.string.msg_player)
+            else -> getString(R.string.msg_world_data)
+        }
+    }
+
+    /**
      * 草稿箱：列出未保存的编辑，由用户主动找回。
      * 与「备份」分离 —— 备份是已保存状态的快照，草稿是未保存的改动。
      */
@@ -857,7 +1017,7 @@ class MainActivity : ComponentActivity() {
             adapter = ArrayAdapter(
                 this@MainActivity, android.R.layout.simple_list_item_1,
                 drafts.map { d ->
-                    val origin = if (d.isPlayerMode) getString(R.string.msg_player) else getString(R.string.msg_map)
+                    val origin = draftTypeLabel(d)
                     val orig = if (d.hasOriginal()) " · ${getString(R.string.draft_has_original)}" else ""
                     "${d.label()}  [$origin]\n${d.timeText()} · ${agoTextOf(d.minutesAgo())}$orig"
                 }
