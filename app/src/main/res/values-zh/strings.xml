@@ -13,6 +13,20 @@
     <string name="btn_cancel">取消</string>
     <string name="btn_later">稍后</string>
     <string name="btn_close">关闭</string>
+    <string name="tab_all">所有</string>
+    <string name="tab_world">世界</string>
+    <string name="tab_player">玩家</string>
+    <string name="tab_other">其他</string>
+    <string name="menu_more_actions_title">更多操作</string>
+    <string name="msg_action_unavailable">此处不可用</string>
+    <string name="btn_clear_backups_here">清空本存档的备份（%1$d 份）</string>
+    <string name="msg_clear_backups_here_confirm">删除本存档的全部 %1$d 份备份？无法撤销。</string>
+    <string name="toast_backups_cleared">已清空备份</string>
+    <string name="title_draft_box_no_folder">📝 草稿箱</string>
+    <string name="msg_draft_select_world_first">未选择存档。\n\n先选一个存档可查看该存档的草稿，或直接查看全部存档的草稿。</string>
+    <string name="btn_view_all_drafts">查看全部存档</string>
+    <string name="btn_clear_drafts_here">清空本存档的草稿（%1$d 份）</string>
+    <string name="msg_clear_drafts_here_confirm">删除本存档的全部 %1$d 份草稿？无法撤销。</string>
     <string name="time_unknown">未知时间</string>
     <string name="title_error">错误</string>
     <string name="btn_create">创建</string>
@@ -55,11 +69,7 @@
     <string name="label_size">大小：</string>
     <string name="label_path">路径：</string>
     <string name="label_calculating">计算中…</string>
-    <string name="msg_delete_backup_confirm">删除这个备份？
-
-%1$s
-
-无法撤销。</string>
+    <string name="msg_delete_backup_confirm">删除这个备份？\n\n%1$s\n\n无法撤销。</string>
     <string name="toast_backup_deleted">备份已删除</string>
     <string name="toast_backup_renamed">备份已重命名</string>
     <string name="msg_backup_name_exists">已存在同名备份</string>
@@ -252,9 +262,7 @@
     <string name="toast_exported_to">已保存：%1$s</string>
     <string name="toast_exported_ok">已导出</string>
     <string name="toast_export_failed">导出失败</string>
-    <string name="msg_export_need_permission">无法写入下载目录（需要「所有文件访问权限」）。
-
-可以改用「选择目录」，这种方式不需要任何权限。</string>
+    <string name="msg_export_need_permission">无法写入下载目录（需要「所有文件访问权限」）。\n\n可以改用「选择目录」，这种方式不需要任何权限。</string>
     <string name="clip_format_json">JSON（可再导入）</string>
     <string name="clip_format_snbt">SNBT（游戏内格式）</string>
     <string name="clip_format_text">纯文本（方便阅读）</string>
