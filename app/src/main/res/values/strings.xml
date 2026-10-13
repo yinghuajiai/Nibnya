@@ -13,6 +13,15 @@
     <string name="btn_cancel">Cancel</string>
     <string name="btn_later">Later</string>
     <string name="btn_close">Close</string>
+    <string name="title_draft_detail">Draft details</string>
+    <string name="label_key">Key:</string>
+    <string name="label_world">Save:</string>
+    <string name="label_folder">Folder:</string>
+    <string name="label_fields">Top-level fields:</string>
+    <string name="label_has_original">Pre-edit copy:</string>
+    <string name="msg_unknown">Unknown</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
     <string name="tab_all">All</string>
     <string name="tab_world">World</string>
     <string name="tab_player">Player</string>

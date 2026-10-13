@@ -13,6 +13,15 @@
     <string name="btn_cancel">取消</string>
     <string name="btn_later">稍后</string>
     <string name="btn_close">关闭</string>
+    <string name="title_draft_detail">草稿详情</string>
+    <string name="label_key">键名：</string>
+    <string name="label_world">所属存档：</string>
+    <string name="label_folder">文件夹：</string>
+    <string name="label_fields">顶层字段数：</string>
+    <string name="label_has_original">改动前副本：</string>
+    <string name="msg_unknown">未知</string>
+    <string name="yes">是</string>
+    <string name="no">否</string>
     <string name="tab_all">所有</string>
     <string name="tab_world">世界</string>
     <string name="tab_player">玩家</string>
