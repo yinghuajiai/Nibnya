@@ -115,6 +115,13 @@ object DraftStore {
         }
     }
 
+    /** 草稿文件的字节数（用于详情展示）；0 = 不存在 */
+    fun sizeOf(context: Context, sessionKey: String): Long = try {
+        fileOf(context, sessionKey).takeIf { it.exists() }?.length() ?: 0L
+    } catch (_: Exception) {
+        0L
+    }
+
     fun count(context: Context): Int = try {
         dirOf(context).listFiles()?.count { it.isFile && it.name.endsWith(".json") } ?: 0
     } catch (_: Exception) {

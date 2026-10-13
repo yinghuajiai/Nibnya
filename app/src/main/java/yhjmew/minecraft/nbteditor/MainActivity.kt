@@ -1299,13 +1299,73 @@ class MainActivity : ComponentActivity() {
                 "$line1\n$line2"
             },
             onShortClick = { worldVM.restoreDraft(this, it) },
-            onLongClick = { confirmDeleteDraft(it) },
+            onLongClick = { showDraftManageMenu(it) },
             menuItems = listOf(
                 getString(R.string.btn_clear_drafts_here, hereCount) to clearHere,
                 getString(R.string.btn_clear_drafts) to { confirmClearAllDrafts() }
             )
         )
     }
+
+    // ============================================
+    // 草稿管理（长按）
+    // ============================================
+
+    /** 草稿长按菜单：恢复 / 详情 / 导出 / 删除 */
+    private fun showDraftManageMenu(d: DraftStore.Draft) {
+        val opts = arrayOf(
+            getString(R.string.btn_restore_action),
+            getString(R.string.btn_detail),
+            getString(R.string.btn_export),
+            getString(R.string.btn_delete)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_manage, d.label()))
+            .setItems(opts) { _, w ->
+                when (w) {
+                    0 -> worldVM.restoreDraft(this, d)
+                    1 -> showDraftDetailDialog(d)
+                    2 -> exportDraft(d)
+                    3 -> confirmDeleteDraft(d)
+                }
+            }
+            .show()
+    }
+
+    /** 草稿详情：类型 / key / 所属存档 / 时间 / 顶层字段数 / 体积 / 是否含原始数据 */
+    private fun showDraftDetailDialog(d: DraftStore.Draft) {
+        val sb = StringBuilder()
+        fun row(label: String, value: String) { sb.append(label).append(value).append('\n') }
+
+        row(getString(R.string.label_type), draftTypeLabel(d))
+        row(getString(R.string.label_key), d.sessionKey)
+        row(getString(R.string.label_world),
+            d.worldName?.takeIf { it.isNotBlank() } ?: getString(R.string.msg_unknown))
+        row(getString(R.string.label_folder), d.folder ?: getString(R.string.msg_unknown))
+        row(getString(R.string.label_time),
+            fullTimeOf(d.savedAt) + "  (" + agoTextOf(d.minutesAgo()) + ")")
+        row(getString(R.string.label_fields), d.data.size().toString())
+        row(getString(R.string.label_size), formatSize(DraftStore.sizeOf(this, d.sessionKey)))
+        row(getString(R.string.label_has_original),
+            if (d.hasOriginal()) getString(R.string.yes) else getString(R.string.no))
+
+        val tv = TextView(this).apply {
+            text = sb.toString().trimEnd()
+            setPadding(48, 32, 48, 32)
+            setTextIsSelectable(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_draft_detail))
+            .setView(tv)
+            .setPositiveButton(getString(R.string.btn_close), null)
+            .show()
+    }
+
+    /** 导出草稿（复用 NbtExporter 的格式选择 + 目标选择流程） */
+    private fun exportDraft(d: DraftStore.Draft) {
+        showCopyExportDialog(d.data, d.label())
+    }
+
 
     /** 删除单份草稿（二次确认） */
     private fun confirmDeleteDraft(d: DraftStore.Draft) {
