@@ -884,17 +884,19 @@ class MainActivity : ComponentActivity() {
 
     private fun showBackupManageMenu(item: BackupItem) {
         val opts = arrayOf(
+            getString(R.string.btn_restore_action),
+            getString(R.string.btn_detail),
             getString(R.string.btn_rename),
-            getString(R.string.btn_delete),
-            getString(R.string.btn_detail)
+            getString(R.string.btn_delete)
         )
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.title_manage, item.name))
             .setItems(opts) { _, w ->
                 when (w) {
-                    0 -> showBackupRenameDialog(item)
-                    1 -> confirmDeleteBackup(item)
-                    2 -> showBackupDetailDialog(item)
+                    0 -> worldVM.restoreBackup(this, item)
+                    1 -> showBackupDetailDialog(item)
+                    2 -> showBackupRenameDialog(item)
+                    3 -> confirmDeleteBackup(item)
                 }
             }
             .show()
@@ -1059,15 +1061,16 @@ class MainActivity : ComponentActivity() {
             .setView(view)
             .create()
 
-        fun render() {
+        fun render(onRendered: (Int) -> Unit = {}) {
             shown = if (selected == ListTab.ALL) items
                     else items.filter { tabOfItem(it) == selected }
             lv.adapter = ArrayAdapter(
                 this, android.R.layout.simple_list_item_1, shown.map(linesOf)
             )
+            onRendered(shown.size)
             buildTabBar(tabBar, tabs, selected, menuItems) { sel ->
                 selected = sel
-                render()
+                render(onRendered)
             }
         }
 
@@ -1079,13 +1082,27 @@ class MainActivity : ComponentActivity() {
             if (it != null) { onLongClick(it); true } else false
         }
 
+        // 窗口尺寸：宽度固定 90%，高度按条数自适应（标签栏始终贴在底部，
+        // 条数少时不至于留一大块空白；条数多时封顶，列表内部滚动）
+        val density = resources.displayMetrics.density
+        val winW = (resources.displayMetrics.widthPixels * 0.9).toInt()
+        val maxH = (resources.displayMetrics.heightPixels * 0.7).toInt()
+        val itemH = (56 * density).toInt()      // 每项两行的大致高度
+        val tabH = (46 * density).toInt()       // 底部标签栏
+        val minH = (160 * density).toInt()
+
+        fun applyHeight(count: Int) {
+            val want = tabH + count * itemH
+            val h = want.coerceIn(minH, maxH)
+            dlg.window?.setLayout(winW, h)
+        }
+
         dlg.setOnDismissListener { currentDialog = null }
         currentDialog = dlg
         dlg.show()
-        val maxH = (resources.displayMetrics.heightPixels * 0.7).toInt()
-        dlg.window?.setLayout((resources.displayMetrics.widthPixels * 0.9).toInt(), maxH)
+        applyHeight(items.size)
 
-        render()
+        render { applyHeight(it) }
     }
 
     /** 构建标签栏：若干分类格 + 末尾固定的「关闭」 */

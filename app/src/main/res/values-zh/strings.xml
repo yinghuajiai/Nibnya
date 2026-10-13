@@ -60,6 +60,7 @@
     <string name="dialog_custom_path_title">自定义路径</string>
     <string name="dialog_backup_title">🕒 恢复备份 (%1$d)</string>
     <string name="btn_rename">重命名</string>
+    <string name="btn_restore_action">恢复</string>
     <string name="btn_detail">详情</string>
     <string name="title_backup_detail">备份详情</string>
     <string name="label_type">类型：</string>
