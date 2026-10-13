@@ -32,7 +32,9 @@ object DraftAutoSaver {
         val isPlayerMode: Boolean,
         val targetKey: String?,
         val dbPath: String?,
-        val folder: String?
+        val folder: String?,
+        /** 世界名（用于草稿箱展示） */
+        val worldName: String?
     )
 
     private var providerRef: WeakReference<Provider>? = null
@@ -163,6 +165,7 @@ object DraftAutoSaver {
                 dbPath = snap.dbPath,
                 folder = snap.folder,
                 originalData = if (keepOriginal) originalByKey[snap.sessionKey] else null,
+                worldName = snap.worldName,
                 maxDrafts = maxDrafts
             )
         } catch (e: Throwable) {
