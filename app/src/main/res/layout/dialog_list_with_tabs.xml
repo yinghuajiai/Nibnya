@@ -5,16 +5,15 @@
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- 列表（占满剩余高度，避免标签把列表挤没） -->
+    <!-- 列表（weight=1 占满标签栏以上的全部空间） -->
     <ListView
         android:id="@+id/lv_tabbed_items"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:minHeight="120dp"
         android:divider="#E0E0E0"
         android:dividerHeight="1dp" />
 

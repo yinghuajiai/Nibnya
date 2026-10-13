@@ -60,6 +60,7 @@
     <string name="dialog_custom_path_title">Custom path</string>
     <string name="dialog_backup_title">🕒 Restore backup (%1$d)</string>
     <string name="btn_rename">rename</string>
+    <string name="btn_restore_action">Restore</string>
     <string name="btn_detail">Details</string>
     <string name="title_backup_detail">Backup details</string>
     <string name="label_type">Type:</string>
