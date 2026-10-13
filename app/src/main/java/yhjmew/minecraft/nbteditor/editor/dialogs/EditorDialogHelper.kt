@@ -664,9 +664,36 @@ fun MainActivity.showAppInfoDialog() {
     val dialog = AlertDialog.Builder(this).setView(dialogView).create()
     dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
     dialog.show()
-    dialog.window?.let {
-        it.attributes.width = (resources.displayMetrics.widthPixels * 0.85).toInt()
-        it.attributes = it.attributes
+
+    // 宽度固定 85%，高度按内容自适应但**不超过屏幕 85%** —— 否则内容一多
+    // 就会超出屏幕，底部的选项既看不到也点不到（布局根节点是 ScrollView，
+    // 有了高度上限才能真正滚动起来）。
+    val metrics = resources.displayMetrics
+    val winWidth = (metrics.widthPixels * 0.85).toInt()
+    val maxHeight = (metrics.heightPixels * 0.85).toInt()
+    dialog.window?.let { w ->
+        // 先按不限高测量一次内容高度，再取「内容高」与「上限」的较小值
+        dialogView.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(winWidth, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        )
+        val contentHeight = dialogView.measuredHeight
+        val targetHeight = if (contentHeight in 1 until maxHeight) contentHeight else maxHeight
+        w.setLayout(winWidth, targetHeight)
+    }
+
+    // 展开/收起时重新计算高度，保证内容变化后依然可滚动
+    fun remeasure() {
+        dialogView.post {
+            dialog.window?.let { w ->
+                dialogView.measure(
+                    android.view.View.MeasureSpec.makeMeasureSpec(winWidth, android.view.View.MeasureSpec.EXACTLY),
+                    android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+                )
+                val h = dialogView.measuredHeight
+                w.setLayout(winWidth, if (h in 1 until maxHeight) h else maxHeight)
+            }
+        }
     }
 
     val aboutHeader = dialogView.findViewById<LinearLayout?>(R.id.layout_about_header)
@@ -680,6 +707,7 @@ fun MainActivity.showAppInfoDialog() {
         aboutContent?.let {
             it.isVisible = !it.isVisible
             aboutExpand?.text = if (it.isVisible) "▲" else "▼"
+            remeasure()
         }
     }
 
@@ -690,6 +718,7 @@ fun MainActivity.showAppInfoDialog() {
         settingsContent?.let {
             it.isVisible = !it.isVisible
             settingsExpand?.text = if (it.isVisible) "▲" else "▼"
+            remeasure()
         }
     }
 
@@ -858,7 +887,11 @@ private fun unitFactor(unit: Int): Long = when (unit) {
 }
 
 private fun MainActivity.setupDraftSettings(root: android.view.View) {
-    var initializing = true
+    // 注意：Spinner.setSelection() 触发的 onItemSelected 是**异步**回调，
+    // 若只用普通布尔标志，函数返回时回调还没到，标志已置回 false，
+    // 就会在「打开设置」的瞬间弹出「自定义间隔」输入框。
+    // 因此用 post 延迟到初始回调派发完毕后再解除抑制。
+    var suppress = true
 
     val intervalSp = root.findViewById<Spinner?>(R.id.sp_draft_interval)
     val unitSp = root.findViewById<Spinner?>(R.id.sp_draft_interval_unit)
@@ -890,7 +923,7 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
     // ① 自动保存开关：关 = interval 0
     cbAuto?.isChecked = interval > 0
     cbAuto?.setOnCheckedChangeListener { _, checked ->
-        if (initializing) return@setOnCheckedChangeListener
+        if (suppress) return@setOnCheckedChangeListener
         if (!checked) {
             interval = 0
             // 记住关闭前的值，重新打开时能恢复
@@ -909,9 +942,15 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
     }
 
     // ② 间隔
+    // 「自定义」项用短标签（避免在半宽 Spinner 里被截断成 "Cu.."），
+    // 且当自定义值生效时直接显示该数值，让用户一眼看到当前设定
+    val customIcon = getString(R.string.draft_interval_custom)
+    fun customLabel(): String {
+        val isCustomValue = interval > 0 && DRAFT_INTERVAL_VALUES.indexOf(interval) < 0
+        return if (isCustomValue) "$customIcon $interval" else customIcon
+    }
     val intervalLabels = listOf(
-        getString(R.string.draft_interval_off), "2", "4", "8",
-        getString(R.string.thread_count_custom)
+        getString(R.string.draft_interval_off), "2", "4", "8", customLabel()
     )
     intervalSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, intervalLabels)
         .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
@@ -939,9 +978,34 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
     }
     applyAll()
 
+    /** 刷新「自定义」项文字，反映当前自定义值 */
+    fun refreshIntervalCustomLabel() {
+        val sp = intervalSp ?: return
+        val ad = sp.adapter as? ArrayAdapter<*> ?: return
+        val idx = ad.count - 1
+        if (idx < 0) return
+        val want = customLabel()
+        val old = ad.getItem(idx)?.toString() ?: return
+        if (old == want) return
+        val was = suppress
+        suppress = true
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val typed = ad as ArrayAdapter<String>
+            typed.remove(old)
+            typed.insert(want, idx)
+            // 若当前就是自定义值，保持选中它
+            if (interval > 0 && DRAFT_INTERVAL_VALUES.indexOf(interval) < 0) {
+                sp.setSelection(idx)
+            }
+        } finally {
+            suppress = was
+        }
+    }
+
     intervalSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-            if (initializing) return
+            if (suppress) return
             val valAt = DRAFT_INTERVAL_VALUES.getOrNull(position)
             if (valAt == null || valAt == -1) {
                 // 「自定义…」
@@ -952,6 +1016,7 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
                 ) { n ->
                     interval = n
                     prefs?.edit()?.putInt("draft_interval_last", n)?.apply()
+                    refreshIntervalCustomLabel()
                     applyAll()
                 }
             } else {
@@ -965,7 +1030,7 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
 
     unitSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-            if (initializing) return
+            if (suppress) return
             unit = position.coerceIn(0, 2)
             applyAll()
         }
@@ -974,7 +1039,7 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
 
     maxSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-            if (initializing) return
+            if (suppress) return
             val valAt = maxValues.getOrNull(position) ?: return
             if (valAt == -1) {
                 showCustomNumberDialog(
@@ -1000,7 +1065,8 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         prefs?.edit()?.putBoolean("draft_keep_original", c)?.apply()
     }
 
-    initializing = false
+    // 初始选中回调派发完毕后再允许用户交互，避免误触发「自定义」输入框
+    root.post { suppress = false }
 }
 
 /** 「关闭 / 2 / 4 / 8 / 自定义」对应的秒数；-1 表示自定义 */
