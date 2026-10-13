@@ -13,6 +13,20 @@
     <string name="btn_cancel">Cancel</string>
     <string name="btn_later">Later</string>
     <string name="btn_close">Close</string>
+    <string name="tab_all">All</string>
+    <string name="tab_world">World</string>
+    <string name="tab_player">Player</string>
+    <string name="tab_other">Other</string>
+    <string name="menu_more_actions_title">More actions</string>
+    <string name="msg_action_unavailable">Not available here</string>
+    <string name="btn_clear_backups_here">Clear backups of this save (%1$d)</string>
+    <string name="msg_clear_backups_here_confirm">Delete all %1$d backups of this save? This cannot be undone.</string>
+    <string name="toast_backups_cleared">Backups cleared</string>
+    <string name="title_draft_box_no_folder">📝 Draft Box</string>
+    <string name="msg_draft_select_world_first">No save selected.\n\nPick a save first to see that save\'s drafts, or view drafts of all saves.</string>
+    <string name="btn_view_all_drafts">View all saves</string>
+    <string name="btn_clear_drafts_here">Clear drafts of this save (%1$d)</string>
+    <string name="msg_clear_drafts_here_confirm">Delete all %1$d drafts of this save? This cannot be undone.</string>
     <string name="time_unknown">Unknown time</string>
     <string name="title_error">Error</string>
     <string name="btn_create">Create</string>
@@ -55,11 +69,7 @@
     <string name="label_size">Size:</string>
     <string name="label_path">Path:</string>
     <string name="label_calculating">Calculating…</string>
-    <string name="msg_delete_backup_confirm">Delete this backup?
-
-%1$s
-
-This cannot be undone.</string>
+    <string name="msg_delete_backup_confirm">Delete this backup?\n\n%1$s\n\nThis cannot be undone.</string>
     <string name="toast_backup_deleted">Backup deleted</string>
     <string name="toast_backup_renamed">Backup renamed</string>
     <string name="msg_backup_name_exists">A backup with this name already exists</string>
@@ -146,14 +156,12 @@ This cannot be undone.</string>
     <string name="msg_full_coverage">Make sure you want to use the contents of the clipboard [complete coverage]</string>
     <string name="msg_move_data_to_new_key_and_delete_old_key">This will move the data to the new key and delete the old key</string>
     <string name="msg_comma_separated_format_click_save_after_modification">Please keep the comma separated format and click Save after modification</string>
-    <string name="msg_the_operation_cannot_be_undone">\?
-This action is irreversible!</string>
+    <string name="msg_the_operation_cannot_be_undone">\?\nThis action is irreversible!</string>
     <string name="msg_this_action_is_irreversible">data? This action is irreversible!</string>
     <string name="msg_delete_existing_ones_in_the_list">Are you sure you want to delete the existing ones in the list?</string>
     <string name="msg_are_you_sure_you_want_to_delete_the_selected">Are you sure you want to delete the selected</string>
     <string name="msg_item_this_action_is_irreversible">Item?\nThis action is irreversible!</string>
-    <string name="msg_this_archive_has_not_generated_data_yet">This save file has not yet generated [%s] data.
-Would you like to create a new empty data set?</string>
+    <string name="msg_this_archive_has_not_generated_data_yet">This save file has not yet generated [%s] data.\nWould you like to create a new empty data set?</string>
     <string name="msg_create_new_blank">➕ Create New Blank %s</string>
     <string name="msg_paste_as_new">📋 Paste as New %s</string>
     <string name="msg_delete_all_data_in_the_list">🗑️ [DANGER] Delete all data in the list</string>
@@ -254,9 +262,7 @@ Would you like to create a new empty data set?</string>
     <string name="toast_exported_to">Saved: %1$s</string>
     <string name="toast_exported_ok">Exported</string>
     <string name="toast_export_failed">Export failed</string>
-    <string name="msg_export_need_permission">Cannot write to the Download folder (needs "All files access").
-
-Choose a folder instead — that works without any permission.</string>
+    <string name="msg_export_need_permission">Cannot write to the Download folder (needs "All files access").\n\nChoose a folder instead — that works without any permission.</string>
     <string name="clip_format_json">JSON (for re-import)</string>
     <string name="clip_format_snbt">SNBT (in-game format)</string>
     <string name="clip_format_text">Plain text (readable)</string>

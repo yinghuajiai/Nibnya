@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  带底部标签栏的列表对话框（草稿箱 / 备份共用）
+  底部标签是动态生成的：只显示有内容的类型，最后一格固定为「关闭」
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- 列表（占满剩余高度，避免标签把列表挤没） -->
+    <ListView
+        android:id="@+id/lv_tabbed_items"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:minHeight="120dp"
+        android:divider="#E0E0E0"
+        android:dividerHeight="1dp" />
+
+    <!-- 分隔线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0" />
+
+    <!-- 底部标签栏（代码动态填充） -->
+    <LinearLayout
+        android:id="@+id/layout_tab_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:baselineAligned="false" />
+
+</LinearLayout>

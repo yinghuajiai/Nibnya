@@ -14,6 +14,7 @@ import android.os.Environment
 import android.view.*
 import android.widget.*
 import androidx.core.content.edit
+import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
@@ -836,35 +837,52 @@ class MainActivity : ComponentActivity() {
     private fun showBackupDialog(list: List<BackupItem>) {
         if (list.isEmpty()) { toast(getString(R.string.toast_no_backups)); return }
         val worldName = worldVM.backupWorldName.value
-        val folderId = backupListFolder ?: ""
-        val lv = ListView(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_list_item_1,
-                list.map { b ->
-                    val line1 = listTitleLine(worldName, folderId)
-                    val type = if (b.isPlayerData) getString(R.string.msg_local_player)
-                               else getString(R.string.msg_world_data)
-                    val line2 = listSubLine(type, b.time, agoTextOfMillis(b.timestamp))
-                    "$line1\n$line2"
-                })
-        }
-        val dlg = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_backup_title, list.size))
-            .setView(lv)
-            .setNeutralButton(getString(R.string.btn_close), null)
-            .create()
-        dlg.show()
-        lv.setOnItemClickListener { _, _, p, _ -> worldVM.restoreBackup(this, list[p]) }
-        // 标题写着「长按管理」，这里才真正兑现：重命名 / 删除 / 详情
-        lv.setOnItemLongClickListener { _, _, p, _ ->
-            showBackupManageMenu(dlg, list[p]); true
-        }
+        val folder = backupListFolder
+        val folderId = folder ?: ""
+
+        // ⋮ 菜单：清空本存档的备份（备份只有「按存档」这一个维度，没有全部）
+        val clearHere: (() -> Unit)? =
+            if (folder.isNullOrBlank()) null else { { confirmClearBackupsHere(folder, list.size) } }
+
+        showTabbedListDialog(
+            title = getString(R.string.dialog_backup_title, list.size),
+            items = list,
+            tabOf = { backupTabOf(it) },
+            linesOf = { b ->
+                val line1 = listTitleLine(worldName, folderId)
+                val type = if (b.isPlayerData) getString(R.string.msg_local_player)
+                           else getString(R.string.msg_world_data)
+                "$line1\n" + listSubLine(type, b.time, agoTextOfMillis(b.timestamp))
+            },
+            onShortClick = { worldVM.restoreBackup(this, it) },
+            onLongClick = { showBackupManageMenu(it) },
+            menuItems = listOf(
+                getString(R.string.btn_clear_backups_here, list.size) to clearHere
+            )
+        )
+    }
+
+    /** 清空本存档的全部备份（二次确认） */
+    private fun confirmClearBackupsHere(folder: String, count: Int) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_clear_backups_here_confirm, count))
+            .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
+                val dir = File(backupsDir, folder)
+                dir.listFiles()?.forEach { worldVM.deleteBackup(BackupItem(it, it.name, "", it.isDirectory)) }
+                toast(getString(R.string.toast_backups_cleared))
+                currentDialog?.dismiss()
+                refreshBackupList()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
     // ============================================
     // 备份管理（长按）
     // ============================================
 
-    private fun showBackupManageMenu(dlg: AlertDialog, item: BackupItem) {
+    private fun showBackupManageMenu(item: BackupItem) {
         val opts = arrayOf(
             getString(R.string.btn_rename),
             getString(R.string.btn_delete),
@@ -874,8 +892,8 @@ class MainActivity : ComponentActivity() {
             .setTitle(getString(R.string.title_manage, item.name))
             .setItems(opts) { _, w ->
                 when (w) {
-                    0 -> showBackupRenameDialog(dlg, item)
-                    1 -> confirmDeleteBackup(dlg, item)
+                    0 -> showBackupRenameDialog(item)
+                    1 -> confirmDeleteBackup(item)
                     2 -> showBackupDetailDialog(item)
                 }
             }
@@ -883,7 +901,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** 重命名备份（复用 WorldViewModel.renameBackup） */
-    private fun showBackupRenameDialog(dlg: AlertDialog, item: BackupItem) {
+    private fun showBackupRenameDialog(item: BackupItem) {
         val input = EditText(this).apply {
             setText(item.name)
             setSelection(item.name.length)
@@ -903,7 +921,7 @@ class MainActivity : ComponentActivity() {
                         toast(getString(R.string.msg_backup_name_exists))
                     worldVM.renameBackup(item, newName) -> {
                         toast(getString(R.string.toast_backup_renamed))
-                        dlg.dismiss(); refreshBackupList()
+                        currentDialog?.dismiss(); refreshBackupList()
                     }
                     else ->
                         toast(getString(R.string.toast_rename_failed, item.name))
@@ -914,14 +932,14 @@ class MainActivity : ComponentActivity() {
     }
 
     /** 删除备份（复用 WorldViewModel.deleteBackup） */
-    private fun confirmDeleteBackup(dlg: AlertDialog, item: BackupItem) {
+    private fun confirmDeleteBackup(item: BackupItem) {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.dialog_danger_title))
             .setMessage(getString(R.string.msg_delete_backup_confirm, item.name))
             .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
                 worldVM.deleteBackup(item)
                 toast(getString(R.string.toast_backup_deleted))
-                dlg.dismiss(); refreshBackupList()
+                currentDialog?.dismiss(); refreshBackupList()
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
@@ -991,6 +1009,179 @@ class MainActivity : ComponentActivity() {
     // 草稿箱
     // ============================================
 
+    // ============================================
+    // 带底部标签的列表对话框（草稿箱 / 备份共用）
+    // ============================================
+
+    /** 列表项的分类格 */
+    private enum class ListTab(val labelRes: Int) {
+        ALL(R.string.tab_all),
+        WORLD(R.string.tab_world),
+        PLAYER(R.string.tab_player),
+        OTHER(R.string.tab_other)
+    }
+
+    /**
+     * 通用「带底部标签栏的列表」对话框。
+     *
+     * 标签**动态生成**：只显示实际有内容的分类，最后一格固定是「关闭」。
+     *   所有 / 世界 / 玩家 / 其他 / 关闭
+     *
+     * @param tabOf   分类函数；返回 null 表示「未知」，统一归入「其他」格
+     * @param linesOf 每项显示的两行文本
+     */
+    private fun <T> showTabbedListDialog(
+        title: String,
+        items: List<T>,
+        tabOf: (T) -> ListTab?,
+        linesOf: (T) -> String,
+        onShortClick: (T) -> Unit,
+        onLongClick: (T) -> Unit,
+        /** 右上角 ⋮ 菜单项（空 = 不显示 ⋮）；lambda 为 null 表示不可用 */
+        menuItems: List<Pair<String, (() -> Unit)?>> = emptyList()
+    ) {
+        fun tabOfItem(item: T): ListTab = tabOf(item) ?: ListTab.OTHER
+
+        val view = layoutInflater.inflate(R.layout.dialog_list_with_tabs, null, false)
+        val lv = view.findViewById<ListView>(R.id.lv_tabbed_items)
+        val tabBar = view.findViewById<LinearLayout>(R.id.layout_tab_bar)
+
+        // 有内容的分类（顺序固定：所有 / 世界 / 玩家 / 其他）
+        val present = items.map { tabOfItem(it) }.toSet()
+        val tabs = listOf(ListTab.ALL, ListTab.WORLD, ListTab.PLAYER, ListTab.OTHER)
+            .filter { it == ListTab.ALL || it in present }
+
+        var shown: List<T> = items
+        var selected: ListTab = ListTab.ALL
+
+        val dlg = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(view)
+            .create()
+
+        fun render() {
+            shown = if (selected == ListTab.ALL) items
+                    else items.filter { tabOfItem(it) == selected }
+            lv.adapter = ArrayAdapter(
+                this, android.R.layout.simple_list_item_1, shown.map(linesOf)
+            )
+            buildTabBar(tabBar, tabs, selected, menuItems) { sel ->
+                selected = sel
+                render()
+            }
+        }
+
+        lv.setOnItemClickListener { _, _, p, _ ->
+            shown.getOrNull(p)?.let(onShortClick)
+        }
+        lv.setOnItemLongClickListener { _, _, p, _ ->
+            val it = shown.getOrNull(p)
+            if (it != null) { onLongClick(it); true } else false
+        }
+
+        dlg.setOnDismissListener { currentDialog = null }
+        currentDialog = dlg
+        dlg.show()
+        val maxH = (resources.displayMetrics.heightPixels * 0.7).toInt()
+        dlg.window?.setLayout((resources.displayMetrics.widthPixels * 0.9).toInt(), maxH)
+
+        render()
+    }
+
+    /** 构建标签栏：若干分类格 + 末尾固定的「关闭」 */
+    private fun buildTabBar(
+        bar: LinearLayout,
+        tabs: List<ListTab>,
+        selected: ListTab,
+        menuItems: List<Pair<String, (() -> Unit)?>>,
+        onSelect: (ListTab) -> Unit
+    ) {
+        bar.removeAllViews()
+        val density = resources.displayMetrics.density
+        val vpad = (12 * density).toInt()
+        val lp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+
+        for (tab in tabs) {
+            val isSel = tab == selected
+            bar.addView(TextView(this).apply {
+                text = getString(tab.labelRes)
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, vpad, 0, vpad)
+                textSize = 13f
+                layoutParams = lp
+                isClickable = true
+                if (isSel) {
+                    setTextColor("#009688".toColorInt())
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    setBackgroundColor("#E0F2F1".toColorInt())
+                } else {
+                    setTextColor("#666666".toColorInt())
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                }
+                setOnClickListener { onSelect(tab) }
+            })
+        }
+        // 倒数第二格：⋮ 菜单（有菜单项时才显示）
+        if (menuItems.isNotEmpty()) {
+            bar.addView(TextView(this).apply {
+                text = "\u22ee"
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, vpad, 0, vpad)
+                textSize = 16f
+                setTextColor("#009688".toColorInt())
+                layoutParams = LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 0.7f
+                )
+                isClickable = true
+                setOnClickListener {
+                    val labels = menuItems.map { it.first }.toTypedArray()
+                    val enabled = menuItems.map { it.second != null }.toBooleanArray()
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle(R.string.menu_more_actions_title)
+                        .setItems(labels) { _, w ->
+                            if (menuItems[w].second != null) menuItems[w].second!!.invoke()
+                            else toast(getString(R.string.msg_action_unavailable))
+                        }
+                        .show()
+                }
+            })
+        }
+
+        // 末尾「关闭」
+        bar.addView(TextView(this).apply {
+            text = getString(R.string.btn_close)
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, vpad, 0, vpad)
+            textSize = 13f
+            setTextColor("#009688".toColorInt())
+            layoutParams = lp
+            isClickable = true
+            setOnClickListener { currentDialog?.dismiss() }
+        })
+    }
+
+    /** 当前显示的带标签列表对话框（供标签栏的「关闭」使用） */
+    private var currentDialog: AlertDialog? = null
+
+    /** 草稿的分类格（null = 未知，归入「其他」） */
+    private fun draftTabOf(d: DraftStore.Draft): ListTab? {
+        // 存档信息缺失 -> 未知
+        if (d.folder.isNullOrBlank()) return null
+        val k = d.sessionKey
+        return when {
+            k == "level.dat" -> ListTab.WORLD
+            k == "~local_player" || k.startsWith("player") -> ListTab.PLAYER
+            k.startsWith("map_") || k.startsWith("VILLAGE_") -> ListTab.OTHER
+            else -> null
+        }
+    }
+
+    /** 备份的分类格（null = 未知，归入「其他」） */
+    private fun backupTabOf(b: BackupItem): ListTab? {
+        if (backupListFolder.isNullOrBlank()) return null
+        return if (b.isPlayerData) ListTab.PLAYER else ListTab.WORLD
+    }
+
     /** 完整时间：yyyy-MM-dd HH:mm:ss（年到秒）；0 显示「未知时间」 */
     private fun fullTimeOf(millis: Long): String =
         if (millis <= 0) getString(R.string.time_unknown)
@@ -1044,51 +1235,105 @@ class MainActivity : ComponentActivity() {
      * 草稿箱：列出未保存的编辑，由用户主动找回。
      * 与「备份」分离 —— 备份是已保存状态的快照，草稿是未保存的改动。
      */
-    private fun showDraftBoxDialog() {
-        val drafts = DraftStore.list(this)
-        if (drafts.isEmpty()) {
-            toast(getString(R.string.msg_no_drafts)); return
-        }
-        val lv = ListView(this).apply {
-            adapter = ArrayAdapter(
-                this@MainActivity, android.R.layout.simple_list_item_1,
-                drafts.map { d ->
-                    val line1 = listTitleLine(d.worldName, d.folderId())
-                    val type = draftTypeLabel(d)
-                    val orig = if (d.hasOriginal()) " · ${getString(R.string.draft_has_original)}" else ""
-                    val line2 = listSubLine(type, fullTimeOf(d.savedAt), agoTextOf(d.minutesAgo())) + orig
-                    "$line1\n$line2"
-                }
-            )
-        }
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.title_draft_box, drafts.size))
-            .setView(lv)
-            .setNeutralButton(getString(R.string.btn_clear_drafts)) { _, _ ->
-                AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.dialog_danger_title))
-                    .setMessage(getString(R.string.msg_clear_drafts_confirm))
-                    .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
-                        DraftStore.clearAll(this); toast(getString(R.string.toast_drafts_cleared))
-                    }
-                    .setNegativeButton(getString(R.string.btn_cancel), null).show()
-            }
-            .setNegativeButton(getString(R.string.btn_close), null)
-            .show()
+    /**
+     * 草稿箱。
+     *
+     * @param viewAll true = 忽略存档筛选，显示全部存档的草稿
+     */
+    private fun showDraftBoxDialog(viewAll: Boolean = false) {
+        val folder = etWorldName?.text?.toString()?.trim().orEmpty()
+        val hasFolder = folder.isNotEmpty() &&
+            folder != getString(R.string.hint_select_world)
 
-        lv.setOnItemClickListener { _, _, p, _ -> worldVM.restoreDraft(this, drafts[p]) }
-        lv.setOnItemLongClickListener { _, _, p, _ ->
-            val d = drafts[p]
+        // 未选存档：提示 + 提供「查看全部」兜底（草稿是救命用的，不能全堵死）
+        if (!hasFolder && !viewAll) {
             AlertDialog.Builder(this)
-                .setTitle(getString(R.string.title_delete_draft))
-                .setMessage(getString(R.string.msg_delete_draft_confirm, d.label()))
-                .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
-                    DraftStore.remove(this, d.sessionKey)
-                    toast(getString(R.string.toast_draft_deleted))
+                .setTitle(getString(R.string.title_draft_box_no_folder))
+                .setMessage(getString(R.string.msg_draft_select_world_first))
+                .setPositiveButton(getString(R.string.btn_view_all_drafts)) { _, _ ->
+                    showDraftBoxDialog(viewAll = true)
                 }
-                .setNegativeButton(getString(R.string.btn_cancel), null).show()
-            true
+                .setNegativeButton(getString(R.string.btn_close), null)
+                .show()
+            return
         }
+
+        val all = DraftStore.list(this)
+        // 选了存档 -> 只看该存档的草稿，但「未知存档」的草稿始终显示（避免找不回）
+        val drafts = if (viewAll) all
+                     else all.filter { it.folder.isNullOrBlank() || it.folder == folder }
+
+        if (drafts.isEmpty()) { toast(getString(R.string.msg_no_drafts)); return }
+
+        // 本存档的草稿数（用于「清空本存档」文案与是否可点）
+        val hereCount = all.count { !it.folder.isNullOrBlank() && it.folder == folder }
+        val clearHere: (() -> Unit)? =
+            if (hereCount <= 0) null else { { confirmClearDraftsHere(folder, hereCount) } }
+
+        showTabbedListDialog(
+            title = getString(R.string.title_draft_box, drafts.size),
+            items = drafts,
+            tabOf = { draftTabOf(it) },
+            linesOf = { d ->
+                val line1 = listTitleLine(d.worldName, d.folderId())
+                val type = draftTypeLabel(d)
+                val orig = if (d.hasOriginal()) " · ${getString(R.string.draft_has_original)}" else ""
+                val line2 = listSubLine(type, fullTimeOf(d.savedAt), agoTextOf(d.minutesAgo())) + orig
+                "$line1\n$line2"
+            },
+            onShortClick = { worldVM.restoreDraft(this, it) },
+            onLongClick = { confirmDeleteDraft(it) },
+            menuItems = listOf(
+                getString(R.string.btn_clear_drafts_here, hereCount) to clearHere,
+                getString(R.string.btn_clear_drafts) to { confirmClearAllDrafts() }
+            )
+        )
+    }
+
+    /** 删除单份草稿（二次确认） */
+    private fun confirmDeleteDraft(d: DraftStore.Draft) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_delete_draft))
+            .setMessage(getString(R.string.msg_delete_draft_confirm, d.label()))
+            .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
+                DraftStore.remove(this, d.sessionKey)
+                toast(getString(R.string.toast_draft_deleted))
+                currentDialog?.dismiss()
+                showDraftBoxDialog(false)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    /** 清空当前存档的草稿 */
+    private fun confirmClearDraftsHere(folder: String, count: Int) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_clear_drafts_here_confirm, count))
+            .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
+                DraftStore.list(this)
+                    .filter { !it.folder.isNullOrBlank() && it.folder == folder }
+                    .forEach { DraftStore.remove(this, it.sessionKey) }
+                toast(getString(R.string.toast_drafts_cleared))
+                currentDialog?.dismiss()
+                showDraftBoxDialog(false)
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    /** 清空全部草稿（所有存档） */
+    private fun confirmClearAllDrafts() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_clear_drafts_confirm))
+            .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
+                DraftStore.clearAll(this)
+                toast(getString(R.string.toast_drafts_cleared))
+                currentDialog?.dismiss()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
     private fun showErrorDialog(msg: String) {
