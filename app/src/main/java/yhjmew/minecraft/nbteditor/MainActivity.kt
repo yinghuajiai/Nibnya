@@ -1061,16 +1061,15 @@ class MainActivity : ComponentActivity() {
             .setView(view)
             .create()
 
-        fun render(onRendered: (Int) -> Unit = {}) {
+        fun render() {
             shown = if (selected == ListTab.ALL) items
                     else items.filter { tabOfItem(it) == selected }
             lv.adapter = ArrayAdapter(
                 this, android.R.layout.simple_list_item_1, shown.map(linesOf)
             )
-            onRendered(shown.size)
             buildTabBar(tabBar, tabs, selected, menuItems) { sel ->
                 selected = sel
-                render(onRendered)
+                render()
             }
         }
 
@@ -1082,27 +1081,19 @@ class MainActivity : ComponentActivity() {
             if (it != null) { onLongClick(it); true } else false
         }
 
-        // 窗口尺寸：宽度固定 90%，高度按条数自适应（标签栏始终贴在底部，
-        // 条数少时不至于留一大块空白；条数多时封顶，列表内部滚动）
-        val density = resources.displayMetrics.density
+        // 窗口尺寸：宽度 90%，高度**固定**为屏幕的 65%。
+        // 之所以不按条数自适应：弹窗尺寸随内容忽大忽小不符合用户习惯，
+        // 标准弹窗应保持稳定尺寸。列表用 weight=1 占满标签栏以上的空间，
+        // 所以条数少时下方自然留白，标签栏始终贴在窗口底部。
         val winW = (resources.displayMetrics.widthPixels * 0.9).toInt()
-        val maxH = (resources.displayMetrics.heightPixels * 0.7).toInt()
-        val itemH = (56 * density).toInt()      // 每项两行的大致高度
-        val tabH = (46 * density).toInt()       // 底部标签栏
-        val minH = (160 * density).toInt()
-
-        fun applyHeight(count: Int) {
-            val want = tabH + count * itemH
-            val h = want.coerceIn(minH, maxH)
-            dlg.window?.setLayout(winW, h)
-        }
+        val winH = (resources.displayMetrics.heightPixels * 0.65).toInt()
 
         dlg.setOnDismissListener { currentDialog = null }
         currentDialog = dlg
         dlg.show()
-        applyHeight(items.size)
+        dlg.window?.setLayout(winW, winH)
 
-        render { applyHeight(it) }
+        render()
     }
 
     /** 构建标签栏：若干分类格 + 末尾固定的「关闭」 */
