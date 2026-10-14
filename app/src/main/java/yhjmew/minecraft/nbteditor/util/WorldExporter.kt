@@ -19,14 +19,30 @@ object WorldExporter {
     /** .mcworld 默认保存位置（与 Exports 分开，便于用户找到可导入的文件） */
     fun defaultWorldDir(): File = File("/storage/emulated/0/Download/NbtEditor_Data/Worlds")
 
-    /** 生成文件名：`<世界名>_<时间戳>.mcworld` */
+    /**
+     * 生成文件名：`<世界名>.mcworld`（不带时间戳，便于识别）。
+     * 重名时由 [uniqueFile] 自动追加 (1)(2)。
+     */
     fun buildFileName(worldName: String?): String {
         val safe = (worldName ?: "world")
             .map { if (it.isLetterOrDigit() || it == '_' || it == '-') it else '_' }
             .joinToString("").trim('_').ifEmpty { "world" }.take(40)
-        val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US)
-            .format(java.util.Date())
-        return "${safe}_$ts.mcworld"
+        return "$safe.mcworld"
+    }
+
+    /** 目标已存在时自动加 (1)(2)…，避免静默覆盖 */
+    fun uniqueFile(dir: File, fileName: String): File {
+        val f = File(dir, fileName)
+        if (!f.exists()) return f
+        val base = fileName.substringBeforeLast('.')
+        val ext = fileName.substringAfterLast('.', "")
+        var i = 1
+        while (i < 1000) {
+            val cand = File(dir, "$base($i).$ext")
+            if (!cand.exists()) return cand
+            i++
+        }
+        return f
     }
 
     /**
@@ -45,18 +61,19 @@ object WorldExporter {
         if (!worldDir.exists() || !worldDir.isDirectory) return null
         return try {
             if (!destDir.exists() && !destDir.mkdirs()) return null
-            val out = File(destDir, fileName)
+            val out = uniqueFile(destDir, fileName)
             val total = TrashStore.sizeOf(worldDir).coerceAtLeast(1L)
             var done = 0L
 
             ZipOutputStream(BufferedOutputStream(FileOutputStream(out))).use { zos ->
-                val base = worldDir.name
+                // ⚠️ .mcworld 要求 zip 根目录**直接**是 level.dat / db/ 等，
+                // 不能再套一层世界文件夹，否则 Minecraft 无法识别导入。
                 worldDir.walkTopDown().forEach { f ->
                     if (f == worldDir) return@forEach
                     val name = f.name
                     if (isSkippable(name)) return@forEach
 
-                    val entryName = "$base/" + f.relativeTo(worldDir).path.replace('\\', '/')
+                    val entryName = f.relativeTo(worldDir).path.replace('\\', '/')
                     if (f.isDirectory) {
                         zos.putNextEntry(ZipEntry("$entryName/"))
                         zos.closeEntry()

@@ -1009,7 +1009,9 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         }
     }
 
-    intervalSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+    // 同上：延后到初始回显完成后再注册，避免展开设置就弹出「自定义间隔」
+    intervalSp?.post {
+    intervalSp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
             if (suppress) return
             val valAt = DRAFT_INTERVAL_VALUES.getOrNull(position)
@@ -1032,6 +1034,7 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
             }
         }
         override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
     }
 
     unitSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -1108,20 +1111,19 @@ private val TRASH_KEEP_VALUES = listOf(0, 7, 30, 90, -1)
 
 private fun MainActivity.setupTrashSettings(root: android.view.View) {
     val sp = root.findViewById<Spinner?>(R.id.sp_trash_keep) ?: return
-    var suppress = true
     var days = prefs?.getInt("trash_keep_days", TrashStore.DEFAULT_KEEP_DAYS)
         ?: TrashStore.DEFAULT_KEEP_DAYS
-
-    val customIcon = getString(R.string.thread_count_custom)
-    fun customLabel(): String {
-        val isCustom = days > 0 && TRASH_KEEP_VALUES.indexOf(days) < 0
-        return if (isCustom) "$customIcon $days" else customIcon
-    }
 
     fun labelFor(d: Int): String = when (d) {
         0 -> getString(R.string.trash_keep_never)
         else -> getString(R.string.trash_keep_days, d)
     }
+
+    // 「自定义」格：一旦有自定义值，直接显示成「N 天」
+    // （之前显示「自定义… 3650」，用户看不出到底保留多少天）
+    fun customLabel(): String =
+        if (days > 0 && TRASH_KEEP_VALUES.indexOf(days) < 0) labelFor(days)
+        else getString(R.string.thread_count_custom)
 
     val labels = mutableListOf(
         labelFor(0), labelFor(7), labelFor(30), labelFor(90), customLabel()
@@ -1141,32 +1143,35 @@ private fun MainActivity.setupTrashSettings(root: android.view.View) {
     }
     apply()
 
-    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-            if (suppress) return
-            val valAt = TRASH_KEEP_VALUES.getOrNull(position) ?: return
-            if (valAt == -1) {
-                showCustomNumberDialog(
-                    getString(R.string.title_custom_trash_keep), 1, 3650,
-                    getString(R.string.msg_trash_keep_invalid),
-                    if (days > 0) days else 30
-                ) { n ->
-                    days = n
+    // ⚠️ 关键：先 setSelection（回显），**再**注册监听器。
+    // Spinner 的 setSelection 会触发一次 onItemSelected，但它是异步派发的；
+    // 之前用 root.post 解除 suppress 早于该回调，导致一展开设置就被判定为
+    // 「用户选了自定义项」而弹出输入框。
+    // 正确做法是让初始回调发生在注册之前 —— 根本收不到，不需要 suppress。
+    sp.post {
+        sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+                val valAt = TRASH_KEEP_VALUES.getOrNull(position) ?: return
+                if (valAt == -1) {
+                    showCustomNumberDialog(
+                        getString(R.string.title_custom_trash_keep), 1, 3650,
+                        getString(R.string.msg_trash_keep_invalid),
+                        if (days > 0) days else 30
+                    ) { n ->
+                        days = n
+                        apply()
+                        // 刷新「自定义」项文字（改内容不改长度，用 notifyDataSetChanged）
+                        labels[labels.size - 1] = customLabel()
+                        adapter.notifyDataSetChanged()
+                    }
+                } else {
+                    days = valAt
                     apply()
-                    // 刷新「自定义」项文字
-                    val idx = labels.size - 1
-                    labels[idx] = customLabel()
-                    adapter.notifyDataSetChanged()
                 }
-            } else {
-                days = valAt
-                apply()
             }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
         }
-        override fun onNothingSelected(p: AdapterView<*>?) {}
     }
-
-    root.post { suppress = false }
 }
 
 // ============================================
