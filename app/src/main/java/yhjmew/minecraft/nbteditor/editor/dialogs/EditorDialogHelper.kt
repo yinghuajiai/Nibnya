@@ -32,6 +32,7 @@ import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
 import yhjmew.minecraft.nbteditor.util.DraftAutoSaver
 import yhjmew.minecraft.nbteditor.util.DraftStore
+import yhjmew.minecraft.nbteditor.util.TrashStore
 import yhjmew.minecraft.nbteditor.util.NbtClipboard
 import yhjmew.minecraft.nbteditor.util.NbtExporter
 
@@ -760,6 +761,9 @@ fun MainActivity.showAppInfoDialog() {
     // ---- 草稿箱设置 ----
     setupDraftSettings(dialogView)
 
+    // ---- 回收站自动清理 ----
+    setupTrashSettings(dialogView)
+
     dialogView.findViewById<CheckBox?>(R.id.cb_skip_shizuku)?.let {
         it.isChecked = prefs?.getBoolean("skip_shizuku", false) ?: false
         it.setOnCheckedChangeListener { _, c ->
@@ -1093,6 +1097,76 @@ private fun MainActivity.showCustomNumberDialog(
         }
         .setNegativeButton(getString(R.string.btn_cancel), null)
         .show()
+}
+
+// ============================================
+// 回收站设置（自动清理天数）
+// ============================================
+
+/** 「不自动清 / 7 / 30 / 90 / 自定义」对应的天数；-1 表示自定义 */
+private val TRASH_KEEP_VALUES = listOf(0, 7, 30, 90, -1)
+
+private fun MainActivity.setupTrashSettings(root: android.view.View) {
+    val sp = root.findViewById<Spinner?>(R.id.sp_trash_keep) ?: return
+    var suppress = true
+    var days = prefs?.getInt("trash_keep_days", TrashStore.DEFAULT_KEEP_DAYS)
+        ?: TrashStore.DEFAULT_KEEP_DAYS
+
+    val customIcon = getString(R.string.thread_count_custom)
+    fun customLabel(): String {
+        val isCustom = days > 0 && TRASH_KEEP_VALUES.indexOf(days) < 0
+        return if (isCustom) "$customIcon $days" else customIcon
+    }
+
+    fun labelFor(d: Int): String = when (d) {
+        0 -> getString(R.string.trash_keep_never)
+        else -> getString(R.string.trash_keep_days, d)
+    }
+
+    val labels = mutableListOf(
+        labelFor(0), labelFor(7), labelFor(30), labelFor(90), customLabel()
+    )
+    val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
+    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    sp.adapter = adapter
+
+    fun apply() {
+        prefs?.edit()?.putInt("trash_keep_days", days)?.apply()
+    }
+
+    // 回显
+    run {
+        val idx = TRASH_KEEP_VALUES.indexOf(days)
+        sp.setSelection(if (idx >= 0) idx else TRASH_KEEP_VALUES.size - 1)
+    }
+    apply()
+
+    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (suppress) return
+            val valAt = TRASH_KEEP_VALUES.getOrNull(position) ?: return
+            if (valAt == -1) {
+                showCustomNumberDialog(
+                    getString(R.string.title_custom_trash_keep), 1, 3650,
+                    getString(R.string.msg_trash_keep_invalid),
+                    if (days > 0) days else 30
+                ) { n ->
+                    days = n
+                    apply()
+                    // 刷新「自定义」项文字
+                    val idx = labels.size - 1
+                    labels[idx] = customLabel()
+                    adapter.notifyDataSetChanged()
+                }
+            } else {
+                days = valAt
+                apply()
+            }
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    root.post { suppress = false }
 }
 
 // ============================================

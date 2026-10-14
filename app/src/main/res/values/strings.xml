@@ -13,6 +13,67 @@
     <string name="btn_cancel">Cancel</string>
     <string name="btn_later">Later</string>
     <string name="btn_close">Close</string>
+    <string name="label_trash_keep">Recycle bin:</string>
+    <string name="subtitle_trash_keep">Items older than this are cleaned automatically</string>
+    <string name="trash_keep_never">Never auto-clean</string>
+    <string name="trash_keep_days">%1$d days</string>
+    <string name="title_custom_trash_keep">Custom keep days (1-3650)</string>
+    <string name="msg_trash_keep_invalid">Please enter a number between 1 and 3650</string>
+    <string name="btn_export_mcworld">Export as .mcworld</string>
+    <string name="title_world_detail">Save details</string>
+    <string name="btn_continue">Continue</string>
+    <string name="msg_restoring">Restoring</string>
+    <string name="export_progress">Packing… %1$d%%</string>
+    <string name="msg_restore_overwrite_confirm">A save with the same folder name already exists:
+
+%1$s
+
+Overwrite it? The existing one will also be moved to the recycle bin.</string>
+    <string name="msg_delete_forever_confirm">Permanently delete "%1$s"?
+
+This CANNOT be undone.</string>
+    <string name="msg_restore_all_confirm">Restore all %1$d items?</string>
+    <string name="toast_restore_all_result">Restored %1$d, failed %2$d</string>
+    <string name="msg_clear_trash_confirm">Permanently delete ALL items in the recycle bin?
+
+This CANNOT be undone.</string>
+    <string name="msg_world_dir_not_found">Save folder not found</string>
+    <string name="msg_delete_need_permission">Cannot delete: this path needs Shizuku, or "All files access" permission.</string>
+    <string name="msg_delete_failed">Delete failed</string>
+    <string name="msg_restore_target_exists">A save with the same folder name already exists</string>
+    <string name="msg_trash_content_missing">Recycle bin content is missing</string>
+    <string name="title_trash">♻ Recycle bin (%1$d)</string>
+    <string name="msg_trash_empty">Recycle bin is empty</string>
+    <string name="btn_restore_all">Restore all</string>
+    <string name="btn_clear_trash">Empty recycle bin</string>
+    <string name="btn_delete_forever"> Delete permanently</string>
+    <string name="title_delete_world">Delete save</string>
+    <string name="msg_delete_world_confirm1">Delete "%1$s"?
+
+It will be moved to the recycle bin (recoverable).</string>
+    <string name="msg_delete_world_confirm2">Are you sure?
+
+"%1$s" will be moved to the recycle bin.</string>
+    <string name="title_also_delete">Also delete related data?</string>
+    <string name="msg_also_delete">This save has:
+
+• %1$d backups
+• %2$d drafts
+
+Delete them as well?</string>
+    <string name="btn_yes_delete_all">Yes, delete them too</string>
+    <string name="btn_keep_them">No, keep them</string>
+    <string name="toast_world_deleted">Moved to recycle bin</string>
+    <string name="toast_world_restored">Save restored</string>
+    <string name="toast_trash_cleared">Recycle bin emptied</string>
+    <string name="toast_trash_item_deleted"> Permanently deleted</string>
+    <string name="title_trash_detail">Recycle bin details</string>
+    <string name="label_deleted_at">Deleted at:</string>
+    <string name="label_original_folder">Original folder:</string>
+    <string name="label_includes">Includes:</string>
+    <string name="label_includes_backups">backups</string>
+    <string name="label_includes_drafts">drafts</string>
+    <string name="msg_none">None</string>
     <string name="title_draft_detail">Draft details</string>
     <string name="label_key">Key:</string>
     <string name="label_world">Save:</string>

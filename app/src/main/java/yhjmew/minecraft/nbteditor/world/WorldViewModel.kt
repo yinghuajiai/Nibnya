@@ -43,6 +43,7 @@ import yhjmew.minecraft.nbteditor.nbt.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.util.AppLogger
 import yhjmew.minecraft.nbteditor.util.DraftAutoSaver
 import yhjmew.minecraft.nbteditor.util.DraftStore
+import yhjmew.minecraft.nbteditor.util.TrashStore
 
 /**
  * 世界/存档/路径/文件 I/O 的 ViewModel
@@ -1255,6 +1256,188 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         val newFile = File(item.file.parent, newName)
         return item.file.renameTo(newFile)
     }
+    // ============================================
+    // 删除存档（移入回收站）
+    // ============================================
+
+    /**
+     * 把整个世界目录移入回收站。
+     *
+     * 优先尝试原生命名（同分区时是原子操作、瞬间完成）；
+     * 失败则退回复制 + 删除；再失败且 Shizuku 可用则用 mv。
+     *
+     * @return Pair(成功, 失败原因)；成功时 second 为回收站目录名
+     */
+    fun moveWorldToTrash(
+        context: Context,
+        folder: String,
+        worldName: String?,
+        alsoBackups: Boolean,
+        alsoDrafts: Boolean
+    ): Pair<Boolean, String?> {
+        val src = File(resolveWorldPath(folder))
+        if (!src.exists()) return Pair(false, getString(R.string.msg_world_dir_not_found))
+
+        // 能不能写？不能写就别白忙（Android/data 需要 Shizuku 或所有文件权限）
+        val parent = src.parentFile
+        val canNative = parent != null && canWriteDirectly(parent)
+        val canShizuku = checkShizukuAvailable()
+        if (!canNative && !canShizuku) {
+            return Pair(false, getString(R.string.msg_delete_need_permission))
+        }
+
+        val slotName = TrashStore.newSlotName(worldName)
+        val slot = TrashStore.slotDir(slotName)
+        val dest = File(slot, "world")
+
+        // 1) 原生命名（同分区）
+        var moved = false
+        if (canNative) {
+            try {
+                slot.mkdirs()
+                moved = src.renameTo(dest)
+            } catch (_: Exception) {
+            }
+            // 2) 复制 + 删除
+            if (!moved) {
+                try {
+                    dest.mkdirs()
+                    smartCopy(src, dest)
+                    deleteRecursive(src)
+                    moved = true
+                } catch (_: Exception) {
+                }
+            }
+        }
+        // 3) Shizuku mv
+        if (!moved && canShizuku) {
+            try {
+                runShizukuCmd(arrayOf("sh", "-c", "mkdir -p \"${slot.absolutePath}\"")).waitFor()
+                val p = runShizukuCmd(arrayOf("sh", "-c",
+                    "mv \"${src.absolutePath}\" \"${dest.absolutePath}\""))
+                moved = p.waitFor() == 0
+            } catch (_: Exception) {
+            }
+        }
+
+        if (!moved) return Pair(false, getString(R.string.msg_delete_failed))
+
+        TrashStore.writeMeta(slot, folder, worldName, alsoBackups, alsoDrafts)
+
+        // 连带处理：备份（移入回收站槽内，恢复时可一并找回）
+        if (alsoBackups) {
+            try {
+                val bk = File(backupsDir(context), folder)
+                if (bk.exists()) {
+                    val bkDest = File(slot, "backups")
+                    if (!bk.renameTo(bkDest)) {
+                        bkDest.mkdirs(); smartCopy(bk, bkDest); deleteRecursive(bk)
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        } else {
+            // 不连带删除时，把该存档的备份留着（用户可在备份列表里单独清理）
+        }
+
+        // 连带处理：草稿
+        if (alsoDrafts) {
+            try {
+                DraftStore.list(context)
+                    .filter { it.folder == folder }
+                    .forEach { DraftStore.remove(context, it.sessionKey) }
+            } catch (_: Exception) {
+            }
+        }
+
+        // 若当前正在编辑该存档，清掉加载状态避免指向已消失的目录
+        if (lastLoadedWorldFolder == folder) {
+            lastLoadedWorldFolder = null
+            currentWorkingDbPath = null
+            currentWorkingFileOrDir = null
+            _currentWorldFolder.value = null
+            editorVM?.reset()
+        }
+
+        AppLogger.info("World", "已移入回收站: $folder -> $slotName")
+        return Pair(true, slotName)
+    }
+
+    /** 从回收站恢复一个存档 */
+    fun restoreFromTrash(
+        context: Context,
+        item: TrashStore.TrashItem,
+        overwrite: Boolean
+    ): Pair<Boolean, String?> {
+        val src = item.worldDir()
+        if (!src.exists()) return Pair(false, getString(R.string.msg_trash_content_missing))
+
+        val targetParent = File(_currentPath.value)
+        val target = File(targetParent, item.originalFolder)
+
+        if (target.exists() && !overwrite) {
+            return Pair(false, getString(R.string.msg_restore_target_exists))
+        }
+        if (target.exists() && overwrite) {
+            // 目标已存在：把旧的也挪进回收站，避免直接覆盖丢失
+            val oldSlot = TrashStore.slotDir(TrashStore.newSlotName("${item.originalFolder}_overwritten"))
+            try {
+                oldSlot.mkdirs()
+                if (!target.renameTo(File(oldSlot, "world"))) {
+                    val d = File(oldSlot, "world"); d.mkdirs()
+                    smartCopy(target, d); deleteRecursive(target)
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        var ok = false
+        try {
+            if (!targetParent.exists()) targetParent.mkdirs()
+            ok = src.renameTo(target)
+            if (!ok) {
+                target.mkdirs(); smartCopy(src, target); deleteRecursive(src); ok = true
+            }
+        } catch (_: Exception) {
+        }
+        if (!ok && checkShizukuAvailable()) {
+            try {
+                val p = runShizukuCmd(arrayOf("sh", "-c",
+                    "mv \"${src.absolutePath}\" \"${target.absolutePath}\""))
+                ok = p.waitFor() == 0
+            } catch (_: Exception) {
+            }
+        }
+        if (!ok) return Pair(false, getString(R.string.msg_restore_failed))
+
+        // 备份一并还原
+        if (item.hasBackups) {
+            try {
+                val bkSrc = File(item.dir, "backups")
+                if (bkSrc.exists()) {
+                    val bkDest = File(backupsDir(context), item.originalFolder)
+                    if (bkDest.exists()) deleteRecursive(bkDest)
+                    bkDest.parentFile?.mkdirs()
+                    if (!bkSrc.renameTo(bkDest)) { bkDest.mkdirs(); smartCopy(bkSrc, bkDest) }
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        // 清掉回收站槽（内容已移走）
+        try {
+            deleteRecursive(item.dir)
+        } catch (_: Exception) {
+        }
+
+        AppLogger.info("World", "已从回收站恢复: ${item.originalFolder}")
+        return Pair(true, null)
+    }
+
+    /** 自动清理回收站（设置里可配天数） */
+    fun autoCleanTrash(days: Int): Int = TrashStore.autoClean(days)
+
+
 
     // ============================================
     // 清理旧会话
@@ -1703,6 +1886,9 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             }
         }
     }
+
+    /** 供 UI 展示用：暴露世界目录路径 */
+    fun resolveWorldPathPublic(folder: String): String = resolveWorldPath(folder)
 
     private fun resolveWorldPath(folder: String): String {
         val base = _currentPath.value

@@ -39,11 +39,14 @@ import yhjmew.minecraft.nbteditor.nbt.BedrockParser
 import yhjmew.minecraft.nbteditor.nbt.NbtTranslator
 import yhjmew.minecraft.nbteditor.nbt.adapter.NbtAdapter
 import yhjmew.minecraft.nbteditor.nbt.adapter.NbtTreeAdapter
+import yhjmew.minecraft.nbteditor.util.AppLogger
 import yhjmew.minecraft.nbteditor.util.CrashHandler
 import yhjmew.minecraft.nbteditor.util.DraftAutoSaver
 import yhjmew.minecraft.nbteditor.util.DraftStore
 import yhjmew.minecraft.nbteditor.util.NbtClipboard
 import yhjmew.minecraft.nbteditor.util.NbtExporter
+import yhjmew.minecraft.nbteditor.util.WorldExporter
+import yhjmew.minecraft.nbteditor.util.TrashStore
 
 class MainActivity : ComponentActivity() {
 
@@ -135,9 +138,35 @@ class MainActivity : ComponentActivity() {
     ) { uri ->
         val content = pendingExportContent
         val name = pendingExportName
+        val srcFilePath = pendingExportFilePath
         pendingExportContent = null
         pendingExportName = null
-        if (uri == null || content == null || name == null) return@registerForActivityResult
+        pendingExportFilePath = null
+        if (uri == null || name == null) return@registerForActivityResult
+
+        // 情形 A：已打包好的文件（.mcworld）—— 直接复制
+        if (srcFilePath != null) {
+            val ok = try {
+                val src = File(srcFilePath)
+                val dir = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, uri)
+                val doc = dir?.createFile("application/octet-stream", name)
+                if (doc != null) {
+                    contentResolver.openOutputStream(doc.uri)?.use { out ->
+                        FileInputStream(src).use { input -> input.copyTo(out, 64 * 1024) }
+                    }
+                    src.delete()
+                    true
+                } else false
+            } catch (e: Exception) {
+                AppLogger.warn("Export", "SAF 导出 .mcworld 失败: ${e.message}")
+                false
+            }
+            toast(getString(if (ok) R.string.toast_exported_ok else R.string.toast_export_failed))
+            return@registerForActivityResult
+        }
+
+        // 情形 B：文本内容（JSON/SNBT/TXT）
+        if (content == null) return@registerForActivityResult
         if (NbtExporter.saveViaSaf(this, uri, name, content)) {
             toast(getString(R.string.toast_exported_ok))
         } else {
@@ -323,7 +352,12 @@ class MainActivity : ComponentActivity() {
             else getString(R.string.toast_shizuku_denied))
         }
 
-        if (savedInstanceState == null) worldVM.cleanUpOldSessions(this)
+        if (savedInstanceState == null) {
+            worldVM.cleanUpOldSessions(this)
+            // 回收站自动清理（天数可在设置里改；0 = 不自动清理）
+            val keepDays = prefs!!.getInt("trash_keep_days", TrashStore.DEFAULT_KEEP_DAYS)
+            Thread { runCatching { worldVM.autoCleanTrash(keepDays) } }.start()
+        }
         restoreSavedState(savedInstanceState)
     }
 
@@ -794,15 +828,392 @@ class MainActivity : ComponentActivity() {
 
     private fun showWorldSelectorDialog(list: List<WorldItem>) {
         if (list.isEmpty()) { toast(getString(R.string.toast_no_saves_found)); return }
-        AlertDialog.Builder(this).setTitle(getString(R.string.select_world_count, list.size))
-            .setItems(list.map { w ->
+        val trashCount = TrashStore.count()
+        showTabbedListDialog(
+            title = getString(R.string.select_world_count, list.size),
+            items = list,
+            // 存档列表不做类型分类：全部归到「所有」格，因此标签栏只有 所有 / ⋮ / 关闭
+            tabOf = { null },
+            linesOf = { w ->
                 val line1 = listTitleLine(w.displayName, w.folderName)
-                val line2 = if (w.lastModified > 0)
-                    fullTimeOf(w.lastModified) else getString(R.string.time_unknown)
+                val line2 = if (w.lastModified > 0) fullTimeOf(w.lastModified)
+                            else getString(R.string.time_unknown)
                 "$line1\n$line2"
-            }.toTypedArray()) { _, i ->
-                val f = list[i].folderName; etWorldName?.setText(f); worldVM.loadLevelDat(this, f)
-            }.show()
+            },
+            onShortClick = { w ->
+                etWorldName?.setText(w.folderName)
+                worldVM.loadLevelDat(this, w.folderName)
+            },
+            onLongClick = { showWorldManageMenu(it) },
+            menuItems = listOf(
+                getString(R.string.title_trash, trashCount) to { showTrashDialog() }
+            )
+        )
+    }
+
+    // ============================================
+    // 存档管理（长按）
+    // ============================================
+
+    /** 存档长按菜单：详情 / 导出 / 删除 */
+    private fun showWorldManageMenu(w: WorldItem) {
+        val opts = arrayOf(
+            getString(R.string.btn_detail),
+            getString(R.string.btn_export_mcworld),
+            getString(R.string.btn_delete)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_manage, w.displayName))
+            .setItems(opts) { _, i ->
+                when (i) {
+                    0 -> showWorldDetailDialog(w)
+                    1 -> exportWorldAsMcWorld(w)
+                    2 -> startDeleteWorldFlow(w)
+                }
+            }
+            .show()
+    }
+
+    /**
+     * 导出整个世界为 .mcworld。
+     * 先试默认目录（下载目录下的 Worlds/），不可写则引导用户自选目录（SAF）。
+     */
+    private fun exportWorldAsMcWorld(w: WorldItem) {
+        val srcDir = File(worldVM.resolveWorldPathPublic(w.folderName))
+        if (!srcDir.exists()) { toast(getString(R.string.msg_world_dir_not_found)); return }
+        val fileName = WorldExporter.buildFileName(w.displayName)
+        val destDir = WorldExporter.defaultWorldDir()
+
+        if (!worldVM.canWriteDirectly(destDir)) {
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.btn_export_mcworld))
+                .setMessage(getString(R.string.msg_export_need_permission))
+                .setPositiveButton(getString(R.string.export_dest_choose)) { _, _ ->
+                    exportWorldViaSaf(srcDir, fileName)
+                }
+                .setNegativeButton(getString(R.string.btn_cancel), null)
+                .show()
+            return
+        }
+
+        showProgressDialog(getString(R.string.btn_export_mcworld), getString(R.string.label_calculating))
+        Thread {
+            val out = WorldExporter.packWorld(srcDir, destDir, fileName) { done, total ->
+                val pct = (done * 100 / total).toInt()
+                runOnUiThread { updateProgress(getString(R.string.export_progress, pct)) }
+            }
+            runOnUiThread {
+                dismissProgressDialog()
+                if (out != null) toast(getString(R.string.toast_exported_to, out.absolutePath))
+                else toast(getString(R.string.toast_export_failed))
+            }
+        }.start()
+    }
+
+    /** 无权限时走 SAF：先打包到缓存，再让用户选目录复制过去 */
+    private fun exportWorldViaSaf(srcDir: File, fileName: String) {
+        showProgressDialog(getString(R.string.btn_export_mcworld), getString(R.string.label_calculating))
+        Thread {
+            val tmpDir = File(cacheDir, "mcworld_tmp").apply { mkdirs() }
+            tmpDir.listFiles()?.forEach { it.delete() }
+            val packed = WorldExporter.packWorld(srcDir, tmpDir, fileName) { done, total ->
+                val pct = (done * 100 / total).toInt()
+                runOnUiThread { updateProgress(getString(R.string.export_progress, pct)) }
+            }
+            runOnUiThread {
+                dismissProgressDialog()
+                if (packed == null) { toast(getString(R.string.toast_export_failed)); return@runOnUiThread }
+                pendingExportFilePath = packed.absolutePath
+                pendingExportName = fileName
+                exportDirLauncher.launch(null)
+            }
+        }.start()
+    }
+
+    /** 已打包好的待导出文件（SAF 选完目录后复制） */
+    private var pendingExportFilePath: String? = null
+
+    /** 存档详情：世界名 / 文件夹 / 路径 / 时间 / 体积 */
+    private fun showWorldDetailDialog(w: WorldItem) {
+        val sb = StringBuilder()
+        fun row(label: String, value: String) { sb.append(label).append(value).append('\n') }
+        val path = worldVM.resolveWorldPathPublic(w.folderName)
+        row(getString(R.string.label_world), w.displayName)
+        row(getString(R.string.label_folder), w.folderName)
+        row(getString(R.string.label_time),
+            if (w.lastModified > 0) fullTimeOf(w.lastModified) else getString(R.string.time_unknown))
+        row(getString(R.string.label_size), getString(R.string.label_calculating))
+        row(getString(R.string.label_path), '\n' + path)
+
+        val tv = TextView(this).apply {
+            text = sb.toString().trimEnd()
+            setPadding(48, 32, 48, 32)
+            setTextIsSelectable(true)
+        }
+        val dlg = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_world_detail))
+            .setView(tv)
+            .setPositiveButton(getString(R.string.btn_close), null)
+            .create()
+        dlg.show()
+
+        Thread {
+            val bytes = TrashStore.sizeOf(File(path))
+            runOnUiThread {
+                tv.text = tv.text.toString().replace(
+                    getString(R.string.label_size) + getString(R.string.label_calculating),
+                    getString(R.string.label_size) + formatSize(bytes)
+                )
+            }
+        }.start()
+    }
+
+    // ============================================
+    // 删除存档（两次确认 + 询问关联数据）
+    // ============================================
+
+    private fun startDeleteWorldFlow(w: WorldItem) {
+        // 第 1 次确认
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_delete_world))
+            .setMessage(getString(R.string.msg_delete_world_confirm1, w.displayName))
+            .setPositiveButton(getString(R.string.btn_continue)) { _, _ -> confirmDeleteWorld2(w) }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun confirmDeleteWorld2(w: WorldItem) {
+        // 第 2 次确认
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_delete_world_confirm2, w.displayName))
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ -> askAlsoDeleteRelated(w) }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    /** 询问是否连带删除该存档的备份与草稿 */
+    private fun askAlsoDeleteRelated(w: WorldItem) {
+        Thread {
+            val backups = runCatching {
+                File(backupsDir, w.folderName).listFiles()?.size ?: 0
+            }.getOrDefault(0)
+            val drafts = runCatching {
+                DraftStore.list(this).count { it.folder == w.folderName }
+            }.getOrDefault(0)
+            runOnUiThread { showAlsoDeleteDialog(w, backups, drafts) }
+        }.start()
+    }
+
+    private fun showAlsoDeleteDialog(w: WorldItem, backups: Int, drafts: Int) {
+        if (backups == 0 && drafts == 0) {
+            doDeleteWorld(w, alsoBackups = false, alsoDrafts = false); return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_also_delete))
+            .setMessage(getString(R.string.msg_also_delete, backups, drafts))
+            .setPositiveButton(getString(R.string.btn_yes_delete_all)) { _, _ ->
+                doDeleteWorld(w, alsoBackups = backups > 0, alsoDrafts = drafts > 0)
+            }
+            .setNegativeButton(getString(R.string.btn_keep_them)) { _, _ ->
+                doDeleteWorld(w, alsoBackups = false, alsoDrafts = false)
+            }
+            .show()
+    }
+
+    private fun doDeleteWorld(w: WorldItem, alsoBackups: Boolean, alsoDrafts: Boolean) {
+        showProgressDialog(getString(R.string.msg_deleting), getString(R.string.msg_processing_ing))
+        Thread {
+            val (ok, msg) = worldVM.moveWorldToTrash(
+                this, w.folderName, w.displayName, alsoBackups, alsoDrafts
+            )
+            runOnUiThread {
+                dismissProgressDialog()
+                if (ok) toast(getString(R.string.toast_world_deleted))
+                else toast(msg ?: getString(R.string.msg_delete_failed))
+                // 清空存档名（若删的正是当前选中的）
+                if (etWorldName?.text?.toString() == w.folderName) etWorldName?.setText("")
+            }
+        }.start()
+    }
+
+    // ============================================
+    // 回收站
+    // ============================================
+
+    private fun showTrashDialog() {
+        val items = TrashStore.list()
+        if (items.isEmpty()) { toast(getString(R.string.msg_trash_empty)); return }
+        val view = layoutInflater.inflate(R.layout.dialog_list_with_tabs, null, false)
+        val lv = view.findViewById<ListView>(R.id.lv_tabbed_items)
+        val bar = view.findViewById<LinearLayout>(R.id.layout_tab_bar)
+
+        lv.adapter = ArrayAdapter(
+            this, android.R.layout.simple_list_item_1,
+            items.map { it ->
+                val line1 = listTitleLine(it.worldName, it.originalFolder)
+                val extra = buildString {
+                    append(getString(R.string.label_size)); append(formatSize(it.sizeBytes))
+                    if (it.hasBackups) { append("  · "); append(getString(R.string.label_includes_backups)) }
+                    if (it.hasDrafts) { append("  · "); append(getString(R.string.label_includes_drafts)) }
+                }
+                "$line1\n${it.timeText()}\n$extra"
+            })
+
+        val dlg = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_trash, items.size))
+            .setView(view)
+            .create()
+
+        lv.setOnItemClickListener { _, _, p, _ -> restoreTrashItem(items[p], dlg) }
+        lv.setOnItemLongClickListener { _, _, p, _ -> showTrashItemMenu(items[p], dlg); true }
+
+        // 底部：全部恢复 / 清空回收站 / 关闭
+        val density = resources.displayMetrics.density
+        val vpad = (12 * density).toInt()
+        fun tabBtn(text: String, weight: Float, color: String, onClick: () -> Unit) =
+            TextView(this).apply {
+                this.text = text
+                gravity = android.view.Gravity.CENTER
+                setPadding(0, vpad, 0, vpad)
+                textSize = 13f
+                setTextColor(color.toColorInt())
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, weight)
+                isClickable = true
+                setOnClickListener { onClick() }
+            }
+        bar.addView(tabBtn(getString(R.string.btn_restore_all), 1f, "#009688") {
+            dlg.dismiss(); confirmRestoreAll(items)
+        })
+        bar.addView(tabBtn(getString(R.string.btn_clear_trash), 1f, "#E53935") {
+            dlg.dismiss(); confirmClearTrash()
+        })
+        bar.addView(tabBtn(getString(R.string.btn_close), 0.8f, "#009688") { dlg.dismiss() })
+
+        dlg.setOnDismissListener { currentDialog = null }
+        currentDialog = dlg
+        dlg.show()
+        val winW = (resources.displayMetrics.widthPixels * 0.9).toInt()
+        val winH = (resources.displayMetrics.heightPixels * 0.65).toInt()
+        view.minimumHeight = winH
+        dlg.window?.setLayout(winW, winH)
+    }
+
+    private fun showTrashItemMenu(item: TrashStore.TrashItem, dlg: AlertDialog) {
+        val detail = buildString {
+            append(getString(R.string.label_world)).append(item.label).append('\n')
+            append(getString(R.string.label_original_folder)).append(item.originalFolder).append('\n')
+            append(getString(R.string.label_deleted_at)).append(item.timeText()).append('\n')
+            append(getString(R.string.label_size)).append(formatSize(item.sizeBytes)).append('\n')
+            append(getString(R.string.label_includes))
+            val inc = mutableListOf<String>()
+            if (item.hasBackups) inc.add(getString(R.string.label_includes_backups))
+            if (item.hasDrafts) inc.add(getString(R.string.label_includes_drafts))
+            append(if (inc.isEmpty()) getString(R.string.msg_none) else inc.joinToString("、"))
+        }
+        val opts = arrayOf(
+            getString(R.string.btn_restore_action),
+            getString(R.string.btn_detail),
+            getString(R.string.btn_delete_forever)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_manage, item.label))
+            .setItems(opts) { _, w ->
+                when (w) {
+                    0 -> { dlg.dismiss(); restoreTrashItem(item, null) }
+                    1 -> AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.title_trash_detail))
+                        .setMessage(detail)
+                        .setPositiveButton(getString(R.string.btn_close), null)
+                        .show()
+                    2 -> confirmDeleteForever(item, dlg)
+                }
+            }
+            .show()
+    }
+
+    private fun restoreTrashItem(item: TrashStore.TrashItem, dlg: AlertDialog?) {
+        showProgressDialog(getString(R.string.msg_restoring), getString(R.string.msg_processing_ing))
+        Thread {
+            val (ok, msg) = worldVM.restoreFromTrash(this, item, overwrite = false)
+            runOnUiThread {
+                dismissProgressDialog()
+                when {
+                    ok -> { toast(getString(R.string.toast_world_restored)); dlg?.dismiss() }
+                    // 目标已存在：问是否覆盖
+                    msg == getString(R.string.msg_restore_target_exists) -> askOverwriteRestore(item, dlg)
+                    else -> toast(msg ?: getString(R.string.msg_restore_failed))
+                }
+            }
+        }.start()
+    }
+
+    private fun askOverwriteRestore(item: TrashStore.TrashItem, dlg: AlertDialog?) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_restore_overwrite_confirm, item.originalFolder))
+            .setPositiveButton(getString(R.string.btn_cover)) { _, _ ->
+                showProgressDialog(getString(R.string.msg_restoring), getString(R.string.msg_processing_ing))
+                Thread {
+                    val (ok, msg) = worldVM.restoreFromTrash(this, item, overwrite = true)
+                    runOnUiThread {
+                        dismissProgressDialog()
+                        if (ok) { toast(getString(R.string.toast_world_restored)); dlg?.dismiss() }
+                        else toast(msg ?: getString(R.string.msg_restore_failed))
+                    }
+                }.start()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun confirmDeleteForever(item: TrashStore.TrashItem, dlg: AlertDialog) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_delete_forever_confirm, item.label))
+            .setPositiveButton(getString(R.string.btn_delete_forever)) { _, _ ->
+                TrashStore.deleteForever(item)
+                toast(getString(R.string.toast_trash_item_deleted))
+                dlg.dismiss()
+                showTrashDialog()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun confirmRestoreAll(items: List<TrashStore.TrashItem>) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.btn_restore_all))
+            .setMessage(getString(R.string.msg_restore_all_confirm, items.size))
+            .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+                showProgressDialog(getString(R.string.msg_restoring), getString(R.string.msg_processing_ing))
+                Thread {
+                    var okCount = 0
+                    var failCount = 0
+                    items.forEach { it2 ->
+                        val (ok, _) = worldVM.restoreFromTrash(this, it2, overwrite = true)
+                        if (ok) okCount++ else failCount++
+                    }
+                    runOnUiThread {
+                        dismissProgressDialog()
+                        toast(getString(R.string.toast_restore_all_result, okCount, failCount))
+                    }
+                }.start()
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun confirmClearTrash() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_danger_title))
+            .setMessage(getString(R.string.msg_clear_trash_confirm))
+            .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
+                TrashStore.clearAll()
+                toast(getString(R.string.toast_trash_cleared))
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
     }
 
     private fun reparseLevelDat() {
