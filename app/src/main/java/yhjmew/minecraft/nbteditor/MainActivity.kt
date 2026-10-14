@@ -1081,16 +1081,22 @@ class MainActivity : ComponentActivity() {
             if (it != null) { onLongClick(it); true } else false
         }
 
-        // 窗口尺寸：宽度 90%，高度**固定**为屏幕的 65%。
-        // 之所以不按条数自适应：弹窗尺寸随内容忽大忽小不符合用户习惯，
-        // 标准弹窗应保持稳定尺寸。列表用 weight=1 占满标签栏以上的空间，
-        // 所以条数少时下方自然留白，标签栏始终贴在窗口底部。
+        // 窗口尺寸：宽度 90%，高度固定为屏幕的 65%。
+        // 之所以不按条数自适应：弹窗尺寸随内容忽大忽小不符合用户习惯。
+        //
+        // ⚠️ 关键：AlertDialog.setView() 会把自定义视图放进一个
+        // wrap_content 的容器（customPanel）里，所以：
+        //   - 只调 window.setLayout 改的是「窗口」尺寸，内容不会撑满
+        //   - 根布局写 match_parent 也没用（它相对的是 wrap_content 的父容器）
+        // 结果就是列表只占内容高度、标签栏紧跟其后，下方留一大块空白。
+        // 解决办法：直接给视图本身设置最小高度，把它所在的容器撑开。
         val winW = (resources.displayMetrics.widthPixels * 0.9).toInt()
         val winH = (resources.displayMetrics.heightPixels * 0.65).toInt()
 
         dlg.setOnDismissListener { currentDialog = null }
         currentDialog = dlg
         dlg.show()
+        view.minimumHeight = winH
         dlg.window?.setLayout(winW, winH)
 
         render()
