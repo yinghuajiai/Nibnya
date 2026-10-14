@@ -993,27 +993,24 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         if (idx < 0) return
         val want = customLabel()
         if (intervalLabels.getOrNull(idx) == want) return
-        val was = suppress
-        suppress = true
-        try {
-            // 原地修改 + 通知刷新（不要用 adapter.remove/insert，
-            // 且无论如何都不该改动 List 的长度，只改最后一项的文字）
-            intervalLabels[idx] = want
-            intervalAdapter.notifyDataSetChanged()
-            // 若当前就是自定义值，保持选中它
-            if (interval > 0 && DRAFT_INTERVAL_VALUES.indexOf(interval) < 0) {
-                sp.setSelection(idx)
-            }
-        } finally {
-            suppress = was
+        // 原地修改 + 通知刷新（不要用 adapter.remove/insert，
+        // 且无论如何都不该改动 List 的长度，只改最后一项的文字）
+        // 这里的 setSelection 不会误触发监听器 —— 监听器已改用「用户触摸」判断
+        intervalLabels[idx] = want
+        intervalAdapter.notifyDataSetChanged()
+        if (interval > 0 && DRAFT_INTERVAL_VALUES.indexOf(interval) < 0) {
+            sp.setSelection(idx)
         }
     }
 
-    // 同上：延后到初始回显完成后再注册，避免展开设置就弹出「自定义间隔」
-    intervalSp?.post {
-    intervalSp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+    // ⚠️ 时序陷阱：setSelection 的回调由**布局阶段**派发，时机不可控
+    // （post{} / 延迟标志都不可靠）。改为只响应**用户真的触摸过**的操作，
+    // 程序回显不产生触摸事件，因此天然被忽略。
+    var userPickedInterval = false
+    intervalSp?.setOnTouchListener { _, _ -> userPickedInterval = true; false }
+    intervalSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-            if (suppress) return
+            if (!userPickedInterval) return
             val valAt = DRAFT_INTERVAL_VALUES.getOrNull(position)
             if (valAt == null || valAt == -1) {
                 // 「自定义…」
@@ -1035,20 +1032,23 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         }
         override fun onNothingSelected(p: AdapterView<*>?) {}
     }
-    }
 
+    var userPickedUnit = false
+    unitSp?.setOnTouchListener { _, _ -> userPickedUnit = true; false }
     unitSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-            if (suppress) return
+            if (!userPickedUnit) return
             unit = position.coerceIn(0, 2)
             applyAll()
         }
         override fun onNothingSelected(p: AdapterView<*>?) {}
     }
 
+    var userPickedMax = false
+    maxSp?.setOnTouchListener { _, _ -> userPickedMax = true; false }
     maxSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-            if (suppress) return
+            if (!userPickedMax) return
             val valAt = maxValues.getOrNull(position) ?: return
             if (valAt == -1) {
                 showCustomNumberDialog(
@@ -1143,34 +1143,33 @@ private fun MainActivity.setupTrashSettings(root: android.view.View) {
     }
     apply()
 
-    // ⚠️ 关键：先 setSelection（回显），**再**注册监听器。
-    // Spinner 的 setSelection 会触发一次 onItemSelected，但它是异步派发的；
-    // 之前用 root.post 解除 suppress 早于该回调，导致一展开设置就被判定为
-    // 「用户选了自定义项」而弹出输入框。
-    // 正确做法是让初始回调发生在注册之前 —— 根本收不到，不需要 suppress。
-    sp.post {
-        sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
-                val valAt = TRASH_KEEP_VALUES.getOrNull(position) ?: return
-                if (valAt == -1) {
-                    showCustomNumberDialog(
-                        getString(R.string.title_custom_trash_keep), 1, 3650,
-                        getString(R.string.msg_trash_keep_invalid),
-                        if (days > 0) days else 30
-                    ) { n ->
-                        days = n
-                        apply()
-                        // 刷新「自定义」项文字（改内容不改长度，用 notifyDataSetChanged）
-                        labels[labels.size - 1] = customLabel()
-                        adapter.notifyDataSetChanged()
-                    }
-                } else {
-                    days = valAt
+    // ⚠️ 时序陷阱：setSelection 的回调由**布局阶段**派发，时机不可控
+    // （post{} / 延迟标志都不可靠）。改为只响应**用户真的触摸过**的操作，
+    // 程序回显不产生触摸事件，因此天然被忽略。
+    var userPicked = false
+    sp.setOnTouchListener { _, _ -> userPicked = true; false }
+    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (!userPicked) return
+            val valAt = TRASH_KEEP_VALUES.getOrNull(position) ?: return
+            if (valAt == -1) {
+                showCustomNumberDialog(
+                    getString(R.string.title_custom_trash_keep), 1, 3650,
+                    getString(R.string.msg_trash_keep_invalid),
+                    if (days > 0) days else 30
+                ) { n ->
+                    days = n
                     apply()
+                    // 刷新「自定义」项文字（改内容不改长度，用 notifyDataSetChanged）
+                    labels[labels.size - 1] = customLabel()
+                    adapter.notifyDataSetChanged()
                 }
+            } else {
+                days = valAt
+                apply()
             }
-            override fun onNothingSelected(p: AdapterView<*>?) {}
         }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
     }
 }
 
@@ -1229,8 +1228,12 @@ private fun MainActivity.setupThreadCountSpinner(
     spinner.isEnabled = enabled
     container?.alpha = if (enabled) 1f else 0.4f
 
+    // 同草稿设置：只有用户真的触摸过才响应，避免回显时误弹「自定义」输入框
+    var userPickedThread = false
+    spinner.setOnTouchListener { _, _ -> userPickedThread = true; false }
     spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+            if (!userPickedThread) return
             val v = values[position]
             if (v == -1) {
                 // 「自定义…」：弹出输入框
