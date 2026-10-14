@@ -881,7 +881,11 @@ class MainActivity : ComponentActivity() {
     private fun exportWorldAsMcWorld(w: WorldItem) {
         val srcDir = File(worldVM.resolveWorldPathPublic(w.folderName))
         if (!srcDir.exists()) { toast(getString(R.string.msg_world_dir_not_found)); return }
-        val fileName = WorldExporter.buildFileName(w.displayName)
+        // 世界名读不到时（levelname.txt 缺失/无权限）回退用文件夹名，
+        // 避免导出成 "Unknown.mcworld"
+        val nameHint = w.displayName.takeIf { it.isNotBlank() && it != "Unknown" }
+            ?: w.folderName
+        val fileName = WorldExporter.buildFileName(nameHint)
         val destDir = WorldExporter.defaultWorldDir()
 
         if (!worldVM.canWriteDirectly(destDir)) {
@@ -1033,6 +1037,11 @@ class MainActivity : ComponentActivity() {
                 else toast(msg ?: getString(R.string.msg_delete_failed))
                 // 清空存档名（若删的正是当前选中的）
                 if (etWorldName?.text?.toString() == w.folderName) etWorldName?.setText("")
+                if (ok) {
+                    // 重新扫描并刷新世界列表，让用户立刻看到结果
+                    pendingWorldSelector = true
+                    worldVM.scanWorlds(this)
+                }
             }
         }.start()
     }
@@ -1139,7 +1148,13 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 dismissProgressDialog()
                 when {
-                    ok -> { toast(getString(R.string.toast_world_restored)); dlg?.dismiss() }
+                    ok -> {
+                        toast(getString(R.string.toast_world_restored))
+                        dlg?.dismiss()
+                        // 立刻回到世界列表，能看到刚恢复的存档
+                        pendingWorldSelector = true
+                        worldVM.scanWorlds(this)
+                    }
                     // 目标已存在：问是否覆盖
                     msg == getString(R.string.msg_restore_target_exists) -> askOverwriteRestore(item, dlg)
                     else -> toast(msg ?: getString(R.string.msg_restore_failed))
@@ -1158,8 +1173,12 @@ class MainActivity : ComponentActivity() {
                     val (ok, msg) = worldVM.restoreFromTrash(this, item, overwrite = true)
                     runOnUiThread {
                         dismissProgressDialog()
-                        if (ok) { toast(getString(R.string.toast_world_restored)); dlg?.dismiss() }
-                        else toast(msg ?: getString(R.string.msg_restore_failed))
+                        if (ok) {
+                            toast(getString(R.string.toast_world_restored))
+                            dlg?.dismiss()
+                            pendingWorldSelector = true
+                            worldVM.scanWorlds(this)
+                        } else toast(msg ?: getString(R.string.msg_restore_failed))
                     }
                 }.start()
             }
@@ -1197,6 +1216,10 @@ class MainActivity : ComponentActivity() {
                     runOnUiThread {
                         dismissProgressDialog()
                         toast(getString(R.string.toast_restore_all_result, okCount, failCount))
+                        if (okCount > 0) {
+                            pendingWorldSelector = true
+                            worldVM.scanWorlds(this)
+                        }
                     }
                 }.start()
             }
