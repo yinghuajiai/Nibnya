@@ -326,6 +326,37 @@
                 android:paddingStart="32dp"
                 android:layout_marginBottom="14dp" />
 
+            <!-- 回收站自动清理 -->
+            <LinearLayout
+                android:id="@+id/layout_trash_keep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_trash_keep"
+                    android:textSize="13sp" />
+
+                <Spinner
+                    android:id="@+id/sp_trash_keep"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_trash_keep"
+                android:textSize="12sp"
+                android:textColor="#888888"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="14dp" />
+
             <!-- 3. Shizuku -->
             <CheckBox
     android:id="@+id/cb_skip_shizuku"

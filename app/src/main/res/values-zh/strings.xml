@@ -13,6 +13,67 @@
     <string name="btn_cancel">取消</string>
     <string name="btn_later">稍后</string>
     <string name="btn_close">关闭</string>
+    <string name="label_trash_keep">回收站保留：</string>
+    <string name="subtitle_trash_keep">超过该时长的内容会被自动清理</string>
+    <string name="trash_keep_never">不自动清理</string>
+    <string name="trash_keep_days">%1$d 天</string>
+    <string name="title_custom_trash_keep">自定义保留天数 (1-3650)</string>
+    <string name="msg_trash_keep_invalid">请输入 1 到 3650 之间的数字</string>
+    <string name="btn_export_mcworld">导出为 .mcworld</string>
+    <string name="title_world_detail">存档详情</string>
+    <string name="btn_continue">继续</string>
+    <string name="msg_restoring">正在恢复</string>
+    <string name="export_progress">打包中… %1$d%%</string>
+    <string name="msg_restore_overwrite_confirm">已存在同名文件夹的存档：
+
+%1$s
+
+要覆盖吗？原有的也会被移入回收站。</string>
+    <string name="msg_delete_forever_confirm">彻底删除「%1$s」？
+
+此操作无法撤销。</string>
+    <string name="msg_restore_all_confirm">恢复全部 %1$d 项？</string>
+    <string name="toast_restore_all_result">成功恢复 %1$d 项，失败 %2$d 项</string>
+    <string name="msg_clear_trash_confirm">彻底删除回收站中的全部内容？
+
+此操作无法撤销。</string>
+    <string name="msg_world_dir_not_found">找不到存档目录</string>
+    <string name="msg_delete_need_permission">无法删除：此路径需要 Shizuku，或授予「所有文件访问权限」。</string>
+    <string name="msg_delete_failed">删除失败</string>
+    <string name="msg_restore_target_exists">已存在同名文件夹的存档</string>
+    <string name="msg_trash_content_missing">回收站内容已缺失</string>
+    <string name="title_trash">♻ 回收站 (%1$d)</string>
+    <string name="msg_trash_empty">回收站是空的</string>
+    <string name="btn_restore_all">全部恢复</string>
+    <string name="btn_clear_trash">清空回收站</string>
+    <string name="btn_delete_forever">彻底删除</string>
+    <string name="title_delete_world">删除存档</string>
+    <string name="msg_delete_world_confirm1">删除「%1$s」？
+
+将移入回收站（可恢复）。</string>
+    <string name="msg_delete_world_confirm2">真的确定？
+
+「%1$s」将被移入回收站。</string>
+    <string name="title_also_delete">是否同时删除关联数据？</string>
+    <string name="msg_also_delete">该存档有：
+
+• %1$d 份备份
+• %2$d 份草稿
+
+要一并删除吗？</string>
+    <string name="btn_yes_delete_all">一起删除</string>
+    <string name="btn_keep_them">保留</string>
+    <string name="toast_world_deleted">已移入回收站</string>
+    <string name="toast_world_restored">存档已恢复</string>
+    <string name="toast_trash_cleared">回收站已清空</string>
+    <string name="toast_trash_item_deleted">已彻底删除</string>
+    <string name="title_trash_detail">回收站详情</string>
+    <string name="label_deleted_at">删除时间：</string>
+    <string name="label_original_folder">原文件夹：</string>
+    <string name="label_includes">包含：</string>
+    <string name="label_includes_backups">备份</string>
+    <string name="label_includes_drafts">草稿</string>
+    <string name="msg_none">无</string>
     <string name="title_draft_detail">草稿详情</string>
     <string name="label_key">键名：</string>
     <string name="label_world">所属存档：</string>
