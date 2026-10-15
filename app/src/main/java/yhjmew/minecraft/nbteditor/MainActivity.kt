@@ -281,14 +281,22 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-//        prefs!!.getString("saf_tree_uri", null)?.let { uriStr ->
-//            try {
-//                val uri = uriStr.toUri()
-//                contentResolver.takePersistableUriPermission(uri,
-//                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-//                worldVM.safTreeUri = uri; worldVM.switchPath("$uri/")
-//            } catch (_: Exception) { prefs!!.edit { remove("saf_tree_uri") } }
-//        }
+        // SAF 路径：正式恢复 tree uri（拿回持久权限），否则重启后会静默回退到 File 模式
+        prefs!!.getString("saf_tree_uri", null)?.let { uriStr ->
+            try {
+                val uri = android.net.Uri.parse(uriStr)
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                worldVM.safTreeUri = uri
+                worldVM.switchPath("$uri/")
+            } catch (_: Exception) {
+                // 授权已失效（换机/清理数据/用户撤销）→ 清掉记录，让用户重选
+                prefs!!.edit().remove("saf_tree_uri").apply()
+                worldVM.safTreeUri = null
+            }
+        }
 
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.main)
@@ -356,7 +364,7 @@ class MainActivity : ComponentActivity() {
             worldVM.cleanUpOldSessions(this)
             // 回收站自动清理（天数可在设置里改；0 = 不自动清理）
             val keepDays = prefs!!.getInt("trash_keep_days", TrashStore.DEFAULT_KEEP_DAYS)
-            Thread { runCatching { worldVM.autoCleanTrash(keepDays) } }.start()
+            Thread { runCatching { worldVM.autoCleanTrash(this, keepDays) } }.start()
         }
         restoreSavedState(savedInstanceState)
     }
@@ -498,13 +506,13 @@ class MainActivity : ComponentActivity() {
         findViewById<Button?>(R.id.btn_copy)?.setOnClickListener {
             val f = etWorldName!!.text.toString().trim()
             if (f.isEmpty() || f == getString(R.string.hint_select_world)) showWorldSelector()
-            else { toast(getString(R.string.toast_loading, f)); worldVM.loadLevelDat(this, f) }
+            else { toast(getString(R.string.toast_loading, f)); worldVM.openLevelDat(this, f) }
         }
         etWorldName?.setOnClickListener { showWorldSelector() }
 
         findViewById<Button?>(R.id.btn_edit_player)?.setOnClickListener {
             val f = etWorldName!!.text.toString()
-            if (checkFolder(f)) worldVM.loadPlayerData(this, f)
+            if (checkFolder(f)) worldVM.openPlayerData(this, f)
         }
         findViewById<Button?>(R.id.btn_parse)?.setOnClickListener { reparseLevelDat() }
         findViewById<Button?>(R.id.btn_check_permission)?.setOnClickListener {
@@ -828,7 +836,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showWorldSelectorDialog(list: List<WorldItem>) {
         if (list.isEmpty()) { toast(getString(R.string.toast_no_saves_found)); return }
-        val trashCount = TrashStore.count()
+        val trashCount = TrashStore.count(this)
         showTabbedListDialog(
             title = getString(R.string.select_world_count, list.size),
             items = list,
@@ -842,7 +850,7 @@ class MainActivity : ComponentActivity() {
             },
             onShortClick = { w ->
                 etWorldName?.setText(w.folderName)
-                worldVM.loadLevelDat(this, w.folderName)
+                worldVM.openLevelDat(this, w.folderName)
             },
             onLongClick = { showWorldManageMenu(it) },
             menuItems = listOf(
@@ -1051,7 +1059,7 @@ class MainActivity : ComponentActivity() {
     // ============================================
 
     private fun showTrashDialog() {
-        val items = TrashStore.list()
+        val items = TrashStore.list(this)
         if (items.isEmpty()) { toast(getString(R.string.msg_trash_empty)); return }
         val view = layoutInflater.inflate(R.layout.dialog_list_with_tabs, null, false)
         val lv = view.findViewById<ListView>(R.id.lv_tabbed_items)
@@ -1232,7 +1240,7 @@ class MainActivity : ComponentActivity() {
             .setTitle(getString(R.string.dialog_danger_title))
             .setMessage(getString(R.string.msg_clear_trash_confirm))
             .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
-                TrashStore.clearAll()
+                TrashStore.clearAll(this)
                 toast(getString(R.string.toast_trash_cleared))
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
@@ -1851,7 +1859,7 @@ class MainActivity : ComponentActivity() {
                 .setMessage(getString(R.string.msg_have_you_tried_a_brute_force_repair))
                 .setPositiveButton(getString(R.string.btn_try_to_fix)) { _, _ ->
                     worldVM.tryRepairDb(parts[0]) { ok ->
-                        if (ok) { toast(getString(R.string.msg_under_repair)); parts.getOrNull(1)?.let { worldVM.loadPlayerData(this, it) } }
+                        if (ok) { toast(getString(R.string.msg_under_repair)); parts.getOrNull(1)?.let { worldVM.openPlayerData(this, it) } }
                     }
                 }.setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> toast(getString(R.string.toast_operation_canceled_please_check_archive_integrity)) }.setCancelable(false).show()
         } else AlertDialog.Builder(this).setTitle(getString(R.string.title_error)).setMessage(msg).setPositiveButton(getString(R.string.btn_close), null).show()
@@ -1933,7 +1941,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         worldVM.pendingSidebarTask = task
-        worldVM.loadPlayerData(this, f)
+        worldVM.openPlayerData(this, f)
     }
     private val worksDir: File
         get() { val d = File("${externalCacheDir?.parent}/Works"); if (!d.exists()) d.mkdirs(); return d }

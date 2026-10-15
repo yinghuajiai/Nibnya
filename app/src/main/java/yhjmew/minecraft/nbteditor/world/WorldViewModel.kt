@@ -630,6 +630,37 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     }
 
     // ============================================
+    // 统一入口：自动区分 File / SAF
+    // ============================================
+    /**
+     * 当前是否处于 SAF 模式（拿到了 tree uri **且** 路径是 `content://`）。
+     *
+     * ⚠️ 必须同时判断 `content://`：`scanWorldsViaSaf` 在「URI 能解析成可读真实路径」时
+     * 会把 `_currentPath` 换成真实路径（那种情况 File API 可用），必须继续走 File 分支。
+     */
+    private fun isSafMode(): Boolean =
+        safTreeUri != null && _currentPath.value.startsWith("content://")
+
+    /** 打开世界数据（level.dat）：SAF 模式走 DocumentFile，否则走 File */
+    fun openLevelDat(context: Context, folder: String) {
+        if (isSafMode()) loadLevelDatViaSaf(context, folder)
+        else loadLevelDat(context, folder)
+    }
+
+    /** 打开玩家数据（db/）：SAF 模式走 DocumentFile，否则走 File */
+    fun openPlayerData(context: Context, folder: String, onSuccess: Runnable? = null) {
+        when {
+            isSafMode() -> loadPlayerDataViaSaf(context, folder, onSuccess)
+            onSuccess == null -> loadPlayerData(context, folder)
+            else -> {
+                // 与 loadPlayerDataViaSaf 同样用 pendingSidebarTask 承载后续任务
+                pendingSidebarTask = onSuccess
+                loadPlayerData(context, folder)
+            }
+        }
+    }
+
+    // ============================================
     // 加载 level.dat
     // ============================================
     fun loadLevelDat(context: Context, folder: String) {
@@ -1015,7 +1046,18 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                         }
                     }
 
-                    // 2) 直接写失败，且 Shizuku 可用 -> 走桥接
+                    // 2) SAF 模式：目标路径是 content://，File 与 Shizuku 都无效 -> 走 DocumentFile
+                    //    ⚠️ 失败必须抛错。绝不能像原来那样「发个命令就当成功」，那是数据丢失。
+                    if (!savedDirectly && isSafMode()) {
+                        val worldDoc = SafIo.worldDirOf(context, safTreeUri!!, folder)
+                            ?: throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
+                        val (safOk, safErr) = SafIo.replaceDirInSaf(context, worldDoc, "db", newWorkDir)
+                        if (!safOk) throw Exception(safErr ?: getString(R.string.msg_save_need_permission_or_path, mcDbPath))
+                        savedDirectly = true
+                        AppLogger.info("Save", "玩家数据经 SAF 写入: $mcDbPath")
+                    }
+
+                    // 3) 直接写与 SAF 都不行，且 Shizuku 可用 -> 走桥接
                     if (!savedDirectly) {
                         if (checkShizukuAvailable()) {
                             val bridgeSave = MainActivity.BRIDGE_ROOT + "save_db_$uniqueId"
@@ -1024,11 +1066,13 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
                             smartCopy(newWorkDir, File(bridgeSave))
                             val cp = runShizukuCmd(arrayOf("sh", "-c", "cp -rf \"$bridgeSave/.\" \"$mcDbPath\""))
-                            cp.waitFor()
+                            val exit = cp.waitFor()
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
+                            // 必须检查退出码：非 0 时数据其实没写进去，绝不能提示成功
+                            if (exit != 0) throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
                             AppLogger.info("Save", "玩家数据经 Shizuku 写入: $mcDbPath")
                         } else {
-                            // 3) 都不行 -> 明确报错，提示用户处理权限/换路径
+                            // 4) 都不行 -> 明确报错，提示用户处理权限/换路径
                             throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
                         }
                     }
@@ -1055,15 +1099,31 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                         AppLogger.info("Save", "level.dat 直接写入成功: $targetPath")
                     }
 
+                    // SAF 模式：content:// 路径 File 写不了，改用 DocumentFile 覆盖
+                    if (!success && isSafMode()) {
+                        val worldDoc = SafIo.worldDirOf(context, safTreeUri!!, folder)
+                            ?: throw Exception(getString(R.string.msg_save_need_permission_or_path, targetPath))
+                        val (safOk, safErr) = SafIo.replaceFileInSaf(
+                            context, worldDoc, MainActivity.LEVEL_DAT_NAME, workingFile
+                        )
+                        if (!safOk) throw Exception(safErr ?: getString(R.string.msg_save_need_permission_or_path, targetPath))
+                        success = true
+                        AppLogger.info("Save", "level.dat 经 SAF 写入: $targetPath")
+                    }
+
                     if (!success && checkShizukuAvailable()) {
                         // Shizuku 降级
                         val bridgeFile = MainActivity.BRIDGE_ROOT + "level.dat"
                         File(MainActivity.BRIDGE_ROOT).mkdirs()
                         copyFile(workingFile, File(bridgeFile))
                         val cp = runShizukuCmd(arrayOf("sh", "-c", "cp \"$bridgeFile\" \"$targetPath\""))
-                        cp.waitFor()
-                        success = true
-                        AppLogger.info("Save", "level.dat 经 Shizuku 写入: $targetPath")
+                        // 必须检查退出码：原来无条件 success = true，cp 失败也会提示「已保存」
+                        if (cp.waitFor() == 0) {
+                            success = true
+                            AppLogger.info("Save", "level.dat 经 Shizuku 写入: $targetPath")
+                        } else {
+                            AppLogger.warn("Save", "level.dat 经 Shizuku 写入失败（cp 退出码非 0）: $targetPath")
+                        }
                     }
 
                     if (!success) {
@@ -1275,6 +1335,39 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         alsoBackups: Boolean,
         alsoDrafts: Boolean
     ): Pair<Boolean, String?> {
+        // SAF 模式：源是 content:// 路径，File.exists() 恒为 false，必须走 DocumentFile。
+        // 顺序很重要：**先完整复制成功，才允许删源**；复制失败绝不动源目录。
+        if (isSafMode()) {
+            val treeUri = safTreeUri!!
+            val worldDoc = SafIo.worldDirOf(context, treeUri, folder)
+                ?: return Pair(false, getString(R.string.msg_world_dir_not_found))
+            val slotName = TrashStore.newSlotName(worldName)
+            val slot = TrashStore.slotDir(context, slotName)
+            val dest = File(slot, "world")
+            slot.mkdirs()
+            val copyErr = SafIo.copyDocToFile(context, worldDoc, dest) { it in levelDbMetaFiles }
+            if (copyErr != null) {
+                deleteRecursive(dest)   // 清掉半成品，源目录原样保留
+                return Pair(false, getString(R.string.msg_delete_failed) + "：$copyErr")
+            }
+            if (!SafIo.deleteDoc(worldDoc)) {
+                // 已复制成功但删不掉源：回收站里有副本、源也还在，明确报告失败
+                return Pair(false, getString(R.string.msg_delete_failed))
+            }
+            TrashStore.writeMeta(slot, folder, worldName, alsoBackups, alsoDrafts, safFolder = true)
+            if (alsoBackups) moveBackupsIntoSlot(context, folder, slot)
+            if (alsoDrafts) deleteDraftsOf(context, folder)
+            if (lastLoadedWorldFolder == folder) {
+                lastLoadedWorldFolder = null
+                currentWorkingDbPath = null
+                currentWorkingFileOrDir = null
+                _currentWorldFolder.value = null
+                editorVM?.reset()
+            }
+            AppLogger.info("World", "已移入回收站(SAF): $folder -> $slotName")
+            return Pair(true, slotName)
+        }
+
         val src = File(resolveWorldPath(folder))
         if (!src.exists()) return Pair(false, getString(R.string.msg_world_dir_not_found))
 
@@ -1287,7 +1380,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         }
 
         val slotName = TrashStore.newSlotName(worldName)
-        val slot = TrashStore.slotDir(slotName)
+        val slot = TrashStore.slotDir(context, slotName)
         val dest = File(slot, "world")
 
         // 1) 原生命名（同分区）
@@ -1325,30 +1418,10 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         TrashStore.writeMeta(slot, folder, worldName, alsoBackups, alsoDrafts)
 
         // 连带处理：备份（移入回收站槽内，恢复时可一并找回）
-        if (alsoBackups) {
-            try {
-                val bk = File(backupsDir(context), folder)
-                if (bk.exists()) {
-                    val bkDest = File(slot, "backups")
-                    if (!bk.renameTo(bkDest)) {
-                        bkDest.mkdirs(); smartCopy(bk, bkDest); deleteRecursive(bk)
-                    }
-                }
-            } catch (_: Exception) {
-            }
-        } else {
-            // 不连带删除时，把该存档的备份留着（用户可在备份列表里单独清理）
-        }
+        if (alsoBackups) moveBackupsIntoSlot(context, folder, slot)
 
         // 连带处理：草稿
-        if (alsoDrafts) {
-            try {
-                DraftStore.list(context)
-                    .filter { it.folder == folder }
-                    .forEach { DraftStore.remove(context, it.sessionKey) }
-            } catch (_: Exception) {
-            }
-        }
+        if (alsoDrafts) deleteDraftsOf(context, folder)
 
         // 若当前正在编辑该存档，清掉加载状态避免指向已消失的目录
         if (lastLoadedWorldFolder == folder) {
@@ -1375,12 +1448,38 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         val targetParent = File(_currentPath.value)
         val target = File(targetParent, item.originalFolder)
 
+        // SAF 模式恢复：目标位置是 content://，只能走 DocumentFile
+        if (isSafMode()) {
+            val treeUri = safTreeUri!!
+            val parentDoc = DocumentFile.fromTreeUri(context, treeUri)
+                ?: return Pair(false, getString(R.string.msg_restore_failed))
+            val existing = parentDoc.findFile(item.originalFolder)
+            if (existing != null && !overwrite) {
+                return Pair(false, getString(R.string.msg_restore_target_exists))
+            }
+            if (existing != null && overwrite) {
+                // 旧存档也先挪进回收站，避免直接覆盖丢数据
+                val oldSlot = TrashStore.slotDir(context, TrashStore.newSlotName("${item.originalFolder}_overwritten"))
+                oldSlot.mkdirs()
+                val oldDest = File(oldSlot, "world")
+                val moveErr = SafIo.copyDocToFile(context, existing, oldDest) { it in levelDbMetaFiles }
+                if (moveErr == null) SafIo.deleteDoc(existing)
+            }
+            val (okSaf, errSaf) = SafIo.replaceDirInSaf(context, parentDoc, item.originalFolder, src)
+            if (!okSaf) return Pair(false, errSaf ?: getString(R.string.msg_restore_failed))
+            deleteRecursive(src)
+            restoreBackupsIfAny(context, item)
+            try { deleteRecursive(item.dir) } catch (_: Exception) {}
+            AppLogger.info("World", "已从回收站恢复(SAF): ${item.originalFolder}")
+            return Pair(true, null)
+        }
+
         if (target.exists() && !overwrite) {
             return Pair(false, getString(R.string.msg_restore_target_exists))
         }
         if (target.exists() && overwrite) {
             // 目标已存在：把旧的也挪进回收站，避免直接覆盖丢失
-            val oldSlot = TrashStore.slotDir(TrashStore.newSlotName("${item.originalFolder}_overwritten"))
+            val oldSlot = TrashStore.slotDir(context, TrashStore.newSlotName("${item.originalFolder}_overwritten"))
             try {
                 oldSlot.mkdirs()
                 if (!target.renameTo(File(oldSlot, "world"))) {
@@ -1411,18 +1510,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         if (!ok) return Pair(false, getString(R.string.msg_restore_failed))
 
         // 备份一并还原
-        if (item.hasBackups) {
-            try {
-                val bkSrc = File(item.dir, "backups")
-                if (bkSrc.exists()) {
-                    val bkDest = File(backupsDir(context), item.originalFolder)
-                    if (bkDest.exists()) deleteRecursive(bkDest)
-                    bkDest.parentFile?.mkdirs()
-                    if (!bkSrc.renameTo(bkDest)) { bkDest.mkdirs(); smartCopy(bkSrc, bkDest) }
-                }
-            } catch (_: Exception) {
-            }
-        }
+        restoreBackupsIfAny(context, item)
 
         // 清掉回收站槽（内容已移走）
         try {
@@ -1434,8 +1522,47 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         return Pair(true, null)
     }
 
+    /** 删除某存档的全部草稿 */
+    private fun deleteDraftsOf(context: Context, folder: String) {
+        try {
+            DraftStore.list(context)
+                .filter { it.folder == folder }
+                .forEach { DraftStore.remove(context, it.sessionKey) }
+        } catch (_: Exception) {
+        }
+    }
+
+    /** 把某存档的备份移入回收站槽（恢复时可一并找回） */
+    private fun moveBackupsIntoSlot(context: Context, folder: String, slot: File) {
+        try {
+            val bk = File(backupsDir(context), folder)
+            if (bk.exists()) {
+                val bkDest = File(slot, "backups")
+                if (!bk.renameTo(bkDest)) {
+                    bkDest.mkdirs(); smartCopy(bk, bkDest); deleteRecursive(bk)
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    /** 恢复存档时，把连带移入回收站槽的备份放回备份目录 */
+    private fun restoreBackupsIfAny(context: Context, item: TrashStore.TrashItem) {
+        if (!item.hasBackups) return
+        try {
+            val bkSrc = File(item.dir, "backups")
+            if (bkSrc.exists()) {
+                val bkDest = File(backupsDir(context), item.originalFolder)
+                if (bkDest.exists()) deleteRecursive(bkDest)
+                bkDest.parentFile?.mkdirs()
+                if (!bkSrc.renameTo(bkDest)) { bkDest.mkdirs(); smartCopy(bkSrc, bkDest) }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     /** 自动清理回收站（设置里可配天数） */
-    fun autoCleanTrash(days: Int): Int = TrashStore.autoClean(days)
+    fun autoCleanTrash(context: Context, days: Int): Int = TrashStore.autoClean(context, days)
 
 
 
