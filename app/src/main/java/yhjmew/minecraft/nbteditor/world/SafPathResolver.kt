@@ -41,26 +41,4 @@ object SafPathResolver {
         val file = File(path)
         return file.exists() && file.canRead()
     }
-
-    /**
-     * 从 SAF URI 猜测 Minecraft 世界路径
-     */
-    fun guessWorldRootFromUri(treeUri: Uri): String? {
-        val uriStr = treeUri.toString()
-        return when {
-            uriStr.contains("com.mojang.minecraftpe") -> {
-                val base = uriStr.substringAfter("com.mojang.minecraftpe")
-                val path = base.substringBefore("tree")
-                "/storage/emulated/0/Android/data/com.mojang.minecraftpe/files/games/com.mojang/minecraftWorlds/"
-            }
-            uriStr.contains("primary:") -> {
-                // 从 URI 中提取路径段
-                val docId = DocumentsContract.getTreeDocumentId(treeUri)
-                if (docId.startsWith("primary:")) {
-                    "/storage/emulated/0/" + docId.removePrefix("primary:")
-                } else null
-            }
-            else -> null
-        }
-    }
 }
