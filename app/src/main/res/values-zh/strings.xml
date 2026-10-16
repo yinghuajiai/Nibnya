@@ -811,6 +811,7 @@
          权限说明弹窗 / 切换语言提示
          ============================================ -->
     <string name="cb_dont_ask_again">不再提示</string>
+    <string name="toast_language_switch_failed">语言设置未能保存，请重试</string>
     <string name="msg_perm_needed_for_save">保存需要写入存档目录的权限。</string>
     <string name="msg_perm_needed_for_path">切换目标目录可能涉及受保护的位置。</string>
     <string name="title_switch_language">切换语言</string>
