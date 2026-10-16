@@ -71,3 +71,49 @@ Repair
 36. Fixed the problem that custom puzzles cannot be used after internationalization.
 37. Fixed the main title of the homepage, which will not switch to the map and add seeds.
 38. Anti-null pointer crash repair (for the case where null adapter is passed in the search list)
+
+## Nibnya_1.0.4a-Update Log (Test build)
+
+> This is a pre-release test build; Debug build only
+
+Changes (please read)
+
+1. The app has been renamed: "Nibnya" (EN) / "樱喵NBT" (ZH), formerly NBT Editor
+2. The package name has changed: yhjmew.minecraft.nbteditor -> yhjmew.nibnya. Android treats it as a different app, so it cannot be installed over the old version - you must uninstall first. Uninstalling removes the draft box and all settings; if you did not grant "All files access", the backups and recycle bin inside the old private directory are lost as well. Data under the public Download/ folder is not affected
+3. The data folder has been renamed: Download/NbtEditor_Data/ -> Download/Nibnya/. On first launch the app asks whether to migrate; nothing is deleted automatically, and the old folder is kept until everything has been copied. You can also run it from "Settings -> Migrate old data"
+4. The test build and the stable build now share the same signing key
+
+Added
+
+1. Recycle bin: deleting a world moves it to the recycle bin first (restore / delete forever / restore all / empty), with automatic cleanup (default 30 days; 7/30/90/custom)
+2. Export .mcworld: packs a whole world into a file Minecraft can import directly
+3. Draft box: replaces the old pop-up, unsaved edits are saved periodically and retrieved by the user, without interrupting
+4. Clipboard rework: copying also writes to the system clipboard, in JSON / SNBT / plain text; pasting detects the format automatically
+5. Export to file: to the Download folder, or to a folder you pick via SAF (needs no permission)
+6. Full SAF (Storage Access Framework) support - see fix #1
+7. List system: world picker / draft box / backup lists share one display format, a dynamic bottom tab bar and long-press menus
+8. Multi-threading actually takes effect: file copy and map-art generation can be toggled and tuned
+9. Added an xxxhdpi (192x192) app icon
+
+Fixed
+
+1. Saving in SAF mode silently "pretended to succeed" (most serious): write-back was not implemented for SAF paths at all, and two places reported success unconditionally (exit code never checked). Reads, writes and deletes now all go through DocumentFile, and write-back uses "temp dir -> rename old aside -> rename new into place -> roll back on failure -> delete old only after success"; any failure is reported honestly. Also fixed opening a world doing nothing in SAF mode (the two SAF load functions were dead code)
+2. Two inconsistent definitions of the backup directory caused "clear this world's backups" to clear an empty directory while reporting success, and made the backup count always 0 when deleting a world (so the app never asked whether to delete the backups too). There is now a single definition
+3. Tree view: new/deleted nodes were invisible, deleting a List element modified the wrong object, root-level fields failed, and saving was blocked
+4. Player data lost after adding a List: the real root cause was deleting LevelDB index files (CURRENT / MANIFEST-*). Only LOCK / LOG are cleaned now
+5. Large worlds misdetected as LOCK and refusing to open
+6. Out-of-memory while generating map art: downsampled decoding + concurrency limits + timely recycling
+7. Opening Settings immediately popped up the "custom" input box, the panel could not scroll, and labels were truncated
+8. Crash when entering a custom interval / thread count (ArrayAdapter.remove on an immutable list)
+9. The session-restore dialog showed the wrong target, and a discarded session came back to life
+10. The tab bar would not stick to the bottom (AlertDialog wraps a custom view in a wrap_content container)
+11. issue #6 permission problem: saving to a custom path no longer falsely claims "Shizuku is required"
+12. Release build failure (var x clashing with a hand-written setX() on the JVM signature)
+
+Improved
+
+1. Reorganized packages by domain (nbt / db / editor / world / mapart / util)
+2. Completed internationalization: EN/ZH string keys match exactly, hardcoded text removed
+3. Crash logs are written to both the public and the private directory
+4. Copy buffer 1KB -> 64KB plus zero-copy
+5. All data-folder paths are defined in one place (AppDirs) instead of being scattered across 8 files

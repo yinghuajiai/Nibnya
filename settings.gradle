@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NBT编辑器"
+rootProject.name = "Nibnya"
 include ':app'

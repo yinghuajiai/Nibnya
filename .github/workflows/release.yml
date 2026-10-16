@@ -1,0 +1,111 @@
+# 发布工作流：推 tag 时构建 Debug APK 并自动创建 pre-release
+#
+# 设计要点：
+# - **由工作流自己构建并上传 APK**（不使用本地产物）
+# - tag 会同时推到 origin 与 upstream，因此只在**上游**仓库创建 Release，避免出现两份
+# - 只发 Debug（测试版），不碰正式版；Release 标记为 pre-release
+# - Debug 与 Release 共用同一个正式签名密钥（KEYSTORE_PATH 存在时 build.gradle 两者都走 release 签名）
+
+name: Release Nibnya (pre-release)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要发布的 tag（例如 v1.0.4a）'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant gradlew permission
+        run: chmod +x gradlew
+
+      # Debug 也用正式密钥：build.gradle 里 debug 块的 signingConfig
+      # 在 KEYSTORE_PATH 存在时会选用 signingConfigs.release。
+      # 没配 secret 的仓库（比如 fork）不会因此失败，会退回仓库内的 debugmt 签名。
+      - name: Decode keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/nibnya.keystore
+            echo "Keystore decoded."
+          else
+            echo "No KEYSTORE_BASE64 secret; the build will fall back to the in-repo debug keystore."
+          fi
+
+      - name: Build debug APK
+        env:
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -f app/nibnya.keystore ]; then
+            export KEYSTORE_PATH=nibnya.keystore
+            echo "Signing with the official keystore."
+          else
+            echo "Signing with the fallback debug keystore."
+          fi
+          ./gradlew assembleDebug --console=plain
+
+      - name: Show APK info
+        run: |
+          ls -l app/build/outputs/apk/debug/
+          echo "---- versionName in output ----"
+          ls app/build/outputs/apk/debug/*.apk
+
+      - name: Rename APK
+        id: apk
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          SRC=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          OUT="Nibnya-${TAG}-debug.apk"
+          cp "$SRC" "$OUT"
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          ls -l "$OUT"
+
+      - name: Create pre-release
+        if: github.repository == 'yinghuajimew/Nibnya'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.apk.outputs.tag }}"
+          # 优先用 release-notes/<tag>.md；没有就退回 release-notes/<tag去掉v>.md；
+          # 再没有就只写一行标题，保证工作流不会因为缺文件而失败
+          NOTES="release-notes/${TAG}.md"
+          [ -f "$NOTES" ] || NOTES="release-notes/${TAG#v}.md"
+          if [ -f "$NOTES" ]; then
+            echo "Using notes file: $NOTES"
+            gh release create "$TAG" "${{ steps.apk.outputs.file }}" \
+              --title "Nibnya $TAG（测试版 / Test build）" \
+              --notes-file "$NOTES" \
+              --prerelease
+          else
+            echo "No notes file found, creating release without detailed notes"
+            gh release create "$TAG" "${{ steps.apk.outputs.file }}" \
+              --title "Nibnya $TAG（测试版 / Test build）" \
+              --notes "Test build (pre-release). Debug APK only." \
+              --prerelease
+          fi
+
+      - name: Skipped on fork
+        if: github.repository != 'yinghuajimew/Nibnya'
+        run: echo "This repository is not the release target (yinghuajimew/Nibnya); build finished, release skipped."

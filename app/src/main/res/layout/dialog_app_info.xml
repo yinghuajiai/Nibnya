@@ -366,7 +366,20 @@
     android:textSize="14sp"
     android:layout_marginBottom="12dp" />
 
-            <!-- 4. 日夜模式 -->
+            <!-- 5. 迁移旧数据（NbtEditor_Data → Nibnya） -->
+            <Button
+                android:id="@+id/btn_migrate_data"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="@string/label_migrate_settings"
+                android:textColor="#4CAF50"
+                android:textSize="14sp"
+                android:gravity="start|center_vertical"
+                android:paddingStart="4dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- 6. 日夜模式 -->
             <Button
                 android:id="@+id/btn_dialog_theme"
                 style="?android:attr/borderlessButtonStyle"
@@ -379,7 +392,7 @@
                 android:paddingStart="4dp"
                 android:layout_marginBottom="8dp" />
 
-            <!-- 4. 语言 -->
+            <!-- 7. 语言 -->
             <Button
                 android:id="@+id/btn_dialog_lang"
                 style="?android:attr/borderlessButtonStyle"
