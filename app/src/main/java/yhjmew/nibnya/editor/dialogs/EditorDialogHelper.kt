@@ -786,9 +786,23 @@ fun MainActivity.showAppInfoDialog() {
     dialogView.findViewById<Button?>(R.id.btn_dialog_lang)?.let {
         it.text = if ("zh" == currentLang) getString(R.string.switch_to_english) else getString(R.string.switch_to_chinese)
         it.setOnClickListener {
-            currentLang = if ("zh" == currentLang) "en" else "zh"
-            prefs?.edit { putString("app_language", currentLang) }
-            NbtTranslator.reset(); dialog.dismiss(); recreate()
+            // ⚠️ 必须**彻底重建进程**，不能用 recreate()：
+            // ViewModel 在 recreate 时存活，NbtTranslator 的 isLoaded / mContext 仍是旧语言，
+            // 且 NBT 适配器里已渲染的文本不会重算 —— 于是出现「切成英文后设置页仍是一堆中文」。
+            // 切换前先说明会重启（未保存的编辑会进草稿箱），用户确认后再切。
+            val target = if ("zh" == currentLang) "en" else "zh"
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.title_switch_language))
+                .setMessage(getString(R.string.msg_switch_language_restart))
+                .setPositiveButton(getString(R.string.btn_switch)) { _, _ ->
+                    // 落盘当前编辑，避免重启丢内容（存进草稿箱，回来能找回）
+                    worldVM.persistSessionNow(this)
+                    prefs?.edit { putString("app_language", target) }
+                    dialog.dismiss()
+                    restartApp()
+                }
+                .setNegativeButton(getString(R.string.btn_cancel), null)
+                .show()
         }
     }
 

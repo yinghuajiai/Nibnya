@@ -203,7 +203,6 @@ class MainActivity : ComponentActivity() {
     private var tvProgressMessage: TextView? = null
 
     private var pendingWorldSelector = false
-    private var pendingBackupListFolder: String? = null
 
     /** 当前备份列表所属的存档目录（重命名/删除后据此刷新列表） */
     private var backupListFolder: String? = null
@@ -355,7 +354,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        worldVM.checkStoragePermission(this)
+        // 所有文件访问权限：**不再在这里直接跳系统设置**。
+        // 旧版本这里调了 worldVM.checkStoragePermission()，它在没有弹窗的情况下直接 startActivity，
+        // 结果是「说明弹窗刚出现就被系统设置页顶掉」。现在一律先让用户读完说明并主动确认；
+        // 权限申请推迟到真正需要读写的时机（打开存档 / 保存 / 切换路径）。
 
         Shizuku.addRequestPermissionResultListener { _, grant ->
             toast(if (grant == PackageManager.PERMISSION_GRANTED)
@@ -450,9 +452,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             worldVM.cacheList.drop(1).collect { showCacheDialog(it) }
         }
+        // 备份列表：用事件通道而不是 StateFlow.drop(1)
+        // （StateFlow 内容相同时不发射 → 扫同一存档两次会「点了没反应」）
         lifecycleScope.launch {
-            worldVM.backupList.drop(1).collect { list ->
-                pendingBackupListFolder?.let { showBackupDialog(list); pendingBackupListFolder = null }
+            worldVM.backupScanDone.receiveAsFlow().collect { list ->
+                showBackupDialog(list)
             }
         }
         lifecycleScope.launch {
@@ -522,9 +526,13 @@ class MainActivity : ComponentActivity() {
         findViewById<Button?>(R.id.btn_parse)?.setOnClickListener { reparseLevelDat() }
         findViewById<Button?>(R.id.btn_check_permission)?.setOnClickListener {
             if (worldVM.checkShizukuReady()) toast(getString(R.string.toast_shizuku_normal))
-            worldVM.checkStoragePermission(this)
+            // 说明弹窗（而不是直接跳系统设置）
+            askAllFilesPermission(reason = null)
         }
-        findViewById<Button?>(R.id.btn_switch_path)?.setOnClickListener { showPathSelector() }
+        findViewById<Button?>(R.id.btn_switch_path)?.setOnClickListener {
+            // 换路径往往就是换到需要权限的位置，先说明再申请
+            if (askAllFilesPermission(getString(R.string.msg_perm_needed_for_path))) showPathSelector()
+        }
         findViewById<Button?>(R.id.btn_clear_cache)?.setOnClickListener { worldVM.scanCache(this) }
 
         findViewById<Button?>(R.id.btn_backup_history)?.setOnClickListener {
@@ -537,11 +545,14 @@ class MainActivity : ComponentActivity() {
                 .setTitle(getString(R.string.title_backup_or_draft))
                 .setItems(opts) { _, w ->
                     if (w == 0) {
-                        // 备份：按存档划分，需要先确定是哪个存档
+                        // 备份按存档划分，需要先确定是哪个存档。
+                        // 已经选了存档就直接列它的备份；没选才弹存档选择器（少一步操作）。
                         val f = etWorldName!!.text.toString()
-                        if (checkFolder(f)) {
+                        if (f.isEmpty() || f == getString(R.string.hint_select_world)) {
+                            toast(getString(R.string.toast_select_world))
+                            showWorldSelector()
+                        } else {
                             backupListFolder = f
-                            pendingBackupListFolder = f
                             worldVM.scanBackups(this, f)
                         }
                     } else {
@@ -556,6 +567,8 @@ class MainActivity : ComponentActivity() {
             val f = etWorldName!!.text.toString().trim()
             if (f.isEmpty() || f == getString(R.string.hint_select_world))
             { toast(getString(R.string.toast_select_world)); return@setOnClickListener }
+            // 保存前确认为什么要「所有文件访问」权限（而不是在启动时不分青红皂白地跳设置）
+            if (!askAllFilesPermission(getString(R.string.msg_perm_needed_for_save))) return@setOnClickListener
             worldVM.saveAndPushBack(this, d, f)
         }
 
@@ -1450,7 +1463,6 @@ class MainActivity : ComponentActivity() {
     /** 重命名/删除后刷新列表（关掉旧弹窗，重新扫描会再次弹出） */
     private fun refreshBackupList() {
         val f = backupListFolder ?: return
-        pendingBackupListFolder = f
         worldVM.scanBackups(this, f)
     }
 

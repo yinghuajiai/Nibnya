@@ -35,17 +35,33 @@ object NbtTranslator {
 
     fun init(context: Context) {
         if (isLoaded) return
-        mContext = context.applicationContext
+
+        // ⚠️ 关键：不能直接用 applicationContext。
+        // Application 的 resources **不跟随** MainActivity.attachBaseContext 里做的语言覆盖，
+        // 所以用它取字符串永远按**系统语言**输出 —— 于是出现
+        // 「系统中文 + 应用切英文」时 NBT 值仍是「0: 生存 / 1: 创造」这种半中文。
+        // 这里按应用自己的语言设置造一个 ConfigurationContext。
+        val appLang = try {
+            context.getSharedPreferences("nbt_config", Context.MODE_PRIVATE)
+                .getString("app_language", null)
+                ?: if (java.util.Locale.getDefault().language.contains("zh")) "zh" else "en"
+        } catch (_: Exception) {
+            "en"
+        }
+
+        mContext = try {
+            val config = android.content.res.Configuration(context.resources.configuration)
+            config.setLocale(if ("zh" == appLang) java.util.Locale.CHINESE else java.util.Locale.ENGLISH)
+            context.createConfigurationContext(config)
+        } catch (_: Exception) {
+            context.applicationContext
+        }
 
         try {
             val gson = Gson()
 
-            val lang = context.resources.configuration.let { config ->
-                @Suppress("DEPRECATION")
-                config.locale.language
-            }
-
-            val folder = if (lang == "zh") "zh/" else "en/"
+            // 资源目录按「应用设置的语言」取，而不是系统语言
+            val folder = if ("zh" == appLang) "zh/" else "en/"
 
             loadKeyMap(context, gson, "${folder}key_translation.json")
             loadStringMap(context, gson, "${folder}item_translation.json", itemDesc)
