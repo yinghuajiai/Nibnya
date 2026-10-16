@@ -117,3 +117,16 @@ Improved
 3. Crash logs are written to both the public and the private directory
 4. Copy buffer 1KB -> 64KB plus zero-copy
 5. All data-folder paths are defined in one place (AppDirs) instead of being scattered across 8 files
+
+
+## Nibnya_1.0.4b-Update Log (Test build)
+
+> Pre-release test build, Debug only. Bug fixes only, no new features
+
+Fixed
+
+1. "Nothing happens" after switching language: the backup list used a StateFlow, which does not emit when the new value equals the old one (scanning the same world twice returns equal results), so tapping "Restore backup" did nothing at all. Replaced with an event channel so every tap opens the dialog. Also, when a world is already selected the backup list opens for it directly instead of sending you back to the world picker
+2. NBT values stayed Chinese after switching to English (real root cause): strings were resolved from the Application context, which does **not** follow the in-app language setting and always uses the system language. So with a Chinese system and an English app, buttons were English while values read "0: shengcun / 1: chuangzao". Now the context is built with the app language
+3. Switching language left stale text behind: recreate() does not destroy the ViewModel, so the translation cache and already-rendered rows were never refreshed. Now the app is **fully restarted**; as requested, a confirmation dialog explains this first (edits are saved to the draft box), and it only proceeds if you accept
+4. The permission dialog was "pushed away by the system settings page": there were two request paths on startup and one of them jumped to system settings with no dialog at all. The unconditional startup request is gone; there is now a single entry point that always explains first and only opens settings after you tap "Go to grant". Requests now happen when actually needed (save / switch path / manual button) and support "Don't ask again"
+5. The old-data migration prompt never appeared: it was hidden behind the permission dialog, and the original "remind only once" design meant that being hidden or dismissed once silenced it forever. It now reminds **as long as the old folder still has content** (and stops naturally once it is migrated or emptied)

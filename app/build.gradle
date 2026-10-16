@@ -14,7 +14,7 @@ android {
         minSdk 23
         targetSdk 28
         versionCode 4
-        versionName "1.0.4a"
+        versionName "1.0.4b"
     }
 
     // 【修正】签名配置块必须在 buildTypes 之前，且要有 signingConfigs { }
