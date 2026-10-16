@@ -6,15 +6,15 @@ plugins {
 }
 
 android {
-    namespace 'yhjmew.minecraft.nbteditor'
+    namespace 'yhjmew.nibnya'
     compileSdk 36
 
     defaultConfig {
-        applicationId "yhjmew.minecraft.nbteditor"
+        applicationId "yhjmew.nibnya"
         minSdk 23
         targetSdk 28
         versionCode 4
-        versionName "1.0.4"
+        versionName "1.0.4a"
     }
 
     // 【修正】签名配置块必须在 buildTypes 之前，且要有 signingConfigs { }
@@ -47,7 +47,11 @@ android {
             debuggable true
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
-            signingConfig signingConfigs.debug  // 使用 debug 签名
+            // 与正式版同步：有正式密钥就用正式密钥（CI 上 debug/release 证书一致），
+            // 本地没有 KEYSTORE_PATH 时回退仓库里的 debugmt.keystore，保证仍能编。
+            signingConfig System.getenv("KEYSTORE_PATH")
+                ? signingConfigs.release
+                : signingConfigs.debug
         }
 
         release {

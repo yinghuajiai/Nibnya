@@ -3,7 +3,7 @@
     <!-- ============================================ -->
     <!-- App Basic Info -->
     <!-- ============================================ -->
-    <string name="app_name">NBT 编辑器</string>
+    <string name="app_name">樱喵NBT</string>
     <string name="author_name">樱花祭喵</string>
 
     <!-- ============================================ -->
@@ -244,7 +244,7 @@
     <string name="msg_db_not_open">DB未打开</string>
     <string name="msg_the_data_corresponding_to_this_key_was_not_found">未找到该键对应的数据</string>
     <string name="msg_unknown_world">未知世界</string>
-    <string name="msg_load_failed_advice">无法读取数据\n\n💡 可能的解决方案：\n1. 确保该存档曾经进入过游戏（生成了数据）\n2. 存档曾被 Blocktopograph 或 澜诺(naroX) 修改过，NBT编辑器无法加载\n3. 有概率可能无法加载，不确定原因\n\n详细错误:\n</string>
+    <string name="msg_load_failed_advice">无法读取数据\n\n💡 可能的解决方案：\n1. 确保该存档曾经进入过游戏（生成了数据）\n2. 存档曾被 Blocktopograph 或 澜诺(naroX) 修改过，樱喵NBT无法加载\n3. 有概率可能无法加载，不确定原因\n\n详细错误:\n</string>
     <string name="msg_corrupt_or_missing_leveldb_data_file_detected">检测到 LevelDB 数据文件损坏或缺失（常见于游戏崩溃或文件复制不完整）\n\n</string>
     <string name="msg_have_you_tried_a_brute_force_repair">是否尝试暴力修复？\n</string>
     <string name="msg_warning_repair_process_may_discard_unreadable_data_blocks">警告：修复过程可能会丢弃无法读取的数据块（可能导致部分物品/地图丢失）</string>
@@ -328,7 +328,7 @@
     <string name="title_copy_as">复制为…</string>
     <string name="title_export_to">导出到…</string>
     <string name="export_dest_clipboard">📋 复制到剪贴板</string>
-    <string name="export_dest_download">💾 保存到下载目录 (NbtEditor_Data/Exports)</string>
+    <string name="export_dest_download">💾 保存到下载目录 (Nibnya/Exports)</string>
     <string name="export_dest_choose">📁 选择目录…</string>
     <string name="toast_exported_to">已保存：%1$s</string>
     <string name="toast_exported_ok">已导出</string>
@@ -407,7 +407,7 @@
     <string name="toast_please_check_the_items_you_want_to_delete">已开启批量管理：请勾选要删除的项目，再次点击垃圾桶确认</string>
     <string name="toast_exited_from_batch_management">已退出批量管理</string>
     <string name="toast_no_label_data">当前没有%s数据，您可以点击[更多操作]新建</string>
-    <string name="toast_crash_collapse">喵？炸了？\n日志已保存到 Download/NbtEditor_Data/Crash_Logs 文件夹\n或该应用私有目录Crash_Logs 文件夹</string>
+    <string name="toast_crash_collapse">喵？炸了？\n日志已保存到 Download/Nibnya/Crash_Logs 文件夹\n或该应用私有目录Crash_Logs 文件夹</string>
     <string name="toast_error_archive_name_is_empty">错误：存档名为空！请先点击[加载存档]选择一个世界</string>
     <string name="toast_error_sidebar_layout_not_found">错误：找不到侧边栏布局</string>
     <string name="toast_error_menu_button_not_found">错误：找不到菜单按钮</string>
@@ -693,7 +693,7 @@
     <string name="msg_saf_unavailable">SAF 不可用: %1$s</string>
     <string name="msg_shizuku_recommend_install">建议安装 Shizuku 以获得完整功能。是否前往下载？</string>
     <string name="msg_all_files_permission_required">Android 11+ 需要"所有文件访问"权限才能读写旧版路径（/games/...），请在下一页授予</string>
-    <string name="msg_storage_permission_required">NBT编辑器需要存储权限才能读写存档，请前往设置手动授予</string>
+    <string name="msg_storage_permission_required">樱喵NBT需要存储权限才能读写存档，请前往设置手动授予</string>
     <string name="box_draft_autosave">📝 编辑时自动保存草稿</string>
     <string name="subtitle_draft_autosave">未保存的编辑会存入草稿箱，可随时找回。0 = 关闭</string>
     <string name="label_draft_interval">间隔：</string>
@@ -785,11 +785,25 @@
     <string name="title_custom_thread_count">自定义线程数</string>
     <string name="hint_thread_count_range">1 - 32</string>
     <string name="msg_thread_count_invalid">请输入 1 到 32 之间的数字</string>
-    <string name="msg_about_content_full"><![CDATA[NBT 编辑器 (AIDE+版)<br>当前状态：持续更新中<br><br>反馈问题 / 提交新功能？:<br><a href="https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor">点击访问 GitHub 仓库提 Issues</a><br>QQ交流群: <a href="https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003">点击加入NBT编辑器交流</a><br>感谢！！<br><a href="https://space.bilibili.com/628906424">Yejdhi</a>以及<a href="https://github.com/LiteLDev">LeviMC成员</a><br>有了他们才有了现在的点子，更好修改方法]]></string>
+    <string name="msg_about_content_full"><![CDATA[反馈问题 / 提交新功能？:<br><a href="https://github.com/yinghuajimew/Nibnya">点击访问 GitHub 仓库提 Issues</a><br>QQ交流群: <a href="https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003">点击加入樱喵NBT交流</a><br>感谢！！<br><a href="https://space.bilibili.com/628906424">Yejdhi</a>以及<a href="https://github.com/LiteLDev">LeviMC成员</a><br>有了他们才有了现在的点子，更好修改方法]]></string>
     <string name="msg_replace_all_data">替换所有数据？</string>
     <string name="msg_delete_items_confirm">删除 %d 项？无法撤销</string>
     <string name="msg_full_overwrite_confirm">完全覆盖 %s？这是不可逆转的</string>
     <string name="msg_delete_all_type_data">删除所有 %1$d %2$s 数据？无法撤销！</string>
     <string name="copying_progress">复制 %1$d/%2$d (%3$d%%)</string>
     <string name="msg_value_out_of_range">%1$s 值必须在 %2$s 到 %3$s 之间</string>
-</resources>
+
+    <!-- ============================================
+         旧数据目录迁移（NbtEditor_Data → Nibnya）
+         ============================================ -->
+    <string name="title_migrate_data">迁移旧数据</string>
+    <string name="msg_migrate_found">检测到旧数据目录：\nDownload/NbtEditor_Data/\n\n%1$s\n\n是否迁移到新目录 Download/Nibnya/？\n不会丢数据 —— 全部搬完之前旧目录一直保留。</string>
+    <string name="btn_migrate_now">立即迁移</string>
+    <string name="btn_migrate_later">暂不迁移</string>
+    <string name="msg_migrating">正在迁移数据…</string>
+    <string name="msg_migrate_done">迁移完成：已搬运 %1$d 项，跳过 %2$d 项（新位置已存在）</string>
+    <string name="msg_migrate_partial">迁移未全部完成：成功 %1$d 项，跳过 %2$d 项，失败 %3$d 项。\n旧目录已保留，未删除任何东西。</string>
+    <string name="msg_migrate_nothing">没有需要迁移的旧数据。</string>
+    <string name="label_migrate_settings">📦 迁移旧数据（NbtEditor_Data → Nibnya）</string>
+    <string name="msg_migrate_none_left">未发现旧数据目录，无需迁移。</string>
+    </resources>

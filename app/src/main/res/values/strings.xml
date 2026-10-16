@@ -3,7 +3,7 @@
     <!-- ============================================ -->
     <!-- App Basic Info -->
     <!-- ============================================ -->
-    <string name="app_name">NBT Editor</string>
+    <string name="app_name">Nibnya</string>
     <string name="author_name">yhjmew</string>
 
     <!-- ============================================ -->
@@ -244,7 +244,7 @@ Delete them as well?</string>
     <string name="msg_db_not_open">DB is not open</string>
     <string name="msg_the_data_corresponding_to_this_key_was_not_found">The data corresponding to the key was not found</string>
     <string name="msg_unknown_world">unknown world</string>
-    <string name="msg_load_failed_advice">Unable to read data\n\n💡 Possible solutions:\n1 Make sure that the archive has been entered into the game (data is generated)\n2 The archive has been modified by Blocktopograph or naroX, and the NBT editor cannot load it\n3 There is a possibility that it cannot be loaded, but we are not sure why\n\nDetailed error:</string>
+    <string name="msg_load_failed_advice">Unable to read data\n\n💡 Possible solutions:\n1 Make sure that the archive has been entered into the game (data is generated)\n2 The archive has been modified by Blocktopograph or naroX, and Nibnya cannot load it\n3 There is a possibility that it cannot be loaded, but we are not sure why\n\nDetailed error:</string>
     <string name="msg_corrupt_or_missing_leveldb_data_file_detected">Corrupt or missing LevelDB data file detected (commonly caused by a game crash or incomplete file copy)</string>
     <string name="msg_have_you_tried_a_brute_force_repair">Have you tried a brute force repair?</string>
     <string name="msg_warning_repair_process_may_discard_unreadable_data_blocks">WARNING: The repair process may discard unreadable data blocks (possibly resulting in the loss of some items/maps)</string>
@@ -328,7 +328,7 @@ Delete them as well?</string>
     <string name="title_copy_as">Copy as…</string>
     <string name="title_export_to">Export to…</string>
     <string name="export_dest_clipboard">📋 Copy to clipboard</string>
-    <string name="export_dest_download">💾 Save to Download (NbtEditor_Data/Exports)</string>
+    <string name="export_dest_download">💾 Save to Download (Nibnya/Exports)</string>
     <string name="export_dest_choose">📁 Choose a folder…</string>
     <string name="toast_exported_to">Saved: %1$s</string>
     <string name="toast_exported_ok">Exported</string>
@@ -408,7 +408,7 @@ Delete them as well?</string>
     <string name="toast_please_check_the_items_you_want_to_delete">Batch management has been enabled: Please check the items to be deleted and click the trash can again to confirm</string>
     <string name="toast_exited_from_batch_management">Exited from batch management</string>
     <string name="toast_no_label_data">Currently there is no %s data, you can click [More Actions] to create a new one.</string>
-    <string name="toast_crash_collapse">nya? Exploded?\nThe log has been saved to the Download/NbtEditor_Data/Crash_Logs folder\nOr the application\'s private directory Crash_Logs folder</string>
+    <string name="toast_crash_collapse">nya? Exploded?\nThe log has been saved to the Download/Nibnya/Crash_Logs folder\nOr the application\'s private directory Crash_Logs folder</string>
     <string name="toast_error_archive_name_is_empty">Error: Archive name is empty! Please click [Load Archive] to select a world first</string>
     <string name="toast_error_sidebar_layout_not_found">Error: Sidebar layout not found</string>
     <string name="toast_error_menu_button_not_found">Error: Menu button not found</string>
@@ -694,7 +694,7 @@ Delete them as well?</string>
     <string name="msg_saf_unavailable">SAF unavailable: %1$s</string>
     <string name="msg_shizuku_recommend_install">It is recommended to install Shizuku for full functionality. Go to download?</string>
     <string name="msg_all_files_permission_required">Android 11+ requires "All Files Access" permission to read/write legacy paths (/games/...), please grant on the next page</string>
-    <string name="msg_storage_permission_required">NBT Editor requires storage permission to read/write saves, please go to settings to grant manually</string>
+    <string name="msg_storage_permission_required">Nibnya requires storage permission to read/write saves, please go to settings to grant manually</string>
     <string name="box_draft_autosave">📝 Auto-save drafts while editing</string>
     <string name="subtitle_draft_autosave">Unsent edits are kept in Draft Box; recover them anytime. 0 = off</string>
     <string name="label_draft_interval">Interval:</string>
@@ -786,11 +786,25 @@ Delete them as well?</string>
     <string name="title_custom_thread_count">Custom thread count</string>
     <string name="hint_thread_count_range">1 - 32</string>
     <string name="msg_thread_count_invalid">Please enter a number between 1 and 32</string>
-    <string name="msg_about_content_full"><![CDATA[NBT Editor (AIDE+ version)<br>Current status: Continuously updated<br><br>Feedback questions/Submit new features? :<br><a href=https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor>Click to visit the GitHub warehouse to submit Issues</a><br>QQ communication group: <a href=https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003>Click to join the NBT editor exchange</a><br>Thank you! ! <br><a href=https://space.bilibili.com/628906424>Yejdhi</a> and <a href=https://github.com/LiteLDev>LeviMC members</a><br>Thanks to them, we have the current ideas and better modification methods]]>.</string>
+    <string name="msg_about_content_full"><![CDATA[Feedback questions / Submit new features? :<br><a href=https://github.com/yinghuajimew/Nibnya>Click to visit the GitHub repository to submit Issues</a><br>QQ communication group: <a href=https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003>Click to join the Nibnya exchange</a><br>Thank you! ! <br><a href=https://space.bilibili.com/628906424>Yejdhi</a> and <a href=https://github.com/LiteLDev>LeviMC members</a><br>Thanks to them, we have the current ideas and better modification methods]]>.</string>
     <string name="msg_replace_all_data">Replace all data?</string>
     <string name="msg_delete_items_confirm">Delete %d item(s)? This cannot be undone.</string>
     <string name="msg_full_overwrite_confirm">Full overwrite %s? This is irreversible.</string>
     <string name="msg_delete_all_type_data">Delete all %1$d %2$s data? Cannot undo!</string>
     <string name="copying_progress">Copying %1$d/%2$d (%3$d%%)</string>
     <string name="msg_value_out_of_range">%1$s value must be between %2$s and %3$s</string>
-</resources>
+
+    <!-- ============================================
+         旧数据目录迁移（NbtEditor_Data → Nibnya）
+         ============================================ -->
+    <string name="title_migrate_data">Migrate old data</string>
+    <string name="msg_migrate_found">Old data folder found:\nDownload/NbtEditor_Data/\n\n%1$s\n\nMigrate to the new folder Download/Nibnya/\nNothing is lost — the old folder is kept until everything is copied.</string>
+    <string name="btn_migrate_now">Migrate now</string>
+    <string name="btn_migrate_later">Not now</string>
+    <string name="msg_migrating">Migrating data…</string>
+    <string name="msg_migrate_done">Migration finished: %1$d item(s) moved, %2$d skipped (already present)</string>
+    <string name="msg_migrate_partial">Migration partly finished: %1$d moved, %2$d skipped, %3$d failed.\nThe old folder was kept — nothing was deleted.</string>
+    <string name="msg_migrate_nothing">No old data to migrate.</string>
+    <string name="label_migrate_settings">📦 Migrate old data (NbtEditor_Data → Nibnya)</string>
+    <string name="msg_migrate_none_left">No old data folder found. Nothing to do.</string>
+    </resources>

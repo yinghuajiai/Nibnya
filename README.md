@@ -116,9 +116,48 @@ Introduction and usage tutorial：
 
 ## 📄 Change log
 <details open>
-<summary><kbd>Update catalog</kbd></summary>
+<summary><kbd>Resolved</kbd></summary>
 
-- [ ] I need to take some time.
+- [x] Recycle bin: deleting a world moves it there first, so nothing is unrecoverable
+- [x] Export `.mcworld`: pack a whole world into a file Minecraft can import directly
+- [x] Draft box: unsaved edits are kept in a draft box instead of interrupting with a pop-up
+- [x] Clipboard rework: copies also go to the system clipboard, in JSON / SNBT / plain text
+- [x] Export to file: to the Download folder, or to any folder you pick via SAF
+- [x] **Full SAF support**: read / write / delete all go through DocumentFile, and saving is no longer "falsely reported as successful"
+- [x] Unified world picker / draft box / backup lists, with a bottom tab bar and long-press menus
+- [x] **Fixed: player data lost after adding a List** — the root cause was deleting LevelDB index files
+- [x] Fixed: large worlds misdetected as LOCK and refusing to open
+- [x] Fixed: the tree view is now fully usable (add / edit / delete / search / save)
+- [x] Fixed: out-of-memory when generating map art
+- [x] Fixed: two inconsistent backup directory definitions ("clear backups" cleared an empty folder while reporting success)
+- [x] Fixed: opening Settings popped up the "custom" input box, and the panel could not scroll
+- [x] Fixed: crash when entering a custom draft interval / thread count
+- [x] Fixed: the session-restore dialog showed the wrong target; a discarded session no longer comes back
+- [x] Fixed: the tab bar would not stick to the bottom
+- [x] Fixed: issue #6 — saving to a custom path no longer falsely claims "Shizuku is required"
+- [x] Multi-threading settings actually take effect (file copy + map art, with tunable concurrency)
+- [x] Complete internationalization (EN / ZH string keys match exactly)
+- [x] Code reorganised by domain (`nbt/` `db/` `editor/` `world/` `mapart/` `util/`)
+- [x] Renamed to Nibnya / 樱喵NBT, new icon, and the data folder `NbtEditor_Data/` → `Nibnya/`
+
+</details>
+
+<details open>
+<summary><kbd>To do</kbd></summary>
+
+- [ ] Low memory on large worlds (the app can be killed by the system)
+- [ ] Auto-update
+- [ ] UI polish
+- [ ] Backup policy (stop backing up on every save; time-based / opt-in / manual)
+- [ ] Map plane view and editing (view / modify / move chunks)
+- [ ] Multiple worlds open at once (the same world must not be opened twice)
+- [ ] Blocktopograph-style theme
+- [ ] Preset templates (player / village / map)
+- [ ] One-click tools (32767 equipment, command-line items, …)
+- [ ] A third page with handy Bedrock utilities
+- [ ] Upgrading old worlds across major versions
+- [ ] Multi-user support
+- [ ] KMP cross-platform (Windows / Linux desktop)
 
 </details>
 
@@ -137,20 +176,20 @@ This project uses **[AGPL 3.0](https://www.gnu.org/licenses/agpl-3.0)** protocol
 
 <!-- 这里是底部的链接定义-->
 
-[version-shield]: https://img.shields.io/badge/Version-v1.0.3-369eff?style=flat-square&labelColor=black
-[version-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/releases
+[version-shield]: https://img.shields.io/badge/Version-v1.0.4a-369eff?style=flat-square&labelColor=black
+[version-link]: https://github.com/yinghuajimew/Nibnya/releases
 
-[issues-shield]: https://img.shields.io/github/issues/yinghuajimew/yhjmew.minecraft.nbteditor?color=ff80eb&labelColor=black&style=flat-square
-[issues-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/issues
+[issues-shield]: https://img.shields.io/github/issues/yinghuajimew/Nibnya?color=ff80eb&labelColor=black&style=flat-square
+[issues-link]: https://github.com/yinghuajimew/Nibnya/issues
 
-[forks-shield]: https://img.shields.io/github/forks/yinghuajimew/yhjmew.minecraft.nbteditor?color=8ae8ff&labelColor=black&style=flat-square
-[forks-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/network/members
+[forks-shield]: https://img.shields.io/github/forks/yinghuajimew/Nibnya?color=8ae8ff&labelColor=black&style=flat-square
+[forks-link]: https://github.com/yinghuajimew/Nibnya/network/members
 
-[stars-shield]: https://img.shields.io/github/stars/yinghuajimew/yhjmew.minecraft.nbteditor?color=ffcb47&labelColor=black&style=flat-square
-[stars-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/stargazers
+[stars-shield]: https://img.shields.io/github/stars/yinghuajimew/Nibnya?color=ffcb47&labelColor=black&style=flat-square
+[stars-link]: https://github.com/yinghuajimew/Nibnya/stargazers
 
-[contributors-shield]: https://img.shields.io/github/contributors/yinghuajimew/yhjmew.minecraft.nbteditor?color=c4f042&labelColor=black&style=flat-square
-[contributors-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/graphs/contributors
+[contributors-shield]: https://img.shields.io/github/contributors/yinghuajimew/Nibnya?color=c4f042&labelColor=black&style=flat-square
+[contributors-link]: https://github.com/yinghuajimew/Nibnya/graphs/contributors
 
 [license-shield]: https://img.shields.io/badge/license-AGPL_3.0-blue?style=flat-square&labelColor=black
 [license-link]: https://www.gnu.org/licenses/agpl-3.0

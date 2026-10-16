@@ -2,7 +2,7 @@
 
 <img height="120" src="./Screenshots/Nibnya.png">
 
-<h1 align="center">樱喵编辑器</h1>
+<h1 align="center">樱喵NBT</h1>
 
 <!-- SHIELD GROUP -->
 [![Version][version-shield]][version-link]
@@ -114,9 +114,48 @@
 
 ## 📄 更新日志
 <details open>
-<summary><kbd>更新目录</kbd></summary>
+<summary><kbd>已解决</kbd></summary>
 
-- [ ] 我需要花些时间
+- [x] 回收站：删除存档先移入回收站，不再直接抹掉
+- [x] 导出 `.mcworld`：把整个世界打包成可被 Minecraft 直接导入的存档包
+- [x] 草稿箱：未保存的编辑收进草稿箱，不再用弹窗打扰
+- [x] 剪贴板重做：复制同时写入系统剪贴板，支持 JSON / SNBT / 纯文本
+- [x] 导出到文件：可存下载目录，也可走 SAF 自选任意目录
+- [x] **SAF 完整实现**：读写删全部走 DocumentFile，保存不再「谎报成功」
+- [x] 选择世界 / 草稿箱 / 备份三个列表统一格式，底部标签栏 + 长按菜单
+- [x] **修复：玩家数据新增 List 后保存丢失** —— 真根因是误删 LevelDB 索引文件
+- [x] 修复：大存档被误判为 LOCK 导致打不开
+- [x] 修复：树形视图全面可用（增 / 改 / 删 / 搜索 / 保存）
+- [x] 修复：地图画生成内存溢出
+- [x] 修复：备份目录两套定义不一致（「清空备份」清的是空目录却提示成功）
+- [x] 修复：一展开设置就弹「自定义」输入框、设置面板无法滚动
+- [x] 修复：设置自定义草稿间隔 / 线程数时崩溃
+- [x] 修复：会话恢复对话框张冠李戴、「丢弃后会话又复活」
+- [x] 修复：标签栏不贴底
+- [x] 修复：issue #6 —— 自定义路径保存不再误报「需要 Shizuku」
+- [x] 多线程设置真正生效（文件复制 + 地图画，并发数可调）
+- [x] 国际化补齐（中英字符串严格对称）
+- [x] 按功能域重新分包（`nbt/` `db/` `editor/` `world/` `mapart/` `util/`）
+- [x] 改名为 樱喵NBT / Nibnya，更换图标，数据目录 `NbtEditor_Data/` → `Nibnya/`
+
+</details>
+
+<details open>
+<summary><kbd>待解决</kbd></summary>
+
+- [ ] 运行内存不足（大存档会被系统杀进程）
+- [ ] 自动更新
+- [ ] 手动优化 UI
+- [ ] 备份逻辑优化（不再每次保存都备份；改为按时间 / 用户勾选 / 手动）
+- [ ] 地图平面展示与编辑（区块查看 / 修改 / 移动）
+- [ ] 存档多开（同一存档不可多窗打开）
+- [ ] Blocktopograph 风格界面
+- [ ] 预设模板（玩家 / 村庄 / 地图）
+- [ ] 一键修改工具（装备 32767、命令行物品等）
+- [ ] Minecraft 实用基岩版工具页（第三页面）
+- [ ] 老地图升级（跨大版本 NBT 升级）
+- [ ] 多用户兼容
+- [ ] KMP 跨平台（Windows / Linux 桌面版）
 
 </details>
 
@@ -135,20 +174,20 @@ _其他想法和修改还在实现中_
 
 <!-- 这里是底部的链接定义-->
 
-[version-shield]: https://img.shields.io/badge/版本-v1.0.3-369eff?style=flat-square&labelColor=black
-[version-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/releases
+[version-shield]: https://img.shields.io/badge/版本-v1.0.4a-369eff?style=flat-square&labelColor=black
+[version-link]: https://github.com/yinghuajimew/Nibnya/releases
 
-[issues-shield]: https://img.shields.io/github/issues/yinghuajimew/yhjmew.minecraft.nbteditor?color=ff80eb&labelColor=black&style=flat-square
-[issues-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/issues
+[issues-shield]: https://img.shields.io/github/issues/yinghuajimew/Nibnya?color=ff80eb&labelColor=black&style=flat-square
+[issues-link]: https://github.com/yinghuajimew/Nibnya/issues
 
-[forks-shield]: https://img.shields.io/github/forks/yinghuajimew/yhjmew.minecraft.nbteditor?color=8ae8ff&labelColor=black&style=flat-square
-[forks-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/network/members
+[forks-shield]: https://img.shields.io/github/forks/yinghuajimew/Nibnya?color=8ae8ff&labelColor=black&style=flat-square
+[forks-link]: https://github.com/yinghuajimew/Nibnya/network/members
 
-[stars-shield]: https://img.shields.io/github/stars/yinghuajimew/yhjmew.minecraft.nbteditor?color=ffcb47&labelColor=black&style=flat-square
-[stars-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/stargazers
+[stars-shield]: https://img.shields.io/github/stars/yinghuajimew/Nibnya?color=ffcb47&labelColor=black&style=flat-square
+[stars-link]: https://github.com/yinghuajimew/Nibnya/stargazers
 
-[contributors-shield]: https://img.shields.io/github/contributors/yinghuajimew/yhjmew.minecraft.nbteditor?color=c4f042&labelColor=black&style=flat-square
-[contributors-link]: https://github.com/yinghuajimew/yhjmew.minecraft.nbteditor/graphs/contributors
+[contributors-shield]: https://img.shields.io/github/contributors/yinghuajimew/Nibnya?color=c4f042&labelColor=black&style=flat-square
+[contributors-link]: https://github.com/yinghuajimew/Nibnya/graphs/contributors
 
 [license-shield]: https://img.shields.io/badge/license-AGPL_3.0-blue?style=flat-square&labelColor=black
 [license-link]: https://www.gnu.org/licenses/agpl-3.0
