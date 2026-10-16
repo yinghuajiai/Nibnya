@@ -812,6 +812,7 @@ Delete them as well?</string>
          权限说明弹窗 / 切换语言提示
          ============================================ -->
     <string name="cb_dont_ask_again">Don\'t ask again</string>
+    <string name="toast_language_switch_failed">Could not save the language setting; please try again</string>
     <string name="msg_perm_needed_for_save">Saving needs write access to the world folder.</string>
     <string name="msg_perm_needed_for_path">Switching the target folder may need access to protected locations.</string>
     <string name="title_switch_language">Switch language</string>
