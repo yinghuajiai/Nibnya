@@ -230,7 +230,9 @@ class MainActivity : ComponentActivity() {
         NbtTranslator.init(this)
         createNoMedia()
         val pr = File("/storage/emulated/0/Download/NbtEditor_Data/")
-        ensureNoMedia(worksDir); ensureNoMedia(backupsDir)
+        // 用 worldVM 的目录定义（它按当前路径选择公共目录或 App 私有目录），
+        // 不能另起一套，否则会建到完全不同的位置去（见 Bug 1）
+        ensureNoMedia(worldVM.worksDir(this)); ensureNoMedia(worldVM.backupsDir(this))
         ensureNoMedia(File(pr, "Works")); ensureNoMedia(File(pr, "Backups"))
         ensureNoMedia(File(pr, "Bridge"))
 
@@ -1008,7 +1010,7 @@ class MainActivity : ComponentActivity() {
     private fun askAlsoDeleteRelated(w: WorldItem) {
         Thread {
             val backups = runCatching {
-                File(backupsDir, w.folderName).listFiles()?.size ?: 0
+                File(worldVM.backupsDir(this), w.folderName).listFiles()?.size ?: 0
             }.getOrDefault(0)
             val drafts = runCatching {
                 DraftStore.list(this).count { it.folder == w.folderName }
@@ -1310,7 +1312,7 @@ class MainActivity : ComponentActivity() {
             .setTitle(getString(R.string.dialog_danger_title))
             .setMessage(getString(R.string.msg_clear_backups_here_confirm, count))
             .setPositiveButton(getString(R.string.btn_clear)) { _, _ ->
-                val dir = File(backupsDir, folder)
+                val dir = File(worldVM.backupsDir(this), folder)
                 dir.listFiles()?.forEach { worldVM.deleteBackup(BackupItem(it, it.name, "", it.isDirectory)) }
                 toast(getString(R.string.toast_backups_cleared))
                 currentDialog?.dismiss()
@@ -1943,10 +1945,6 @@ class MainActivity : ComponentActivity() {
         worldVM.pendingSidebarTask = task
         worldVM.openPlayerData(this, f)
     }
-    private val worksDir: File
-        get() { val d = File("${externalCacheDir?.parent}/Works"); if (!d.exists()) d.mkdirs(); return d }
-    private val backupsDir: File
-        get() { val d = File("${externalCacheDir?.parent}/Backups"); if (!d.exists()) d.mkdirs(); return d }
 
     internal fun showProgressDialog(title: String, message: String) {
         if (progressDialog?.isShowing == true) progressDialog?.dismiss()

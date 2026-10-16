@@ -930,8 +930,6 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         if (suppress) return@setOnCheckedChangeListener
         if (!checked) {
             interval = 0
-            // 记住关闭前的值，重新打开时能恢复
-            prefs?.edit()?.putInt("draft_interval_off_bak", interval)?.apply()
             intervalSp?.setSelection(0)   // 「关闭」
         } else {
             var restored = 30
