@@ -806,4 +806,14 @@
     <string name="msg_migrate_nothing">没有需要迁移的旧数据。</string>
     <string name="label_migrate_settings">📦 迁移旧数据（NbtEditor_Data → Nibnya）</string>
     <string name="msg_migrate_none_left">未发现旧数据目录，无需迁移。</string>
+
+    <!-- ============================================
+         权限说明弹窗 / 切换语言提示
+         ============================================ -->
+    <string name="cb_dont_ask_again">不再提示</string>
+    <string name="msg_perm_needed_for_save">保存需要写入存档目录的权限。</string>
+    <string name="msg_perm_needed_for_path">切换目标目录可能涉及受保护的位置。</string>
+    <string name="title_switch_language">切换语言</string>
+    <string name="msg_switch_language_restart">切换语言会重启应用：\n\n· 未保存的编辑会先存入草稿箱，之后可在草稿箱找回\n· 应用会回到主页\n\n确定要切换吗？</string>
+    <string name="btn_switch">切换</string>
     </resources>

@@ -807,4 +807,14 @@ Delete them as well?</string>
     <string name="msg_migrate_nothing">No old data to migrate.</string>
     <string name="label_migrate_settings">📦 Migrate old data (NbtEditor_Data → Nibnya)</string>
     <string name="msg_migrate_none_left">No old data folder found. Nothing to do.</string>
+
+    <!-- ============================================
+         权限说明弹窗 / 切换语言提示
+         ============================================ -->
+    <string name="cb_dont_ask_again">Don\'t ask again</string>
+    <string name="msg_perm_needed_for_save">Saving needs write access to the world folder.</string>
+    <string name="msg_perm_needed_for_path">Switching the target folder may need access to protected locations.</string>
+    <string name="title_switch_language">Switch language</string>
+    <string name="msg_switch_language_restart">Switching the language restarts the app:\n\n· Unsaved edits are saved to the draft box first, so you can find them again\n· The app will return to the home screen\n\nContinue?</string>
+    <string name="btn_switch">Switch</string>
     </resources>

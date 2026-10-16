@@ -20,30 +20,29 @@ import yhjmew.nibnya.util.DataMigrator
  * 无论哪条路，**都不会自动删旧目录** —— 只有全部搬空才会删。
  */
 
-/** prefs 键：是否已经问过用户（避免每次都弹） */
-internal const val PREF_DATA_MIGRATE_PROMPTED = "data_migrate_prompted"
-
-/** 首次启动：检测到旧数据就提示一次；已经问过/已迁完就不再打扰 */
+/**
+ * 启动时检查旧数据目录。
+ *
+ * 策略（2026-10-15 调整）：**只要旧目录里还有东西就提醒**，不再「只提醒一次」。
+ * 原因：原先「只提醒一次」会让「第一次被别的弹窗挡住 / 用户随手点了暂不」变成**永久不再提醒**，
+ * 用户就只能自己找到设置里的入口。
+ * 旧数据一旦迁完（或用户自己清空），旧目录就空了，自然不再打扰。
+ */
 internal fun MainActivity.maybePromptDataMigration() {
-    if (prefs?.getBoolean(PREF_DATA_MIGRATE_PROMPTED, false) == true) return
     Thread {
         val stats = runCatching {
             if (!DataMigrator.legacyExists()) return@runCatching null
             DataMigrator.stats().takeIf { !it.isEmpty }
         }.getOrNull()
         if (stats == null) return@Thread
-        runOnUiThread {
-            // 只提示一次，无论用户选什么
-            prefs?.edit()?.putBoolean(PREF_DATA_MIGRATE_PROMPTED, true)?.apply()
-            showMigrateDialog(stats)
-        }
+        runOnUiThread { showMigrateDialog(stats) }
     }.start()
 }
 
 private fun MainActivity.showMigrateDialog(stats: DataMigrator.Stats) {
     val detail = buildString {
         stats.byDir.forEach { (name, count) ->
-            if (count > 0) append("· ").append(name).append("：").append(count).append('\n')
+            if (count > 0) append("· ").append(name).append(": ").append(count).append('\n')
         }
         append('\n').append(DataMigrator.formatSize(stats.totalBytes))
     }

@@ -188,8 +188,19 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     private val _cacheList = MutableStateFlow<List<CacheItem>>(emptyList())
     val cacheList: StateFlow<List<CacheItem>> = _cacheList.asStateFlow()
 
+    /**
+     * 备份列表。
+     * ⚠️ 除了本该有的 [backupList]（供 UI 取值），这里额外用一个 **Channel** 做「扫描完成」的事件通知。
+     *
+     * 为什么不能只用 StateFlow：`_backupList.value = parsed` 在**内容与上次相同**时不会发射
+     * （`StateFlow` 用 `equals` 去重），于是 `backupList.drop(1).collect { ... }` 永远等不到事件，
+     * 表现就是「点恢复备份没任何反应」。而扫同一存档两次得到的结果本来就是相等的。
+     */
     private val _backupList = MutableStateFlow<List<BackupItem>>(emptyList())
     val backupList: StateFlow<List<BackupItem>> = _backupList.asStateFlow()
+
+    private val _backupScanDone = Channel<List<BackupItem>>(Channel.BUFFERED)
+    val backupScanDone = _backupScanDone
 
     /** 当前备份列表所属存档的世界名（读不到时为 null，UI 回退显示文件夹名） */
     private val _backupWorldName = MutableStateFlow<String?>(null)
@@ -1212,6 +1223,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             val dir = File(backupsDir(context), folderName)
             if (!dir.exists()) {
                 _backupList.value = emptyList()
+                _backupScanDone.trySend(emptyList())
                 return@launch
             }
             val files = dir.listFiles() ?: emptyArray()
@@ -1232,6 +1244,8 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 )
             }.sortedByDescending { it.timestamp }
             _backupList.value = parsed
+            // 用事件通道通知 UI：内容与上次相同时 StateFlow 不会发射，走通道才能保证「点一次弹一次」
+            _backupScanDone.trySend(parsed)
         }
     }
 
