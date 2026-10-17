@@ -596,7 +596,7 @@
     <!-- Player Module -->
     <!-- ============================================ -->
     <string name="btn_edit_player">👤 编辑玩家</string>
-    <string name="btn_edit_online_players">编辑联机玩家 (player_...)</string>
+    <string name="btn_edit_online_players">编辑联机玩家（玩家 ID）</string>
     <string name="msg_player_data">玩家数据 (%1$d)</string>
     <string name="msg_for_example_player">例如: player_uuid</string>
     <string name="msg_player_data_not_found">未找到玩家数据 (~local_player)</string>
@@ -609,8 +609,8 @@
     <!-- ============================================ -->
     <!-- Map/Village Module -->
     <!-- ============================================ -->
-    <string name="btn_edit_map_data">编辑地图数据 (map_...)</string>
-    <string name="btn_edit_village_data">编辑村庄数据 (VILLAGE_...)</string>
+    <string name="btn_edit_map_data">编辑地图数据（地图 ID）</string>
+    <string name="btn_edit_village_data">编辑村庄数据（村庄 ID）</string>
     <string name="msg_map_data">地图数据 (%1$d)</string>
     <string name="msg_for_example_map">例如: map_123</string>
     <string name="msg_village_data">村庄数据 (%1$d)</string>
@@ -733,7 +733,7 @@
     <!-- ============================================ -->
     <!-- Global System Data -->
     <!-- ============================================ -->
-    <string name="btn_global_system_data">全局/系统数据 (Global NBT)</string>
+    <string name="btn_global_system_data">全局/系统数据</string>
     <string name="btn_open_nbt_by_name_dvanced">按名称打开 NBT (高级)</string>
     <string name="msg_global_system_data_list_metadata">元数据</string>
     <string name="msg_global_system_data_list_community">群系</string>
@@ -827,5 +827,6 @@
     <string name="subtitle_backup_max">超出上限时删除该存档该类型最旧的一份</string>
     <string name="backup_interval_off">关闭</string>
     <string name="msg_backup_and_save_progress">正在备份并保存… %1$d%%</string>
+    <string name="title_custom_backup_max">自定义备份上限</string>
     <string name="btn_switch">切换</string>
     </resources>
