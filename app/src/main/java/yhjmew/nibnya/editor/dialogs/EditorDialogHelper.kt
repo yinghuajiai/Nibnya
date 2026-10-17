@@ -958,10 +958,8 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         sp = intervalSp,
         presetLabels = listOf(getString(R.string.draft_interval_off), "2", "4", "8"),
         presetValues = listOf(0, 2, 4, 8),
-        customIcon = getString(R.string.draft_interval_custom),
         titleRes = R.string.title_custom_interval,
         invalidMsgRes = R.string.msg_draft_interval_invalid,
-        min = 1, max = 999,
         currentValue = { interval },
         applyValue = { n ->
             interval = n
@@ -996,10 +994,8 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         sp = maxSp,
         presetLabels = listOf("5", "10", "20"),
         presetValues = listOf(5, 10, 20),
-        customIcon = getString(R.string.draft_interval_custom),
         titleRes = R.string.title_custom_draft_max,
         invalidMsgRes = R.string.msg_draft_interval_invalid,
-        min = 1, max = 999,
         currentValue = { maxDrafts },
         applyValue = { n -> maxDrafts = n; applyAll() }
     )
@@ -1040,25 +1036,64 @@ internal fun MainActivity.bindPresetSpinner(
     sp: Spinner?,
     presetLabels: List<String>,
     presetValues: List<Int>,
-    customIcon: String,
     titleRes: Int,
     invalidMsgRes: Int,
-    min: Int,
-    max: Int,
     currentValue: () -> Int,
     applyValue: (Int) -> Unit
 ) {
     if (sp == null) return
     val customIdx = presetValues.size
+    val editHint = getString(R.string.custom_tap_to_edit)
 
+    /**
+     * 自定义格的文案：
+     * - 已经设过自定义值 → `✎ 5（点此修改）`，用户一眼看得出当前值、也知道能点
+     * - **还没设过**（值等于某个预设）→ 只显示「自定义」，
+     *   引导用户想到「原来自定义入口在这儿」，而不是先看到一串没意义的提示
+     */
     fun customLabel(): String {
         val v = currentValue()
-        return if (v > 0 && presetValues.indexOf(v) < 0) "$customIcon $v" else customIcon
+        return if (v > 0 && presetValues.indexOf(v) < 0) {
+            "${getString(R.string.draft_interval_custom)} $v$editHint"
+        } else {
+            getString(R.string.thread_count_custom).removeSuffix("…")
+        }
     }
 
     val labels = (presetLabels + customLabel()).toMutableList()
-    val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
-    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+
+    // 用 lateinit 的 lambda 让适配器能回调「打开输入框」——
+    // openCustom 定义在下面（它要用到 refreshCustomLabel / adapter），这里先占位。
+    lateinit var openCustom: () -> Unit
+
+    val adapter = object : android.widget.BaseAdapter() {
+        override fun getCount(): Int = labels.size
+        override fun getItem(position: Int): Any = labels[position]
+        override fun getItemId(position: Int): Long = position.toLong()
+
+        override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+            val tv = (convertView as? TextView) ?: TextView(this@bindPresetSpinner).apply {
+                setPadding(36, 36, 36, 36)
+                textSize = 16f
+            }
+            tv.text = labels[position]
+            // 自定义那一行点击即打开输入框。
+            // ⚠️ 这是必需的：AdapterView 在「选中位置没变」时**不会回调 onItemSelected**
+            //    （setSelection 里 `mOldSelectedPosition == position` 就直接 return），
+            //    所以「再展开下拉点同一格」天生不触发。挂在条目上才能保证一定能再次编辑。
+            if (position == customIdx) {
+                tv.setOnClickListener { openCustom() }
+                tv.setTextColor(0xFF1565C0.toInt())   // 蓝色，暗示可点
+            } else {
+                tv.setOnClickListener(null)
+                tv.setTextColor(0xFF000000.toInt())
+            }
+            return tv
+        }
+
+        override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View =
+            getView(position, convertView, parent)
+    }
     sp.adapter = adapter
 
     fun refreshCustomLabel() {
@@ -1066,43 +1101,35 @@ internal fun MainActivity.bindPresetSpinner(
         adapter.notifyDataSetChanged()
     }
 
-    // 回显：命中预设就选它，否则停在「自定义」
+    // 回显：命中预设就选它，否则停在自定义格
     val idx = presetValues.indexOf(currentValue())
     sp.setSelection(if (idx >= 0) idx else customIdx)
 
     var userPicked = false
-    var lastOpenAt = 0L
-    fun openCustom() {
-        val now = System.currentTimeMillis()
-        if (now - lastOpenAt < 700) return          // 防重入（下面两条路径可能都触发）
-        lastOpenAt = now
+    openCustom = {
         showCustomNumberDialog(
-            getString(titleRes), min, max, getString(invalidMsgRes),
-            currentValue().takeIf { it > 0 } ?: min
+            getString(titleRes), 1, CUSTOM_VALUE_MAX, getString(invalidMsgRes),
+            currentValue().takeIf { it > 0 } ?: 1
         ) { n ->
             applyValue(n)
             refreshCustomLabel()
-            // 停在自定义格（若已经是该格则不会触发回调，正好）
             sp.setSelection(customIdx)
         }
     }
 
-    sp.setOnTouchListener { v, _ ->
-        userPicked = true
-        // ⚠️ 索引没变时 onItemSelected 不回调 —— 触摸后补一次检查，兜住「再次点自定义」
-        v.postDelayed({
-            if (userPicked && sp.selectedItemPosition == customIdx) openCustom()
-        }, 350)
-        false
-    }
+    // ⚠️ 这里**只负责标记「用户真的操作过」**，不要再加 postDelayed 之类的兜底：
+    //    早期版本在触摸后延迟检查「当前是否停在自定义格」就弹框，结果用户每次
+    //    「单纯展开下拉」都会被弹出输入框（选中项本来就是自定义格）。
+    sp.setOnTouchListener { _, _ -> userPicked = true; false }
     sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+        override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
             if (!userPicked) return                  // 程序回显不处理
             if (position == customIdx) openCustom() else applyValue(presetValues[position])
         }
         override fun onNothingSelected(p: AdapterView<*>?) {}
     }
 }
+
 private fun MainActivity.setupBackupSettings(root: android.view.View) {
     val cbAuto = root.findViewById<CheckBox?>(R.id.cb_backup_auto) ?: return
     val intervalSp = root.findViewById<Spinner?>(R.id.sp_backup_interval)
@@ -1140,17 +1167,13 @@ private fun MainActivity.setupBackupSettings(root: android.view.View) {
         writePrefs()
     }
 
-    val customIcon = getString(R.string.draft_interval_custom)
-
     // ---- 间隔：关闭 / 2 / 4 / 8 / 自定义（+ 秒·分·时）----
     bindPresetSpinner(
         sp = intervalSp,
         presetLabels = listOf(getString(R.string.backup_interval_off), "2", "4", "8"),
         presetValues = listOf(0, 2, 4, 8),
-        customIcon = customIcon,
         titleRes = R.string.title_custom_interval,
         invalidMsgRes = R.string.msg_draft_interval_invalid,
-        min = 1, max = 999,
         currentValue = { interval },
         applyValue = { n ->
             interval = n
@@ -1184,10 +1207,8 @@ private fun MainActivity.setupBackupSettings(root: android.view.View) {
         sp = maxSp,
         presetLabels = listOf("5", "10", "20"),
         presetValues = listOf(5, 10, 20),
-        customIcon = customIcon,
         titleRes = R.string.title_custom_backup_max,
         invalidMsgRes = R.string.msg_draft_interval_invalid,
-        min = 1, max = 999,
         currentValue = { maxKeep },
         applyValue = { n ->
             maxKeep = n
@@ -1203,14 +1224,18 @@ private fun MainActivity.showCustomNumberDialog(
     current: Int, onOk: (Int) -> Unit
 ) {
     val input = EditText(this).apply {
+        // TYPE_CLASS_NUMBER 让键盘只有数字；再加 InputFilter 挡住粘贴进来的
+        // 小数点 / 科学记数法 / 负号（用户明确要求只能填整数）
         inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        hint = "$min - $max"
+        filters = arrayOf(digitsOnlyFilter())
+        hint = getString(R.string.hint_number_range, min, max)
         setText(if (current in min..max) current.toString() else "")
     }
     AlertDialog.Builder(this)
         .setTitle(title)
         .setView(input)
         .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
+            // toIntOrNull 顺带挡住 "1.5" / "1e3" 这类非法输入
             val n = input.text.toString().trim().toIntOrNull()
             if (n == null || n < min || n > max) toast(invalidMsg) else onOk(n)
         }
@@ -1221,6 +1246,16 @@ private fun MainActivity.showCustomNumberDialog(
 // ============================================
 // 回收站设置（自动清理天数）
 // ============================================
+
+/** 自定义数字框允许的最大值（用户要求：最大不超过 1 万） */
+internal const val CUSTOM_VALUE_MAX = 10_000
+
+/** 只允许纯数字（挡掉小数点、科学记数法、负号；粘贴同样被过滤） */
+private fun digitsOnlyFilter(): android.text.InputFilter =
+    android.text.InputFilter { source, _, _, _, _, _ ->
+        if (source.isEmpty()) return@InputFilter source
+        if (source.all { it in '0'..'9' }) source else ""
+    }
 
 /** 「不自动清 / 7 / 30 / 90 / 自定义」对应的天数；-1 表示自定义 */
 private val TRASH_KEEP_VALUES = listOf(0, 7, 30, 90, -1)
@@ -1270,7 +1305,7 @@ private fun MainActivity.setupTrashSettings(root: android.view.View) {
             val valAt = TRASH_KEEP_VALUES.getOrNull(position) ?: return
             if (valAt == -1) {
                 showCustomNumberDialog(
-                    getString(R.string.title_custom_trash_keep), 1, 3650,
+                    getString(R.string.title_custom_trash_keep), 1, CUSTOM_VALUE_MAX,
                     getString(R.string.msg_trash_keep_invalid),
                     if (days > 0) days else 30
                 ) { n ->
@@ -1309,82 +1344,25 @@ private fun MainActivity.setupThreadCountSpinner(
     val spinner = root.findViewById<Spinner?>(spinnerId) ?: return
     val container = root.findViewById<LinearLayout?>(containerId)
 
-    // 选项：自动 / 2 / 4 / 8 / 自定义…
-    // 必须用 MutableList —— 不可变 List 上调用 ArrayAdapter.remove 会抛
-    // UnsupportedOperationException（与草稿间隔那处是同一个坑）。
-    val labels = mutableListOf(
-        getString(R.string.thread_count_auto), "2", "4", "8",
-        getString(R.string.thread_count_custom)
+    var saved = prefs?.getInt(prefKey, 0) ?: 0
+
+    // 选项：自动 / 2 / 4 / 8 / 自定义（与草稿·备份走同一套 bindPresetSpinner，
+    // 共用「✎ N（点此修改）」文案与「自定义行可点击」的行为）
+    bindPresetSpinner(
+        sp = spinner,
+        presetLabels = listOf(getString(R.string.thread_count_auto), "2", "4", "8"),
+        presetValues = listOf(0, 2, 4, 8),
+        titleRes = R.string.title_custom_thread_count,
+        invalidMsgRes = R.string.msg_thread_count_invalid,
+        currentValue = { saved },
+        applyValue = { n ->
+            saved = n
+            prefs?.edit()?.putInt(prefKey, n)?.apply()
+            onChanged(n)
+        }
     )
-    val values = listOf(0, 2, 4, 8, -1)  // -1 代表「自定义…」
-
-    val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
-    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-    spinner.adapter = adapter
-
-    /** 把「自定义…」那一项的文字刷新为「自定义 (N)」（原地改，不动长度） */
-    fun updateCustomLabel(n: Int) {
-        val idx = labels.size - 1
-        if (idx < 0) return
-        labels[idx] = "${getString(R.string.thread_count_custom).removeSuffix("…")} ($n)"
-        adapter.notifyDataSetChanged()
-    }
-
-    // 读取已保存的值并选中对应项
-    val saved = prefs?.getInt(prefKey, 0) ?: 0
-    val presetIdx = values.indexOf(saved)
-    if (presetIdx >= 0) {
-        spinner.setSelection(presetIdx)
-    } else {
-        // 自定义值：显示为「自定义 (N)」
-        updateCustomLabel(saved)
-        spinner.setSelection(labels.size - 1)
-    }
 
     spinner.isEnabled = enabled
     container?.alpha = if (enabled) 1f else 0.4f
-
-    // 同草稿设置：只有用户真的触摸过才响应，避免回显时误弹「自定义」输入框
-    var userPickedThread = false
-    spinner.setOnTouchListener { _, _ -> userPickedThread = true; false }
-    spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-            if (!userPickedThread) return
-            val v = values[position]
-            if (v == -1) {
-                // 「自定义…」：弹出输入框
-                showCustomThreadDialog(prefKey, saved) { n ->
-                    prefs?.edit()?.putInt(prefKey, n)?.apply()
-                    onChanged(n)
-                    updateCustomLabel(n)
-                    spinner.setSelection(labels.size - 1)
-                }
-            } else {
-                prefs?.edit()?.putInt(prefKey, v)?.apply()
-                onChanged(v)
-            }
-        }
-        override fun onNothingSelected(parent: AdapterView<*>?) {}
-    }
 }
 
-private fun MainActivity.showCustomThreadDialog(prefKey: String, current: Int, onOk: (Int) -> Unit) {
-    val input = EditText(this).apply {
-        inputType = android.text.InputType.TYPE_CLASS_NUMBER
-        hint = getString(R.string.hint_thread_count_range)
-        setText(if (current > 0) current.toString() else "")
-    }
-    AlertDialog.Builder(this)
-        .setTitle(getString(R.string.title_custom_thread_count))
-        .setView(input)
-        .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
-            val n = input.text.toString().trim().toIntOrNull()
-            if (n == null || n < 1 || n > 32) {
-                toast(getString(R.string.msg_thread_count_invalid))
-            } else {
-                onOk(n)
-            }
-        }
-        .setNegativeButton(getString(R.string.btn_cancel), null)
-        .show()
-}

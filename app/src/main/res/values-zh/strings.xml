@@ -18,7 +18,7 @@
     <string name="trash_keep_never">不自动清理</string>
     <string name="trash_keep_days">%1$d 天</string>
     <string name="title_custom_trash_keep">自定义保留天数 (1-3650)</string>
-    <string name="msg_trash_keep_invalid">请输入 1 到 3650 之间的数字</string>
+    <string name="msg_trash_keep_invalid">请输入 1 到 10000 之间的数字</string>
     <string name="btn_export_mcworld">导出为 .mcworld</string>
     <string name="title_world_detail">存档详情</string>
     <string name="btn_continue">继续</string>
@@ -596,7 +596,7 @@
     <!-- Player Module -->
     <!-- ============================================ -->
     <string name="btn_edit_player">👤 编辑玩家</string>
-    <string name="btn_edit_online_players">编辑联机玩家（玩家 ID）</string>
+    <string name="btn_edit_online_players">编辑联机玩家 (player_...)</string>
     <string name="msg_player_data">玩家数据 (%1$d)</string>
     <string name="msg_for_example_player">例如: player_uuid</string>
     <string name="msg_player_data_not_found">未找到玩家数据 (~local_player)</string>
@@ -609,8 +609,8 @@
     <!-- ============================================ -->
     <!-- Map/Village Module -->
     <!-- ============================================ -->
-    <string name="btn_edit_map_data">编辑地图数据（地图 ID）</string>
-    <string name="btn_edit_village_data">编辑村庄数据（村庄 ID）</string>
+    <string name="btn_edit_map_data">编辑地图数据 (map_...)</string>
+    <string name="btn_edit_village_data">编辑村庄数据 (Village_...)</string>
     <string name="msg_map_data">地图数据 (%1$d)</string>
     <string name="msg_for_example_map">例如: map_123</string>
     <string name="msg_village_data">村庄数据 (%1$d)</string>
@@ -706,9 +706,9 @@
     <string name="unit_hours">时</string>
     <string name="title_custom_interval">自定义间隔 (1-999)</string>
     <string name="draft_interval_custom">✎</string>
-    <string name="msg_draft_interval_invalid">请输入 1 到 999 之间的数字</string>
+    <string name="msg_draft_interval_invalid">请输入 1 到 10000 之间的数字</string>
     <string name="title_custom_draft_max">自定义草稿上限 (1-99)</string>
-    <string name="msg_draft_max_invalid">请输入 1 到 99 之间的数字</string>
+    <string name="msg_draft_max_invalid">请输入 1 到 10000 之间的数字</string>
     <string name="draft_max_value">%1$d</string>
     <string name="subtitle_draft_max">达到上限后会删除最旧的草稿</string>
     <string name="box_skip_shizuku">跳过 Shizuku（适用于 Android 10 及以下）</string>
@@ -733,7 +733,7 @@
     <!-- ============================================ -->
     <!-- Global System Data -->
     <!-- ============================================ -->
-    <string name="btn_global_system_data">全局/系统数据</string>
+    <string name="btn_global_system_data">全局/系统数据 (Global NBT)</string>
     <string name="btn_open_nbt_by_name_dvanced">按名称打开 NBT (高级)</string>
     <string name="msg_global_system_data_list_metadata">元数据</string>
     <string name="msg_global_system_data_list_community">群系</string>
@@ -784,7 +784,7 @@
     <string name="thread_count_custom">自定义…</string>
     <string name="title_custom_thread_count">自定义线程数</string>
     <string name="hint_thread_count_range">1 - 32</string>
-    <string name="msg_thread_count_invalid">请输入 1 到 32 之间的数字</string>
+    <string name="msg_thread_count_invalid">请输入 1 到 10000 之间的数字</string>
     <string name="msg_about_content_full"><![CDATA[反馈问题 / 提交新功能？:<br><a href="https://github.com/yinghuajimew/Nibnya">点击访问 GitHub 仓库提 Issues</a><br>QQ交流群: <a href="https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003">点击加入樱喵NBT交流</a><br>感谢！！<br><a href="https://space.bilibili.com/628906424">Yejdhi</a>以及<a href="https://github.com/LiteLDev">LeviMC成员</a><br>有了他们才有了现在的点子，更好修改方法]]></string>
     <string name="msg_replace_all_data">替换所有数据？</string>
     <string name="msg_delete_items_confirm">删除 %d 项？无法撤销</string>
@@ -829,4 +829,6 @@
     <string name="msg_backup_and_save_progress">正在备份并保存… %1$d%%</string>
     <string name="title_custom_backup_max">自定义备份上限</string>
     <string name="btn_switch">切换</string>
-    </resources>
+        <string name="custom_tap_to_edit">（点此修改）</string>
+    <string name="hint_number_range">%1$d - %2$d</string>
+</resources>
