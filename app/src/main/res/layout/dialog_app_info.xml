@@ -367,12 +367,15 @@
     android:layout_marginBottom="12dp" />
 
             <!-- 5. 迁移旧数据（NbtEditor_Data → Nibnya） -->
+            <!-- 必须关掉 textAllCaps：Android 的 Button 默认会把文案转成全大写，
+                 中文不受影响、夹在里面的英文路径却被转成 NBTEDITOR_DATA，看着像「半中半英」 -->
             <Button
                 android:id="@+id/btn_migrate_data"
                 style="?android:attr/borderlessButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
                 android:text="@string/label_migrate_settings"
+                android:textAllCaps="false"
                 android:textColor="#4CAF50"
                 android:textSize="14sp"
                 android:gravity="start|center_vertical"
@@ -386,6 +389,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
                 android:text="@string/action_switch_night"
+                android:textAllCaps="false"
                 android:textColor="#FF9800"
                 android:textSize="14sp"
                 android:gravity="start|center_vertical"
@@ -399,6 +403,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
                 android:text="Switch to English"
+                android:textAllCaps="false"
                 android:textColor="#2196F3"
                 android:textSize="14sp"
                 android:gravity="start|center_vertical"

@@ -805,7 +805,7 @@ Delete them as well?</string>
     <string name="msg_migrate_done">Migration finished: %1$d item(s) moved, %2$d skipped (already present)</string>
     <string name="msg_migrate_partial">Migration partly finished: %1$d moved, %2$d skipped, %3$d failed.\nThe old folder was kept — nothing was deleted.</string>
     <string name="msg_migrate_nothing">No old data to migrate.</string>
-    <string name="label_migrate_settings">📦 Migrate old data (NbtEditor_Data → Nibnya)</string>
+    <string name="label_migrate_settings">📦 Migrate old data (old → new folder)</string>
     <string name="msg_migrate_none_left">No old data folder found. Nothing to do.</string>
 
     <!-- ============================================
