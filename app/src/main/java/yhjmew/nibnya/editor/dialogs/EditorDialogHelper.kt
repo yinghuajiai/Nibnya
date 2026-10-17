@@ -1043,61 +1043,70 @@ internal fun MainActivity.bindPresetSpinner(
 ) {
     if (sp == null) return
     val customIdx = presetValues.size
-    val editHint = getString(R.string.custom_tap_to_edit)
+    val pen = getString(R.string.draft_interval_custom)
+    val tapHint = getString(R.string.custom_tap_to_edit)
 
-    /**
-     * 自定义格的文案：
-     * - 已经设过自定义值 → `✎ 5（点此修改）`，用户一眼看得出当前值、也知道能点
-     * - **还没设过**（值等于某个预设）→ 只显示「自定义」，
-     *   引导用户想到「原来自定义入口在这儿」，而不是先看到一串没意义的提示
-     */
-    fun customLabel(): String {
+    /** 是否已经设过自定义值（值不等于任何预设） */
+    fun hasCustomValue(): Boolean {
         val v = currentValue()
-        return if (v > 0 && presetValues.indexOf(v) < 0) {
-            "${getString(R.string.draft_interval_custom)} $v$editHint"
-        } else {
-            getString(R.string.thread_count_custom).removeSuffix("…")
-        }
+        return v > 0 && presetValues.indexOf(v) < 0
     }
 
-    val labels = (presetLabels + customLabel()).toMutableList()
+    /**
+     * **收起态**那一栏的文案（乙方案）：
+     * - 设过自定义 → `✎ 5`（带笔，一眼看出是自己设的）
+     * - 没设过 → 「自定义」（提示入口在这儿）
+     */
+    fun collapsedLabel(): String =
+        if (hasCustomValue()) "$pen ${currentValue()}"
+        else getString(R.string.thread_count_custom).removeSuffix("…")
 
-    // 用 lateinit 的 lambda 让适配器能回调「打开输入框」——
-    // openCustom 定义在下面（它要用到 refreshCustomLabel / adapter），这里先占位。
+    /**
+     * **展开态**那一行的文案：始终带「（点此修改）」提示 ——
+     * 只有在展开时才提示「可点」，收起时就只显示数值，避免被挤成多行。
+     */
+    fun expandedLabel(): String =
+        if (hasCustomValue()) "$pen ${currentValue()}$tapHint"
+        else getString(R.string.thread_count_custom).removeSuffix("…") + tapHint
+
+    // 收起态与展开态的两套文案（同一个位置可能不一样）
+    val collapsed = (presetLabels + collapsedLabel()).toMutableList()
+    val expanded = (presetLabels + expandedLabel()).toMutableList()
+
     lateinit var openCustom: () -> Unit
 
-    val adapter = object : android.widget.BaseAdapter() {
-        override fun getCount(): Int = labels.size
-        override fun getItem(position: Int): Any = labels[position]
-        override fun getItemId(position: Int): Long = position.toLong()
-
-        override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
-            val tv = (convertView as? TextView) ?: TextView(this@bindPresetSpinner).apply {
-                setPadding(36, 36, 36, 36)
-                textSize = 16f
-            }
-            tv.text = labels[position]
-            // 自定义那一行点击即打开输入框。
-            // ⚠️ 这是必需的：AdapterView 在「选中位置没变」时**不会回调 onItemSelected**
-            //    （setSelection 里 `mOldSelectedPosition == position` 就直接 return），
-            //    所以「再展开下拉点同一格」天生不触发。挂在条目上才能保证一定能再次编辑。
+    // 直接用 ArrayAdapter 套系统布局：
+    // - 收起态 getView 由 ArrayAdapter + simple_spinner_item 提供（黑字/默认字号/默认内边距）
+    // - 展开态 getDropDownView 由 simple_spinner_dropdown_item 提供
+    // 只覆盖 getDropDownView 来加「（点此修改）」与点击监听。
+    val adapter = object : ArrayAdapter<String>(
+        this, android.R.layout.simple_spinner_item, collapsed
+    ) {
+        /**
+         * 展开态：自定义那一行显示 `✎ 5（点此修改）` 并挂点击。
+         *
+         * ⚠️ 为什么必须挂点击：AdapterView 在「选中位置没变」时**不会回调 onItemSelected**
+         *    （setSelection 里 `mOldSelectedPosition == position` 就直接 return），
+         *    所以「再展开下拉点同一格」天生收不到事件。挂在行 View 上才能保证一定能再次编辑
+         *    （ListPopupWindow 的 onItemClick 在 ListView 层处理，不会被行点击抢掉）。
+         */
+        override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+            val tv = super.getDropDownView(position, convertView, parent) as TextView
+            tv.text = expanded[position]
+            // 复用 View 时必须清掉上一次挂的监听，否则滚动后会串号
+            tv.setOnClickListener(null)
             if (position == customIdx) {
                 tv.setOnClickListener { openCustom() }
-                tv.setTextColor(0xFF1565C0.toInt())   // 蓝色，暗示可点
-            } else {
-                tv.setOnClickListener(null)
-                tv.setTextColor(0xFF000000.toInt())
             }
             return tv
         }
-
-        override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View =
-            getView(position, convertView, parent)
     }
+    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
     sp.adapter = adapter
 
-    fun refreshCustomLabel() {
-        labels[customIdx] = customLabel()
+    fun refreshLabels() {
+        collapsed[customIdx] = collapsedLabel()
+        expanded[customIdx] = expandedLabel()
         adapter.notifyDataSetChanged()
     }
 
@@ -1112,7 +1121,7 @@ internal fun MainActivity.bindPresetSpinner(
             currentValue().takeIf { it > 0 } ?: 1
         ) { n ->
             applyValue(n)
-            refreshCustomLabel()
+            refreshLabels()
             sp.setSelection(customIdx)
         }
     }
