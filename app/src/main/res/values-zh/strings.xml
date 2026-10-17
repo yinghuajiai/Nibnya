@@ -804,7 +804,7 @@
     <string name="msg_migrate_done">迁移完成：已搬运 %1$d 项，跳过 %2$d 项（新位置已存在）</string>
     <string name="msg_migrate_partial">迁移未全部完成：成功 %1$d 项，跳过 %2$d 项，失败 %3$d 项。\n旧目录已保留，未删除任何东西。</string>
     <string name="msg_migrate_nothing">没有需要迁移的旧数据。</string>
-    <string name="label_migrate_settings">📦 迁移旧数据（NbtEditor_Data → Nibnya）</string>
+    <string name="label_migrate_settings">📦 迁移旧数据（旧目录 → 新目录）</string>
     <string name="msg_migrate_none_left">未发现旧数据目录，无需迁移。</string>
 
     <!-- ============================================
