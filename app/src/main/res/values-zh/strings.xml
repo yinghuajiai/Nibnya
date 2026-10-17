@@ -816,5 +816,16 @@
     <string name="msg_perm_needed_for_path">切换目标目录可能涉及受保护的位置。</string>
     <string name="title_switch_language">切换语言</string>
     <string name="msg_switch_language_restart">切换语言会重启应用：\n\n· 未保存的编辑会先存入草稿箱，之后可在草稿箱找回\n· 应用会回到主页\n\n确定要切换吗？</string>
+
+    <!-- ============================================
+         保存前自动备份（策略对齐草稿箱）
+         ============================================ -->
+    <string name="box_backup_auto">💾 保存前自动备份</string>
+    <string name="subtitle_backup_auto">覆盖存档前先留一份快照，保存出错可回滚。0 = 关闭</string>
+    <string name="label_backup_interval">间隔：</string>
+    <string name="label_backup_max">备份上限：</string>
+    <string name="subtitle_backup_max">超出上限时删除该存档该类型最旧的一份</string>
+    <string name="backup_interval_off">关闭</string>
+    <string name="msg_backup_and_save_progress">正在备份并保存… %1$d%%</string>
     <string name="btn_switch">切换</string>
     </resources>

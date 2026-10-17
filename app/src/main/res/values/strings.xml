@@ -817,5 +817,16 @@ Delete them as well?</string>
     <string name="msg_perm_needed_for_path">Switching the target folder may need access to protected locations.</string>
     <string name="title_switch_language">Switch language</string>
     <string name="msg_switch_language_restart">Switching the language restarts the app:\n\n· Unsaved edits are saved to the draft box first, so you can find them again\n· The app will return to the home screen\n\nContinue?</string>
+
+    <!-- ============================================
+         保存前自动备份（策略对齐草稿箱）
+         ============================================ -->
+    <string name="box_backup_auto">💾 Back up before saving</string>
+    <string name="subtitle_backup_auto">Keeps a snapshot before overwriting the world, so a bad save can be rolled back. 0 = off</string>
+    <string name="label_backup_interval">Interval:</string>
+    <string name="label_backup_max">Keep up to:</string>
+    <string name="subtitle_backup_max">The oldest backups of this world and type are removed when over the limit</string>
+    <string name="backup_interval_off">Off</string>
+    <string name="msg_backup_and_save_progress">Backing up and saving… %1$d%%</string>
     <string name="btn_switch">Switch</string>
     </resources>
