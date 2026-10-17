@@ -127,6 +127,12 @@ class EditorViewModel : ViewModel() {
     // ============================================
     fun updatePathTitle() {
         val titleText: String
+        // ⚠️ 没加载任何数据时不能声称「当前：世界数据 (level.dat)」——
+        // 用户还没选存档却看到「当前是世界数据」是明显的假状态。
+        if (_nbtData.value == null) {
+            _pathTitle.value = getString(R.string.label_editor).trimEnd(':', '：')
+            return
+        }
         if (_isTreeMode.value) {
             titleText = if (_isEditingPlayer.value) {
                 if (_currentTargetKey.value != null && _currentTargetKey.value != "~local_player") {

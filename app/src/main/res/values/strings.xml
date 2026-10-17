@@ -597,7 +597,7 @@ Delete them as well?</string>
     <!-- Player Module -->
     <!-- ============================================ -->
     <string name="btn_edit_player">👤 Edit player</string>
-    <string name="btn_edit_online_players">Edit online players (player_...)</string>
+    <string name="btn_edit_online_players">Edit online players (player IDs)</string>
     <string name="msg_player_data">Player data (%1$d)</string>
     <string name="msg_for_example_player">For example: player_uuid</string>
     <string name="msg_player_data_not_found">Player data not found (~local_player)</string>
@@ -610,8 +610,8 @@ Delete them as well?</string>
     <!-- ============================================ -->
     <!-- Map/Village Module -->
     <!-- ============================================ -->
-    <string name="btn_edit_map_data">Edit map data (map_...)</string>
-    <string name="btn_edit_village_data">Edit village data (VILLAGE_...)</string>
+    <string name="btn_edit_map_data">Edit map data (map IDs)</string>
+    <string name="btn_edit_village_data">Edit village data (village IDs)</string>
     <string name="msg_map_data">map data (%1$d)</string>
     <string name="msg_for_example_map">For example: map_123</string>
     <string name="msg_village_data">Village data (%1$d)</string>
@@ -734,7 +734,7 @@ Delete them as well?</string>
     <!-- ============================================ -->
     <!-- Global System Data -->
     <!-- ============================================ -->
-    <string name="btn_global_system_data">Global/system data NBT</string>
+    <string name="btn_global_system_data">Global / system data</string>
     <string name="btn_open_nbt_by_name_dvanced">Open NBT by name (Advanced)</string>
     <string name="msg_global_system_data_list_metadata">Metadata</string>
     <string name="msg_global_system_data_list_community">community</string>
@@ -828,5 +828,6 @@ Delete them as well?</string>
     <string name="subtitle_backup_max">The oldest backups of this world and type are removed when over the limit</string>
     <string name="backup_interval_off">Off</string>
     <string name="msg_backup_and_save_progress">Backing up and saving… %1$d%%</string>
+    <string name="title_custom_backup_max">Custom backup limit</string>
     <string name="btn_switch">Switch</string>
     </resources>

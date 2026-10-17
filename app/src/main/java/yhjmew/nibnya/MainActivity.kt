@@ -310,8 +310,9 @@ class MainActivity : ComponentActivity() {
         setupObservers(); setupButtons()
         // ViewModel 是跨 recreate 存活的：里面以 StateFlow 保存的文本（路径标题等）在重建后
         // **不会重新发射**（值与上次相等），只靠 collect 初始化就会留下**旧语言的残影**。
-        // 这里强制按新 Context 重算一次。
-        editorVM.updatePathTitle()
+        // ⚠️ 但只有在真的加载了数据时才能重算：没加载数据时 updatePathTitle() 会算出
+        //    「当前：世界数据 (level.dat)」这种假状态（用户还没选存档却显示已选）。
+        if (editorVM.nbtData.value != null) editorVM.updatePathTitle()
 
         try { Class.forName("rikka.shizuku.Shizuku") }
         catch (e: Exception) { toast(getString(R.string.toast_shizuku_init, e.message)) }
