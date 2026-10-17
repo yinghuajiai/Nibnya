@@ -18,7 +18,7 @@
     <string name="trash_keep_never">Never auto-clean</string>
     <string name="trash_keep_days">%1$d days</string>
     <string name="title_custom_trash_keep">Custom keep days (1-3650)</string>
-    <string name="msg_trash_keep_invalid">Please enter a number between 1 and 3650</string>
+    <string name="msg_trash_keep_invalid">Please enter a number between 1 and 10000</string>
     <string name="btn_export_mcworld">Export as .mcworld</string>
     <string name="title_world_detail">Save details</string>
     <string name="btn_continue">Continue</string>
@@ -597,7 +597,7 @@ Delete them as well?</string>
     <!-- Player Module -->
     <!-- ============================================ -->
     <string name="btn_edit_player">👤 Edit player</string>
-    <string name="btn_edit_online_players">Edit online players (player IDs)</string>
+    <string name="btn_edit_online_players">Edit online players (player_...)</string>
     <string name="msg_player_data">Player data (%1$d)</string>
     <string name="msg_for_example_player">For example: player_uuid</string>
     <string name="msg_player_data_not_found">Player data not found (~local_player)</string>
@@ -610,8 +610,8 @@ Delete them as well?</string>
     <!-- ============================================ -->
     <!-- Map/Village Module -->
     <!-- ============================================ -->
-    <string name="btn_edit_map_data">Edit map data (map IDs)</string>
-    <string name="btn_edit_village_data">Edit village data (village IDs)</string>
+    <string name="btn_edit_map_data">Edit map data (map_...)</string>
+    <string name="btn_edit_village_data">Edit village data (Village_...)</string>
     <string name="msg_map_data">map data (%1$d)</string>
     <string name="msg_for_example_map">For example: map_123</string>
     <string name="msg_village_data">Village data (%1$d)</string>
@@ -707,9 +707,9 @@ Delete them as well?</string>
     <string name="unit_hours">hour</string>
     <string name="title_custom_interval">Custom interval (1-999)</string>
     <string name="draft_interval_custom">✎</string>
-    <string name="msg_draft_interval_invalid">Please enter a number between 1 and 999</string>
+    <string name="msg_draft_interval_invalid">Please enter a number between 1 and 100009</string>
     <string name="title_custom_draft_max">Custom max drafts (1-99)</string>
-    <string name="msg_draft_max_invalid">Please enter a number between 1 and 99</string>
+    <string name="msg_draft_max_invalid">Please enter a number between 1 and 10000</string>
     <string name="draft_max_value">%1$d</string>
     <string name="subtitle_draft_max">Oldest drafts are deleted when the limit is reached</string>
     <string name="box_skip_shizuku">Skip Shizuku (for Android 10 and below)</string>
@@ -734,7 +734,7 @@ Delete them as well?</string>
     <!-- ============================================ -->
     <!-- Global System Data -->
     <!-- ============================================ -->
-    <string name="btn_global_system_data">Global / system data</string>
+    <string name="btn_global_system_data">Global/system data (Global NBT)</string>
     <string name="btn_open_nbt_by_name_dvanced">Open NBT by name (Advanced)</string>
     <string name="msg_global_system_data_list_metadata">Metadata</string>
     <string name="msg_global_system_data_list_community">community</string>
@@ -785,7 +785,7 @@ Delete them as well?</string>
     <string name="thread_count_custom">Custom…</string>
     <string name="title_custom_thread_count">Custom thread count</string>
     <string name="hint_thread_count_range">1 - 32</string>
-    <string name="msg_thread_count_invalid">Please enter a number between 1 and 32</string>
+    <string name="msg_thread_count_invalid">Please enter a number between 1 and 10000</string>
     <string name="msg_about_content_full"><![CDATA[Feedback questions / Submit new features? :<br><a href=https://github.com/yinghuajimew/Nibnya>Click to visit the GitHub repository to submit Issues</a><br>QQ communication group: <a href=https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003>Click to join the Nibnya exchange</a><br>Thank you! ! <br><a href=https://space.bilibili.com/628906424>Yejdhi</a> and <a href=https://github.com/LiteLDev>LeviMC members</a><br>Thanks to them, we have the current ideas and better modification methods]]>.</string>
     <string name="msg_replace_all_data">Replace all data?</string>
     <string name="msg_delete_items_confirm">Delete %d item(s)? This cannot be undone.</string>
@@ -830,4 +830,6 @@ Delete them as well?</string>
     <string name="msg_backup_and_save_progress">Backing up and saving… %1$d%%</string>
     <string name="title_custom_backup_max">Custom backup limit</string>
     <string name="btn_switch">Switch</string>
-    </resources>
+        <string name="custom_tap_to_edit"> (tap to edit)</string>
+    <string name="hint_number_range">%1$d - %2$d</string>
+</resources>
