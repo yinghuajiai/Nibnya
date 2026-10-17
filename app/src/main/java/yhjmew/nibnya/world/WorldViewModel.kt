@@ -42,6 +42,7 @@ import yhjmew.nibnya.nbt.NbtTranslator
 import yhjmew.nibnya.nbt.NbtTranslator.getString
 import yhjmew.nibnya.util.AppDirs
 import yhjmew.nibnya.util.AppLogger
+import yhjmew.nibnya.util.BackupSettings
 import yhjmew.nibnya.util.DraftAutoSaver
 import yhjmew.nibnya.util.DraftStore
 import yhjmew.nibnya.util.TrashStore
@@ -985,8 +986,13 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
             _loadingMessage.value = getString(R.string.msg_saving)
+            _progressMessage.value = getString(R.string.msg_backup_and_save_progress, 0)
             try {
-                createBackup(context, folder)
+                // 备份阶段占进度 0~50%；createBackup 内部会随拷贝字节往上推
+                val backed = createBackup(context, folder)
+                // 备份阶段结束（跳过节流时直接落到 50%），接着是写回存档 50~100%
+                _progressMessage.value =
+                    getString(R.string.msg_backup_and_save_progress, if (backed) 50 else 50)
                 val evm = editorVM ?: throw Exception(getString(R.string.msg_editorvm_missing))
 
                 if (evm.isEditingPlayer.value) {
@@ -1048,9 +1054,14 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     // issue #6：按「可写性」决定写入方式，而不是单纯看有没有 Shizuku
                     // 1) 先尝试直接文件写入（Download/games 等公共目录可写）
                     var savedDirectly = false
+                    // 2) 直接写：写回阶段占进度 50~100%
                     if (canWriteDirectly(mcDbDir)) {
                         try {
-                            smartCopy(newWorkDir, mcDbDir)
+                            copyDirectoryMetered(newWorkDir, mcDbDir) { done, total ->
+                                val half = if (total > 0) (done * 100 / total).toInt() / 2 else 50
+                                _progressMessage.value =
+                                    getString(R.string.msg_backup_and_save_progress, 50 + half.coerceIn(0, 50))
+                            }
                             savedDirectly = true
                             AppLogger.info("Save", "玩家数据直接写入成功: $mcDbPath")
                         } catch (e: Exception) {
@@ -1154,28 +1165,76 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         }
     }
 
-    private fun createBackup(context: Context, folderName: String) {
+    /** 备份进度回调：(已拷字节, 总字节)，用于在进度框里显示百分比 */
+    private fun backupProgress(tag: String): (Long, Long) -> Unit = { done, total ->
+        val pct = if (total > 0) (done * 100 / total).toInt() else 0
+        // 备份阶段占总进度的一半（0~50%），写回阶段占另一半
+        val overall = (pct / 2).coerceIn(0, 50)
+        _progressMessage.value = getString(R.string.msg_backup_and_save_progress, overall)
+    }
+
+    /**
+     * 保存前留一份快照。
+     *
+     * 是否真的备份由 [BackupSettings] 决定（对齐草稿箱的可配置策略）：
+     * - 总开关关闭 → 跳过
+     * - 同一存档 + 同一类型，距上次备份不足节流间隔 → 跳过
+     * - 备份后按上限删最旧（按类型分别计数）
+     *
+     * @param force true = 忽略开关与节流，强制备份（用于「恢复备份前先保底」）
+     * @return 是否真的产生了备份
+     */
+    private fun createBackup(context: Context, folderName: String, force: Boolean = false): Boolean {
         try {
+            val evm = editorVM ?: return false
+            val isPlayer = evm.isEditingPlayer.value
+
+            if (!force) {
+                if (!BackupSettings.isAutoEnabled(context)) return false
+                if (!BackupSettings.isDueForBackup(context, folderName, isPlayer)) {
+                    AppLogger.info("Backup", "距上次备份不足间隔，跳过: $folderName（玩家=$isPlayer）")
+                    return false
+                }
+            }
+
             val backupRoot = File(backupsDir(context), folderName)
             if (!backupRoot.exists()) backupRoot.mkdirs()
-            val ts = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
-            val evm = editorVM ?: return
-            if (evm.isEditingPlayer.value) {
-                currentWorkingDbPath?.let { dbPath ->
-                    val srcDb = File(dbPath)
-                    if (srcDb.exists() && srcDb.isDirectory) {
-                        copyDirectory(srcDb, File(backupRoot, "db_$ts"))
+            val ts = BackupSettings.newTimestamp()
+
+            if (isPlayer) {
+                val dbPath = currentWorkingDbPath ?: return false
+                val srcDb = File(dbPath)
+                if (!srcDb.exists() || !srcDb.isDirectory) return false
+                val dst = File(backupRoot, "db_$ts")
+                if (useMultiThread) {
+                    // 走多线程拷贝（带字节进度）
+                    copyDirectoryParallel(srcDb, dst, resolveThreadCountFor(srcDb)) { done, total ->
+                        backupProgress("db")(done, total)
                     }
+                } else {
+                    copyDirectoryMetered(srcDb, dst) { done, total -> backupProgress("db")(done, total) }
                 }
             } else {
                 val src = File(worksDir(context), MainActivity.LEVEL_DAT_NAME)
-                if (src.exists() && src.isFile) {
-                    copyFileNative(src, File(backupRoot, "level_$ts.dat"))
-                }
+                if (!src.exists() || !src.isFile) return false
+                val total = src.length()
+                copyFileNative(src, File(backupRoot, "level_$ts.dat"))
+                backupProgress("level")(total, total)
             }
+
+            // 超出上限就删最旧（按类型分别计数）
+            BackupSettings.prune(context, folderName, isPlayer)
+            return true
         } catch (e: Exception) {
             Log.e("WorldVM", "Backup failed", e)
+            return false
         }
+    }
+
+    /** 按目录规模算线程数（备份用，逻辑与 smartCopy 一致） */
+    private fun resolveThreadCountFor(src: File): Int {
+        val (bytes, count) = measureTree(src)
+        return resolveThreadCount(bytes, count)
     }
 
     // ============================================
@@ -1271,6 +1330,12 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val evm = editorVM ?: return@launch
+                // 恢复会覆盖当前存档 —— 先给当前状态强制留一份保底快照，
+                // 免得「恢复错了就再也回不去」。（force=true：忽略开关与节流）
+                runCatching {
+                    _progressMessage.value = getString(R.string.msg_backup_and_save_progress, 0)
+                    createBackup(context, lastLoadedWorldFolder ?: return@runCatching, force = true)
+                }
                 if (backupItem.isDirectory) {
                     val uniqueId = System.currentTimeMillis().toString()
                     val restoreDir = File(worksDir(context), "working_db_restore_$uniqueId")
@@ -1861,6 +1926,33 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         } else copyFile(source, target)
     }
 
+    /** 单线程拷贝 + 字节进度（备份用；[smartCopy] 的单线程分支没有进度回调） */
+    private fun copyDirectoryMetered(
+        source: File,
+        target: File,
+        onProgress: (Long, Long) -> Unit
+    ) {
+        val files = mutableListOf<Pair<File, File>>()
+        val dirs = mutableListOf<File>()
+        collectCopyPlan(source, target, files, dirs)
+        dirs.forEach { if (!it.exists()) it.mkdirs() }
+        val total = files.sumOf { it.first.length() }
+        var done = 0L
+        var lastTick = 0L
+        files.forEach { (src, dst) ->
+            dst.parentFile?.let { if (!it.exists()) it.mkdirs() }
+            copyFile(src, dst)
+            done += src.length()
+            // 限流：每 100ms 或进度明显变化时才回调，避免刷 UI
+            val now = System.currentTimeMillis()
+            if (now - lastTick >= 100) {
+                lastTick = now
+                onProgress(done, total)
+            }
+        }
+        onProgress(done, total)
+    }
+
     private fun safCopyDirectory(context: Context, srcDoc: DocumentFile, dstDir: File) {
         if (!dstDir.exists()) dstDir.mkdirs()
         for (child in srcDoc.listFiles()) {
@@ -1953,7 +2045,12 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
      * 多线程拷贝：先收集完整清单（单线程、极快），再并行拷贝文件。
      * 这样只创建一个线程池，不会像递归实现那样为每个子目录新建线程池。
      */
-    private fun copyDirectoryParallel(source: File, target: File, threads: Int) {
+    private fun copyDirectoryParallel(
+        source: File,
+        target: File,
+        threads: Int,
+        onProgress: ((Long, Long) -> Unit)? = null
+    ) {
         AppLogger.info("Copy", "多线程拷贝: $threads 线程, $source -> $target")
         val files = mutableListOf<Pair<File, File>>()
         val dirs = mutableListOf<File>()
@@ -1970,6 +2067,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         val errorRef = AtomicReference<Throwable?>()
         val completed = java.util.concurrent.atomic.AtomicInteger(0)
         val copiedSize = java.util.concurrent.atomic.AtomicLong(0L)
+        val lastTick = java.util.concurrent.atomic.AtomicLong(0L)
 
         files.forEach { (srcFile, dstFile) ->
             executor.submit {
@@ -1981,8 +2079,17 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     val done = completed.incrementAndGet()
                     val bytes = copiedSize.addAndGet(srcFile.length())
                     val progress = (bytes * 100 / maxOf(totalSize, 1)).toInt()
-                    _progressMessage.value =
-                        getString(R.string.copying_progress, done, totalFiles, progress)
+                    // 有进度回调时走回调（备份用），否则用默认的复制文案
+                    if (onProgress != null) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTick.get() >= 100) {
+                            lastTick.set(now)
+                            onProgress(bytes, totalSize)
+                        }
+                    } else {
+                        _progressMessage.value =
+                            getString(R.string.copying_progress, done, totalFiles, progress)
+                    }
                 } catch (e: Throwable) {
                     errorRef.set(e)
                 } finally {

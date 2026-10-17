@@ -30,6 +30,7 @@ import yhjmew.nibnya.nbt.adapter.NbtTreeAdapter
 import yhjmew.nibnya.nbt.NbtTranslator
 import yhjmew.nibnya.nbt.NbtTranslator.getString
 import yhjmew.nibnya.util.AppLogger
+import yhjmew.nibnya.util.BackupSettings
 import yhjmew.nibnya.util.DraftAutoSaver
 import yhjmew.nibnya.util.DraftStore
 import yhjmew.nibnya.util.TrashStore
@@ -758,6 +759,9 @@ fun MainActivity.showAppInfoDialog() {
         onChanged = { mapVM.setPuzzleThreadCount(it) }
     )
 
+    // ---- 保存前自动备份（放在草稿箱上面）----
+    setupBackupSettings(dialogView)
+
     // ---- 草稿箱设置 ----
     setupDraftSettings(dialogView)
 
@@ -1087,6 +1091,169 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
 
 /** 「关闭 / 2 / 4 / 8 / 自定义」对应的秒数；-1 表示自定义 */
 private val DRAFT_INTERVAL_VALUES = listOf(0, 2, 4, 8, -1)
+
+// ============================================
+// 「保存前自动备份」设置（结构完全对齐草稿箱那组）
+// ============================================
+
+/**
+ * 开关 + 间隔（关闭/2/4/8/自定义 + 秒·分·时） + 上限（5/10/20/自定义）。
+ *
+ * ⚠️ 与草稿箱那组一样有两个时序/适配器陷阱，这里照同样的方式规避：
+ * 1. `Spinner.setSelection()` 的回调由**布局阶段**派发，时机不可控 → 只响应**用户真的触摸过**的操作
+ * 2. `ArrayAdapter` 必须拿 **MutableList**（`remove`/`insert` 会改动底层集合）
+ */
+private fun MainActivity.setupBackupSettings(root: android.view.View) {
+    val cbAuto = root.findViewById<CheckBox?>(R.id.cb_backup_auto) ?: return
+    val intervalSp = root.findViewById<Spinner?>(R.id.sp_backup_interval)
+    val unitSp = root.findViewById<Spinner?>(R.id.sp_backup_interval_unit)
+    val maxSp = root.findViewById<Spinner?>(R.id.sp_backup_max)
+    val layoutInterval = root.findViewById<android.view.View?>(R.id.layout_backup_interval)
+    val layoutMax = root.findViewById<android.view.View?>(R.id.layout_backup_max)
+
+    var auto = prefs?.getBoolean(BackupSettings.PREF_AUTO, true) ?: true
+    var interval = prefs?.getInt(BackupSettings.PREF_INTERVAL, BackupSettings.DEFAULT_INTERVAL)
+        ?: BackupSettings.DEFAULT_INTERVAL
+    var unit = prefs?.getInt(BackupSettings.PREF_INTERVAL_UNIT, BackupSettings.DEFAULT_UNIT)
+        ?: BackupSettings.DEFAULT_UNIT
+    var maxKeep = prefs?.getInt(BackupSettings.PREF_MAX, BackupSettings.DEFAULT_MAX)
+        ?: BackupSettings.DEFAULT_MAX
+
+    fun writePrefs() {
+        prefs?.edit()
+            ?.putBoolean(BackupSettings.PREF_AUTO, auto)
+            ?.putInt(BackupSettings.PREF_INTERVAL, interval)
+            ?.putInt(BackupSettings.PREF_INTERVAL_UNIT, unit)
+            ?.putInt(BackupSettings.PREF_MAX, maxKeep)
+            ?.apply()
+        // 关掉总开关时，间隔与上限整组置灰（和草稿箱「关闭时单位置灰」一个思路）
+        layoutInterval?.alpha = if (auto) 1f else 0.4f
+        layoutMax?.alpha = if (auto) 1f else 0.4f
+        intervalSp?.isEnabled = auto
+        unitSp?.isEnabled = auto && interval > 0
+        maxSp?.isEnabled = auto
+    }
+
+    cbAuto.isChecked = auto
+    cbAuto.setOnCheckedChangeListener { _, checked ->
+        auto = checked
+        writePrefs()
+    }
+
+    // ---- 间隔 ----
+    val customIcon = getString(R.string.thread_count_custom)
+    fun intervalCustomLabel(): String =
+        if (interval > 0 && BackupSettings.INTERVAL_VALUES.indexOf(interval) < 0) "$customIcon $interval"
+        else customIcon
+
+    // 必须用 MutableList（ArrayAdapter 的 remove/insert 会改动底层集合）
+    val intervalLabels = mutableListOf(
+        getString(R.string.backup_interval_off), "2", "4", "8", intervalCustomLabel()
+    )
+    val intervalAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, intervalLabels)
+    intervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    intervalSp?.adapter = intervalAdapter
+
+    val unitLabels = mutableListOf(
+        getString(R.string.unit_seconds), getString(R.string.unit_minutes), getString(R.string.unit_hours)
+    )
+    unitSp?.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, unitLabels)
+        .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+
+    // ---- 上限 ----
+    fun maxCustomLabel(): String =
+        if (maxKeep > 0 && BackupSettings.MAX_VALUES.indexOf(maxKeep) < 0) "$customIcon $maxKeep"
+        else customIcon
+
+    val maxLabels = mutableListOf("5", "10", "20", maxCustomLabel())
+    val maxAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, maxLabels)
+    maxAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    maxSp?.adapter = maxAdapter
+
+    fun refreshMaxCustomLabel() {
+        val idx = maxLabels.size - 1
+        val want = maxCustomLabel()
+        if (maxLabels.getOrNull(idx) == want) return
+        maxLabels[idx] = want
+        maxAdapter.notifyDataSetChanged()
+        if (maxKeep > 0 && BackupSettings.MAX_VALUES.indexOf(maxKeep) < 0) maxSp?.setSelection(idx)
+    }
+
+    // 回显
+    run {
+        val idx = BackupSettings.INTERVAL_VALUES.indexOf(interval)
+        intervalSp?.setSelection(if (interval <= 0) 0 else if (idx >= 0) idx else BackupSettings.INTERVAL_VALUES.size - 1)
+        unitSp?.setSelection(unit.coerceIn(0, 2))
+        val mIdx = BackupSettings.MAX_VALUES.indexOf(maxKeep)
+        maxSp?.setSelection(if (mIdx >= 0) mIdx else BackupSettings.MAX_VALUES.size - 1)
+    }
+    writePrefs()
+
+    // ⚠️ 只响应用户真的触摸过的选择（setSelection 的程序回显不产生触摸事件）
+    var userPickedInterval = false
+    intervalSp?.setOnTouchListener { _, _ -> userPickedInterval = true; false }
+    intervalSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (!userPickedInterval) return
+            val valAt = BackupSettings.INTERVAL_VALUES.getOrNull(position)
+            if (valAt == null || valAt == -1) {
+                showCustomNumberDialog(
+                    getString(R.string.title_custom_interval), 1, 999,
+                    getString(R.string.msg_draft_interval_invalid),
+                    if (interval > 0) interval else BackupSettings.DEFAULT_INTERVAL
+                ) { n ->
+                    interval = n
+                    prefs?.edit()?.putInt(BackupSettings.PREF_INTERVAL_LAST, n)?.apply()
+                    val idx = intervalLabels.size - 1
+                    intervalLabels[idx] = intervalCustomLabel()
+                    intervalAdapter.notifyDataSetChanged()
+                    intervalSp.setSelection(idx)
+                    writePrefs()
+                }
+            } else {
+                interval = valAt
+                if (valAt > 0) prefs?.edit()?.putInt(BackupSettings.PREF_INTERVAL_LAST, valAt)?.apply()
+                writePrefs()
+            }
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    var userPickedUnit = false
+    unitSp?.setOnTouchListener { _, _ -> userPickedUnit = true; false }
+    unitSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (!userPickedUnit) return
+            unit = position
+            writePrefs()
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    var userPickedMax = false
+    maxSp?.setOnTouchListener { _, _ -> userPickedMax = true; false }
+    maxSp?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
+            if (!userPickedMax) return
+            val valAt = BackupSettings.MAX_VALUES.getOrNull(position)
+            if (valAt == null || valAt == -1) {
+                showCustomNumberDialog(
+                    getString(R.string.title_custom_interval), 1, 999,
+                    getString(R.string.msg_draft_interval_invalid),
+                    if (maxKeep > 0) maxKeep else BackupSettings.DEFAULT_MAX
+                ) { n ->
+                    maxKeep = n
+                    refreshMaxCustomLabel()
+                    writePrefs()
+                }
+            } else {
+                maxKeep = valAt
+                writePrefs()
+            }
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+}
 
 /** 通用「输入一个数字」对话框（带范围校验） */
 private fun MainActivity.showCustomNumberDialog(

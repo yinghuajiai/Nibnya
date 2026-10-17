@@ -411,9 +411,13 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             combine(worldVM.isLoading, mapVM.isGenerating) { w, m -> w || m }
-                .collect { if (it) showProgressDialog(getString(R.string.log_please_wait),
-                    worldVM.loadingMessage.value.ifEmpty { mapVM.progressMessage.value }.ifEmpty { "..." })
-                else dismissProgressDialog() }
+                .collect {
+                    if (it) showProgressDialog(getString(R.string.log_please_wait),
+                        worldVM.loadingMessage.value.ifEmpty { mapVM.progressMessage.value }.ifEmpty { "..." })
+                    else dismissProgressDialog()
+                    // 防狂点：忙碌期间禁用「保存修改」（含保存、导出、加载等所有耗时操作）
+                    findViewById<Button?>(R.id.btn_save)?.isEnabled = !it
+                }
         }
         lifecycleScope.launch {
             worldVM.progressMessage.collect { if (it.isNotEmpty()) updateProgress(it) }
@@ -571,8 +575,13 @@ class MainActivity : ComponentActivity() {
             val f = etWorldName!!.text.toString().trim()
             if (f.isEmpty() || f == getString(R.string.hint_select_world))
             { toast(getString(R.string.toast_select_world)); return@setOnClickListener }
+            // 防狂点：保存期间按钮置灰，结束（成功或失败）后由 isLoading 观察者恢复
+            it.isEnabled = false
             // 保存前确认为什么要「所有文件访问」权限（而不是在启动时不分青红皂白地跳设置）
-            if (!askAllFilesPermission(getString(R.string.msg_perm_needed_for_save))) return@setOnClickListener
+            if (!askAllFilesPermission(getString(R.string.msg_perm_needed_for_save))) {
+                it.isEnabled = true
+                return@setOnClickListener
+            }
             worldVM.saveAndPushBack(this, d, f)
         }
 

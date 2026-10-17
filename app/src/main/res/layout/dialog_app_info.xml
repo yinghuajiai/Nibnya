@@ -241,6 +241,83 @@
                     android:layout_height="wrap_content" />
             </LinearLayout>
 
+            <!-- 保存前自动备份（策略对齐草稿箱；放在草稿箱上面） -->
+            <CheckBox
+                android:id="@+id/cb_backup_auto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/box_backup_auto"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_backup_auto"
+                android:textSize="12sp"
+                android:textColor="#888888"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="6dp" />
+
+            <!-- 间隔 + 单位 -->
+            <LinearLayout
+                android:id="@+id/layout_backup_interval"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_backup_interval"
+                    android:textSize="13sp" />
+
+                <Spinner
+                    android:id="@+id/sp_backup_interval"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content" />
+
+                <Spinner
+                    android:id="@+id/sp_backup_interval_unit"
+                    android:layout_width="wrap_content"
+                    android:minWidth="72dp"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <!-- 备份上限 -->
+            <LinearLayout
+                android:id="@+id/layout_backup_max"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_backup_max"
+                    android:textSize="13sp" />
+
+                <Spinner
+                    android:id="@+id/sp_backup_max"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_backup_max"
+                android:textSize="12sp"
+                android:textColor="#888888"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="14dp" />
+
             <!-- 草稿箱：自动保存 -->
             <CheckBox
                 android:id="@+id/cb_draft_autosave"
