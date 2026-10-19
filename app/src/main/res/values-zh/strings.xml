@@ -936,4 +936,13 @@
     <string name="sub_redstone">红石/功能</string>
     <string name="sub_element">化学元素</string>
     <string name="title_all_types">全部</string>
+    <!-- 拼图成品放入背包：槽位网格 -->
+    <string name="msg_puzzle_slots_summary">%1$d 个空位可用（共 %2$d 格）· 成品只占 %3$d 格</string>
+    <string name="msg_puzzle_slot_count">×%1$d</string>
+    <string name="msg_puzzle_slot_legend">绿色=空位 · 灰色=已有物品（点我会先确认覆盖）· 长按看详情</string>
+    <string name="msg_puzzle_slot_is_empty">%1$s 是空位</string>
+    <string name="msg_puzzle_slot_detail">%1$s
+
+物品：%2$s
+数量：%3$d</string>
 </resources>

@@ -35,6 +35,7 @@ import yhjmew.nibnya.world.WorldViewModel.CacheItem
 import yhjmew.nibnya.world.WorldViewModel.WorldItem
 import yhjmew.nibnya.mapart.MapArtViewModel
 import yhjmew.nibnya.mapart.MapArtViewModel.InventorySlotInfo
+import yhjmew.nibnya.mapart.showSlotGrid
 import yhjmew.nibnya.nbt.BedrockParser
 import yhjmew.nibnya.nbt.NbtTranslator
 import yhjmew.nibnya.nbt.adapter.NbtAdapter
@@ -2015,63 +2016,42 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val emptyCount = info.mainSlots.count { !it.isOccupied }
-        val lines = mutableListOf<String>()
+        // 网格化选择（原来是一长串文本列表，看不出空格/满格的空间关系）
+        showSlotGrid(
+            info = info,
+            onPick = { targetSlot ->
+                mapVM.clearInventorySlotInfo()
+                val slotInfo = info.mainSlots[targetSlot]
 
-        for (i in 0..35) {
-            val s = info.mainSlots[i]
-            if (s.isOccupied) {
-                lines.add("⚠ [$i] ${s.name} x${s.count}")
-            } else {
-                lines.add(getString(R.string.item_slot_empty, i))
-            }
-        }
-
-        val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, lines)
-        val lv = ListView(this).apply { this.adapter = adapter }
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(getString(R.string.title_puzzle_slot_select))
-            .setMessage(getString(R.string.msg_puzzle_empty_slots_available, emptyCount))
-            .setView(lv)
-            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                if (slotInfo.isOccupied) {
+                    // 已占用的格子：置灰但仍可点，这里做二次确认
+                    val label = getString(R.string.label_puzzle_slot, targetSlot)
+                    AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.title_puzzle_slot_occupied))
+                        .setMessage(
+                            getString(
+                                R.string.msg_puzzle_slot_has_items,
+                                label, slotInfo.name, slotInfo.count
+                            )
+                        )
+                        .setPositiveButton(getString(R.string.btn_puzzle_confirm_overwrite)) { _, _ ->
+                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
+                            puzzleImageUri = null
+                        }
+                        .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                            puzzleImageUri = null
+                        }
+                        .show()
+                } else {
+                    mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
+                    puzzleImageUri = null
+                }
+            },
+            onCancel = {
                 mapVM.clearInventorySlotInfo()
                 puzzleImageUri = null
             }
-            .create()
-
-        lv.onItemClickListener = AdapterView.OnItemClickListener { _, _, pos, _ ->
-            dialog.dismiss()
-            mapVM.clearInventorySlotInfo()
-
-            val targetSlot = if (pos in 0..35) pos else {
-                puzzleImageUri = null
-                return@OnItemClickListener
-            }
-
-            // 如果选了有东西的格子，二次确认
-            val slotInfo = info.mainSlots[targetSlot]
-
-            if (slotInfo.isOccupied) {
-                val label = getString(R.string.label_puzzle_slot, targetSlot)
-                AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.title_puzzle_slot_occupied))
-                    .setMessage(getString(R.string.msg_puzzle_slot_has_items, label, slotInfo.name, slotInfo.count))
-                    .setPositiveButton(getString(R.string.btn_puzzle_confirm_overwrite)) { _, _ ->
-                        mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
-                        puzzleImageUri = null
-                    }
-                    .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
-                        puzzleImageUri = null
-                    }
-                    .show()
-            } else {
-                mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
-                puzzleImageUri = null
-            }
-        }
-
-        dialog.show()
+        )
     }
 
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
