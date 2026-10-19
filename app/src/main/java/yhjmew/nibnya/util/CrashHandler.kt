@@ -86,48 +86,45 @@ class CrashHandler private constructor() : Thread.UncaughtExceptionHandler {
     }
 
     // 收集设备信息
+    // 与 AppLogger 共用 DeviceInfo，避免两处字段/格式不一致
     private fun collectDeviceInfo(ctx: Context): String {
+        val localized = DeviceInfo.localizedContext(ctx)
         val sb = StringBuilder()
-        try {
-            val pm = ctx.packageManager
-            val pi = pm.getPackageInfo(ctx.packageName, PackageManager.GET_ACTIVITIES)
-            if (pi != null) {
-                val versionName = pi.versionName ?: "null"
-                val versionCode = if (Build.VERSION.SDK_INT >= 28) {
-                    pi.longVersionCode.toString()
-                } else {
-                    @Suppress("DEPRECATION")
-                    pi.versionCode.toString()
-                }
-                sb.append("App Version: ").append(versionName).append(" (").append(versionCode)
-                    .append(")\n")
-            }
-        } catch (e: PackageManager.NameNotFoundException) {
-            Log.e(TAG, "Error collecting info", e)
-        }
-
-        sb.append("OS Version: ").append(Build.VERSION.RELEASE).append("_")
-            .append(Build.VERSION.SDK_INT).append("\n")
-        sb.append("Vendor: ").append(Build.MANUFACTURER).append("\n")
-        sb.append("Model: ").append(Build.MODEL).append("\n")
-        val abis = Build.SUPPORTED_ABIS
-        if (abis != null && abis.isNotEmpty()) {
-            sb.append("CPU ABI: ").append(abis.joinToString(", ")).append("\n")
-        } else {
-            sb.append("CPU ABI: unknown\n")
-        }
-
+        sb.append(
+            "${localized.getString(R.string.log_app_version)}: " +
+                (appVersion(ctx) ?: "unknown") + "\n"
+        )
+        sb.append(DeviceInfo.collect(localized))
         return sb.toString()
+    }
+
+    /** 应用版本，形如 `1.0.4b (104)` */
+    private fun appVersion(ctx: Context): String? = try {
+        val pi = ctx.packageManager.getPackageInfo(ctx.packageName, PackageManager.GET_ACTIVITIES)
+        val code = if (Build.VERSION.SDK_INT >= 28) {
+            pi.longVersionCode.toString()
+        } else {
+            @Suppress("DEPRECATION")
+            pi.versionCode.toString()
+        }
+        "${pi.versionName} ($code)"
+    } catch (_: Throwable) {
+        null
     }
 
     // 保存错误信息到文件中
     // 保存错误信息到文件中 (双重备份版：同时写入私有目录和公共目录)
     private fun saveCrashInfo2File(ex: Throwable, deviceInfo: String?) {
+        val loc = mContext?.let { DeviceInfo.localizedContext(it) }
         val sb = StringBuilder()
-        sb.append("====== CRASH LOG ======\n")
+        // 崩溃时 state 可能已不稳定，取 string 资源也容错，拿不到就退回英文
+        val header = runCatching { loc?.getString(R.string.log_crash_header) }.getOrNull()
+            ?: "Nibnya Crash Log"
+        sb.append("====== $header ======\n")
         val format = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val time = format.format(Date())
-        sb.append("Time: ").append(time).append("\n")
+        val timeLabel = runCatching { loc?.getString(R.string.log_time) }.getOrNull() ?: "Time"
+        sb.append("$timeLabel: ").append(time).append("\n")
         sb.append(deviceInfo)
         sb.append("\n====== STACK TRACE ======\n")
 

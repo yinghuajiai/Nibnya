@@ -831,4 +831,17 @@
     <string name="btn_switch">切换</string>
         <string name="custom_tap_to_edit">（点此修改）</string>
     <string name="hint_number_range">%1$d - %2$d</string>
+    <!-- 日志 / 崩溃日志：标题、时间、设备信息 -->
+    <string name="log_header">Nibnya 日志</string>
+    <string name="log_time">时间</string>
+    <string name="log_device_info">设备信息</string>
+    <string name="log_entries">日志</string>
+    <string name="log_brand">品牌</string>
+    <string name="log_manufacturer">厂商</string>
+    <string name="log_model">型号</string>
+    <string name="log_os_version">安卓版本</string>
+    <string name="log_rom">系统版本</string>
+    <string name="log_abi">CPU 架构</string>
+    <string name="log_app_version">应用版本</string>
+    <string name="log_crash_header">Nibnya 崩溃日志</string>
 </resources>

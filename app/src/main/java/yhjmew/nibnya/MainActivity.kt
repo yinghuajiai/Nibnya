@@ -226,6 +226,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         CrashHandler.instance!!.init(this)
         super.onCreate(savedInstanceState)
+        // 日志头部要带设备信息、且文案跟随应用语言，需要 Context
+        AppLogger.init(this)
 
         NbtTranslator.init(this)
         createNoMedia()
