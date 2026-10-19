@@ -159,7 +159,7 @@ class MainActivity : ComponentActivity() {
                     true
                 } else false
             } catch (e: Exception) {
-                AppLogger.warn("Export", "SAF 导出 .mcworld 失败: ${e.message}")
+                AppLogger.warn("Export", R.string.log_export_mcworld_saf_failed, e.message)
                 false
             }
             toast(getString(if (ok) R.string.toast_exported_ok else R.string.toast_export_failed))

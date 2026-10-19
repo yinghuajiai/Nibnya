@@ -335,7 +335,10 @@ class MapArtViewModel : ViewModel() {
                 // 拼图生成并发设置（独立于文件拷贝开关）
                 // puzzleMultiThread=false 时串行（省内存）；puzzleThreadCount=0 表示自动
                 val threadCount = resolvePuzzleThreads(totalMaps)
-                AppLogger.info("MapArt", "拼图生成并发: ${if (threadCount <= 1) "串行" else "$threadCount 线程"}（共 $totalMaps 张）")
+                AppLogger.info("MapArt", R.string.log_puzzle_concurrency,
+                if (threadCount <= 1) getString(R.string.log_puzzle_serial)
+                else getString(R.string.log_puzzle_threads, threadCount),
+                totalMaps)
                 val executor = Executors.newFixedThreadPool(threadCount)
                 val latch = CountDownLatch(totalMaps)
                 val errorRef = AtomicReference<Throwable?>()

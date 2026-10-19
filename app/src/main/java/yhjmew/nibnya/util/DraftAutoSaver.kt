@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import java.lang.ref.WeakReference
 import java.util.concurrent.Executors
+import yhjmew.nibnya.R
 
 /**
  * 草稿自动保存器：脏标记 + 定时检查。
@@ -112,7 +113,7 @@ object DraftAutoSaver {
     /** 有编辑发生。极轻量，可高频调用 */
     fun markDirty() {
         dirty = true
-        AppLogger.info("Draft", "标记为待保存")
+        AppLogger.info("Draft", R.string.log_draft_mark_dirty)
     }
 
     /**
@@ -150,7 +151,7 @@ object DraftAutoSaver {
             writeDraft(ctx, snap)
             dirty = false
         } catch (e: Throwable) {
-            AppLogger.warn("Draft", "紧急落盘失败: ${e.message}")
+            AppLogger.warn("Draft", R.string.log_draft_emergency_failed, e.message)
         }
     }
 
@@ -169,7 +170,7 @@ object DraftAutoSaver {
                 maxDrafts = maxDrafts
             )
         } catch (e: Throwable) {
-            AppLogger.warn("Draft", "写入草稿失败: ${e.message}")
+            AppLogger.warn("Draft", R.string.log_draft_write_failed, e.message)
         }
     }
 }

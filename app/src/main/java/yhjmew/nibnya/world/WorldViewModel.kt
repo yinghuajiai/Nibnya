@@ -258,7 +258,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     fun restorePath(savedPath: String?) {
         if (!savedPath.isNullOrBlank()) {
             _currentPath.value = savedPath
-            AppLogger.info("Path", "恢复上次路径: $savedPath")
+            AppLogger.info("Path", R.string.log_path_restored, savedPath)
         }
     }
 
@@ -1063,9 +1063,9 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                                     getString(R.string.msg_backup_and_save_progress, 50 + half.coerceIn(0, 50))
                             }
                             savedDirectly = true
-                            AppLogger.info("Save", "玩家数据直接写入成功: $mcDbPath")
+                            AppLogger.info("Save", R.string.log_save_player_direct_ok, mcDbPath)
                         } catch (e: Exception) {
-                            AppLogger.warn("Save", "直接写入失败，尝试 Shizuku: ${e.message}")
+                            AppLogger.warn("Save", R.string.log_save_direct_failed_try_shizuku, e.message)
                         }
                     }
 
@@ -1077,7 +1077,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                         val (safOk, safErr) = SafIo.replaceDirInSaf(context, worldDoc, "db", newWorkDir)
                         if (!safOk) throw Exception(safErr ?: getString(R.string.msg_save_need_permission_or_path, mcDbPath))
                         savedDirectly = true
-                        AppLogger.info("Save", "玩家数据经 SAF 写入: $mcDbPath")
+                        AppLogger.info("Save", R.string.log_save_player_saf_ok, mcDbPath)
                     }
 
                     // 3) 直接写与 SAF 都不行，且 Shizuku 可用 -> 走桥接
@@ -1093,7 +1093,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
                             // 必须检查退出码：非 0 时数据其实没写进去，绝不能提示成功
                             if (exit != 0) throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
-                            AppLogger.info("Save", "玩家数据经 Shizuku 写入: $mcDbPath")
+                            AppLogger.info("Save", R.string.log_save_player_shizuku_ok, mcDbPath)
                         } else {
                             // 4) 都不行 -> 明确报错，提示用户处理权限/换路径
                             throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
@@ -1119,7 +1119,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     // issue #6：先试直接写，失败再用 Shizuku，都不行给明确提示
                     var success = copyFileNative(workingFile, targetFile)
                     if (success) {
-                        AppLogger.info("Save", "level.dat 直接写入成功: $targetPath")
+                        AppLogger.info("Save", R.string.log_save_level_direct_ok, targetPath)
                     }
 
                     // SAF 模式：content:// 路径 File 写不了，改用 DocumentFile 覆盖
@@ -1131,7 +1131,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                         )
                         if (!safOk) throw Exception(safErr ?: getString(R.string.msg_save_need_permission_or_path, targetPath))
                         success = true
-                        AppLogger.info("Save", "level.dat 经 SAF 写入: $targetPath")
+                        AppLogger.info("Save", R.string.log_save_level_saf_ok, targetPath)
                     }
 
                     if (!success && checkShizukuAvailable()) {
@@ -1143,9 +1143,9 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                         // 必须检查退出码：原来无条件 success = true，cp 失败也会提示「已保存」
                         if (cp.waitFor() == 0) {
                             success = true
-                            AppLogger.info("Save", "level.dat 经 Shizuku 写入: $targetPath")
+                            AppLogger.info("Save", R.string.log_save_level_shizuku_ok, targetPath)
                         } else {
-                            AppLogger.warn("Save", "level.dat 经 Shizuku 写入失败（cp 退出码非 0）: $targetPath")
+                            AppLogger.warn("Save", R.string.log_save_level_shizuku_failed, targetPath)
                         }
                     }
 
@@ -1192,7 +1192,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             if (!force) {
                 if (!BackupSettings.isAutoEnabled(context)) return false
                 if (!BackupSettings.isDueForBackup(context, folderName, isPlayer)) {
-                    AppLogger.info("Backup", "距上次备份不足间隔，跳过: $folderName（玩家=$isPlayer）")
+                    AppLogger.info("Backup", R.string.log_backup_throttled, folderName, isPlayer.toString())
                     return false
                 }
             }
@@ -1444,7 +1444,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 _currentWorldFolder.value = null
                 editorVM?.reset()
             }
-            AppLogger.info("World", "已移入回收站(SAF): $folder -> $slotName")
+            AppLogger.info("World", R.string.log_world_moved_trash_saf, folder, slotName)
             return Pair(true, slotName)
         }
 
@@ -1512,7 +1512,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             editorVM?.reset()
         }
 
-        AppLogger.info("World", "已移入回收站: $folder -> $slotName")
+        AppLogger.info("World", R.string.log_world_moved_trash, folder, slotName)
         return Pair(true, slotName)
     }
 
@@ -1550,7 +1550,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             deleteRecursive(src)
             restoreBackupsIfAny(context, item)
             try { deleteRecursive(item.dir) } catch (_: Exception) {}
-            AppLogger.info("World", "已从回收站恢复(SAF): ${item.originalFolder}")
+            AppLogger.info("World", R.string.log_world_restored_saf, item.originalFolder)
             return Pair(true, null)
         }
 
@@ -1598,7 +1598,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         } catch (_: Exception) {
         }
 
-        AppLogger.info("World", "已从回收站恢复: ${item.originalFolder}")
+        AppLogger.info("World", R.string.log_world_restored, item.originalFolder)
         return Pair(true, null)
     }
 
@@ -2051,7 +2051,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         threads: Int,
         onProgress: ((Long, Long) -> Unit)? = null
     ) {
-        AppLogger.info("Copy", "多线程拷贝: $threads 线程, $source -> $target")
+        AppLogger.info("Copy", R.string.log_copy_multithread, threads, source, target)
         val files = mutableListOf<Pair<File, File>>()
         val dirs = mutableListOf<File>()
         collectCopyPlan(source, target, files, dirs)

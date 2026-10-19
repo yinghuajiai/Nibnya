@@ -5,6 +5,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import yhjmew.nibnya.R
 
 /**
  * 备份策略（开关 / 节流间隔 / 保留上限）。
@@ -111,11 +112,11 @@ object BackupSettings {
             doomed.forEach { f ->
                 deleteRecursive(f)
                 n++
-                AppLogger.info("Backup", "超出上限($max)，已删除最旧备份: ${f.name}")
+                AppLogger.info("Backup", R.string.log_backup_prune, max, f.name)
             }
             n
         } catch (e: Exception) {
-            AppLogger.warn("Backup", "清理旧备份失败: ${e.message}")
+            AppLogger.warn("Backup", R.string.log_backup_prune_failed, e.message)
             0
         }
     }

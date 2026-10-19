@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import yhjmew.nibnya.util.AppLogger
 import java.io.File
+import yhjmew.nibnya.R
 
 /**
  * SAF（存储访问框架）读写工具层。
@@ -262,14 +263,14 @@ object SafIo {
             if (doc.isDirectory) {
                 doc.listFiles().forEach { child ->
                     // 子项删除失败不中断：父目录删除时系统会一并清理
-                    if (!deleteDoc(child)) AppLogger.warn("SafIo", "删除失败: ${child.name}")
+                    if (!deleteDoc(child)) AppLogger.warn("SafIo", R.string.log_saf_delete_failed, child.name)
                 }
             }
             val ok = doc.delete()
-            if (!ok) AppLogger.warn("SafIo", "delete() 返回 false: ${doc.name}")
+            if (!ok) AppLogger.warn("SafIo", R.string.log_saf_delete_returned_false, doc.name)
             ok
         } catch (e: Exception) {
-            AppLogger.warn("SafIo", "删除异常(${doc.name}): ${e.message}")
+            AppLogger.warn("SafIo", R.string.log_saf_delete_exception, doc.name, e.message)
             false
         }
     }
