@@ -832,4 +832,17 @@ Delete them as well?</string>
     <string name="btn_switch">Switch</string>
         <string name="custom_tap_to_edit"> (tap to edit)</string>
     <string name="hint_number_range">%1$d - %2$d</string>
+    <!-- Logs / crash logs: header, time, device info -->
+    <string name="log_header">Nibnya Logs</string>
+    <string name="log_time">Time</string>
+    <string name="log_device_info">Device info</string>
+    <string name="log_entries">Logs</string>
+    <string name="log_brand">Brand</string>
+    <string name="log_manufacturer">Manufacturer</string>
+    <string name="log_model">Model</string>
+    <string name="log_os_version">Android version</string>
+    <string name="log_rom">ROM version</string>
+    <string name="log_abi">CPU ABI</string>
+    <string name="log_app_version">App version</string>
+    <string name="log_crash_header">Nibnya Crash Log</string>
 </resources>
