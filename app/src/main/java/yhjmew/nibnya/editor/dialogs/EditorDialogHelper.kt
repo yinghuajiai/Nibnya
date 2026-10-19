@@ -1,11 +1,8 @@
 package yhjmew.nibnya.editor.dialogs
 
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
-import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
@@ -820,48 +817,26 @@ fun MainActivity.showDebugMenu() {
                     { throw RuntimeException("Manual crash test") }, 1000
                 )
                 1 -> {
+                    // 与全局错误弹窗同一形态（可选中复制 + 复制按钮）
                     val logs = AppLogger.getLogs()
-                    val scrollView = ScrollView(this)
-                    val logTv = TextView(this).apply {
-                        text = logs.ifEmpty { getString(R.string.msg_no_logs) }
-                        typeface = Typeface.MONOSPACE
-                        textSize = 12f
-                        setPadding(20, 20, 20, 20)
-                        setTextIsSelectable(true)
-                    }
-                    scrollView.addView(logTv)
-                    AlertDialog.Builder(this)
-                        .setTitle(getString(R.string.title_logs))
-                        .setView(scrollView)
-                        .setPositiveButton(getString(R.string.btn_close), null)
-                        .setNeutralButton(getString(R.string.menu_copy)) { _, _ ->
-                            if (logs.isEmpty()) {
-                                toast(getString(R.string.msg_no_logs_to_copy))
-                            } else {
-                                (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                                    .setPrimaryClip(ClipData.newPlainText(getString(R.string.title_logs), logs))
-                                toast(getString(R.string.toast_logs_copied))
-                            }
-                        }
-                        .setNegativeButton(getString(R.string.btn_export)) { _, _ ->
+                    showLogDialog(
+                        title = getString(R.string.title_logs),
+                        detail = logs.ifEmpty { getString(R.string.msg_no_logs) },
+                        actionText = getString(R.string.btn_export),
+                        onAction = {
                             val file = AppLogger.exportToFile()
                             if (file != null) {
                                 toast(getString(R.string.toast_logs_exported, file.absolutePath))
                             } else {
                                 toast(getString(R.string.msg_no_logs_to_export))
                             }
-                        }
-                        .show()
+                        },
+                        cancelText = getString(R.string.btn_close)
+                    )
                 }
                 2 -> {
                     val logs = AppLogger.getLogs()
-                    if (logs.isEmpty()) {
-                        toast(getString(R.string.msg_no_logs_to_copy))
-                    } else {
-                        (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
-                            .setPrimaryClip(ClipData.newPlainText("Logs", logs))
-                        toast(getString(R.string.toast_logs_copied))
-                    }
+                    copyToClipboard(getString(R.string.title_logs), logs)
                 }
                 3 -> {
                     val file = AppLogger.exportToFile()
