@@ -36,6 +36,16 @@ private fun MainActivity.showDataListDialog(type: Int, label: String) {
     if (dbPath == null || !File(dbPath).exists()) {
         toast(getString(R.string.toast_please_initialize_the_database_first)); return
     }
+
+    // 如果是地图或村庄，先重扫缓存（确保拼图生成后的数据可见）
+    if (type == MainActivity.TYPE_MAP) {
+        cacheMapList = null  // ← 强制下次重扫
+    } else if (type == MainActivity.TYPE_VILLAGE) {
+        cacheVillageList = null
+    } else if (type == MainActivity.TYPE_PLAYER) {
+        cachePlayerList = null
+    }
+
     val cachedList: MutableList<String>? = when (type) {
         MainActivity.TYPE_PLAYER -> cachePlayerList
         MainActivity.TYPE_MAP -> cacheMapList
@@ -132,6 +142,7 @@ private fun MainActivity.showListDialogUI(
     dataList: MutableList<String>, type: Int, label: String
 ) {
     val baseTitle = getString(R.string.title_label_data, label)
+    // 列表为空时只弹 Toast 提示，但对话框仍然继续显示（保留"更多操作"按钮供用户新建）
     if (dataList.isEmpty()) { toast(getString(R.string.toast_no_label_data, label)) }
 
     val adapter = FuzzyListAdapter(this, dataList)
@@ -295,7 +306,7 @@ private fun MainActivity.pastePlayerJson(targetKey: String, onSuccess: Runnable?
     val clip = cm.primaryClip ?: return
 
     AlertDialog.Builder(this)
-        .setTitle(getString(R.string.title_overwride_warning))
+        .setTitle(getString(R.string.title_overwrite_warning))
         .setMessage(getString(R.string.msg_full_overwrite_confirm, targetKey))
         .setPositiveButton(getString(R.string.btn_cover)) { _, _ ->
             val jsonStr = cm.primaryClip!!.getItemAt(0).text.toString()

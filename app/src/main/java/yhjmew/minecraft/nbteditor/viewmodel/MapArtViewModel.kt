@@ -17,8 +17,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import yhjmew.minecraft.nbteditor.AppLogger
 import yhjmew.minecraft.nbteditor.R
 import yhjmew.minecraft.nbteditor.BedrockParser
+import yhjmew.minecraft.nbteditor.NbtTranslator
 import yhjmew.minecraft.nbteditor.NbtTranslator.getString
 import yhjmew.minecraft.nbteditor.PlayerDbManager
 import java.io.File
@@ -44,6 +46,23 @@ class MapArtViewModel : ViewModel() {
     private val _isGenerating = MutableStateFlow(false)
     val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
 
+    data class SlotInfo(
+        val slot: Int,
+        val name: String,
+        val count: Int,
+        val isOccupied: Boolean
+    )
+
+    data class InventorySlotInfo(
+        val mainSlots: List<SlotInfo>,
+        val offhandSlot: SlotInfo?
+    )
+
+    private val _inventorySlotInfo = MutableStateFlow<InventorySlotInfo?>(null)
+    val inventorySlotInfo: StateFlow<InventorySlotInfo?> = _inventorySlotInfo.asStateFlow()
+
+    fun clearInventorySlotInfo() { _inventorySlotInfo.value = null }
+
     private val _progressMessage = MutableStateFlow("")
     val progressMessage: StateFlow<String> = _progressMessage.asStateFlow()
 
@@ -63,7 +82,7 @@ class MapArtViewModel : ViewModel() {
                 val `is` = context.contentResolver.openInputStream(imageUri)
                 val original = BitmapFactory.decodeStream(`is`)
                 `is`?.close()
-                if (original == null) throw Exception(getString(R.string.msg_processing_error_maybe_the_image_is_too_large))
+                if (original == null) throw Exception(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
 
                 val targetW = 128
                 val targetH = 128
@@ -102,8 +121,76 @@ class MapArtViewModel : ViewModel() {
                 _isGenerating.value = false
                 _resultMessage.value = getString(R.string.toast_the_map_is_generated)
             } catch (e: Exception) {
+                AppLogger.error("MapArt", "Map generation failed", e)
                 _isGenerating.value = false
                 _resultMessage.value = getString(R.string.msg_generation_failed, e.message)
+            }
+        }
+    }
+
+    fun scanInventory(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val wm = worldVM ?: return@launch
+                val dbPath = wm.currentWorkingDbPath ?: return@launch
+                val db = PlayerDbManager(dbPath)
+                val playerData = db.readLocalPlayer()
+                db.close()
+
+                val playerRoot = BedrockParser.parseBytes(playerData) ?: JsonObject()
+                val mainSlots = mutableListOf<SlotInfo>()
+                val invWrapper = playerRoot.getAsJsonObject("Inventory")
+
+                // 解析背包
+                val slotMap = mutableMapOf<Int, Pair<String, Int>>()
+                if (invWrapper != null) {
+                    val inventory = invWrapper.getAsJsonArray("v")
+                    if (inventory != null) {
+                        for (item in inventory) {
+                            if (!item.isJsonObject) continue
+                            val itemObj = item.asJsonObject
+                            var itemContent = itemObj
+                            if (itemObj.has("v") && itemObj.get("v").isJsonObject)
+                                itemContent = itemObj.getAsJsonObject("v")
+
+                            val slotEl = itemContent.get("Slot")
+                            val slot = if (slotEl != null) {
+                                if (slotEl.isJsonObject) slotEl.asJsonObject.get("v").asInt
+                                else if (slotEl.isJsonPrimitive) slotEl.asInt
+                                else -1
+                            } else -1
+                            if (slot !in 0..35) continue
+
+                            val nameEl = itemContent.get("Name")
+                            var name = ""
+                            if (nameEl != null) {
+                                if (nameEl.isJsonObject && nameEl.asJsonObject.has("v"))
+                                    name = nameEl.asJsonObject.get("v").asString
+                                else if (nameEl.isJsonPrimitive) name = nameEl.asString
+                            }
+                            val countEl = itemContent.get("Count")
+                            var count = 1
+                            if (countEl != null) {
+                                if (countEl.isJsonObject && countEl.asJsonObject.has("v"))
+                                    count = countEl.asJsonObject.get("v").asInt
+                                else if (countEl.isJsonPrimitive) count = countEl.asInt
+                            }
+                            if (name.isNotEmpty() && name != "minecraft:air" && count > 0) {
+                                slotMap[slot] = Pair(name, count)
+                            }
+                        }
+                    }
+                }
+
+                for (i in 0..35) {
+                    val info = slotMap[i]
+                    mainSlots.add(SlotInfo(i, info?.first ?: getString(R.string.text_slot_empty), info?.second ?: 0, info != null))
+                }
+
+                _inventorySlotInfo.value = InventorySlotInfo(mainSlots, null)
+            } catch (e: Exception) {
+                AppLogger.error("MapArt", "Map generation failed", e)
+                _resultMessage.value = "Puzzle:SCAN_ERROR:${e.message}"
             }
         }
     }
@@ -111,7 +198,7 @@ class MapArtViewModel : ViewModel() {
     // ============================================
     // 巨型拼图生成
     // ============================================
-    fun generatePuzzleMap(context: Context, imageUri: Uri, rows: Int, cols: Int) {
+    fun generatePuzzleMap(context: Context, imageUri: Uri, rows: Int, cols: Int, targetSlot: Int = -1) {
         viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
             _progressMessage.value = getString(R.string.msg_analyzing_backpack)
@@ -180,11 +267,14 @@ class MapArtViewModel : ViewModel() {
                     }
                 }
 
-                var freeSlot: Byte = -1
-                for (i in 0..35) if (!occupiedSlots[i]) { freeSlot = i.toByte(); break }
-                if (freeSlot.toInt() == -1) {
-                    db.close()
-                    throw Exception(getString(R.string.msg_backpack_is_full_least_1_empty_slot))
+                val useSlot = if (targetSlot in 0..35) targetSlot else {
+                    var found = -1
+                    for (i in 0..35) if (!occupiedSlots[i]) { found = i; break }
+                    if (found < 0) {
+                        db.close()
+                        throw Exception(getString(R.string.msg_backpack_is_full_least_1_empty_slot))
+                    }
+                    found
                 }
 
                 // 计算 ID
@@ -200,7 +290,7 @@ class MapArtViewModel : ViewModel() {
                 val `is` = context.contentResolver.openInputStream(imageUri)
                 var rawSrc = BitmapFactory.decodeStream(`is`)
                 `is`?.close()
-                if (rawSrc == null) throw Exception(getString(R.string.msg_processing_error_maybe_the_image_is_too_large))
+                if (rawSrc == null) throw Exception(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
 
                 if (rawSrc.width < cols || rawSrc.height < rows) {
                     val scaled = Bitmap.createScaledBitmap(rawSrc, max(rawSrc.width, cols), max(rawSrc.height, rows), true)
@@ -348,16 +438,51 @@ class MapArtViewModel : ViewModel() {
                 }
 
                 val finalBox = currentContainer ?: throw Exception(getString(R.string.msg_packing_failed))
-                finalBox.add("Slot", wrapTag(1, freeSlot))
-                inventory?.add(finalBox)
+                // 背包：先删除旧条目，包装新盒子，再插入
+                if (inventory != null) {
+                    var removeIndex = -1
+                    for (i in 0 until inventory.size()) {
+                        val item = inventory.get(i)
+                        if (item.isJsonObject) {
+                            val itemObj = item.asJsonObject
+                            val itemContent = if (itemObj.has("v") && itemObj.get("v").isJsonObject)
+                                itemObj.getAsJsonObject("v") else itemObj
 
+                            val slotEl = itemContent.get("Slot")
+                            val slot = when {
+                                slotEl != null && slotEl.isJsonObject && slotEl.asJsonObject.has("v") ->
+                                    slotEl.asJsonObject.get("v").asInt
+                                slotEl != null && slotEl.isJsonPrimitive -> slotEl.asInt
+                                else -> -1
+                            }
+                            if (slot == useSlot) {
+                                removeIndex = i
+                                break
+                            }
+                        }
+                    }
+                    if (removeIndex >= 0) inventory.remove(removeIndex)
+
+                    finalBox.add("Slot", wrapTag(1, useSlot.toByte()))
+                    inventory.add(finalBox)
+                }
+
+                //不要再把 写回 DB 这俩行忘了
                 val newPlayerData = BedrockParser.writeToBytes(playerRoot)
                 db.writeLocalPlayer(newPlayerData)
+                //不要再把 写回 DB 这俩行忘了
+
+// 【核心修复】回填缓存：把地图和玩家数据写入 EditorViewModel
+                val evm = worldVM?.editorVM ?: return@launch
+                evm.nbtDataCache["~local_player"] = playerRoot
+                evm.setRawNbtData(playerRoot)
+
                 db.close()
 
                 _isGenerating.value = false
-                _resultMessage.value = getString(R.string.msg_puzzle_success_format, totalMaps, totalLayers, startMapId, freeSlot)
+                _resultMessage.value = "Puzzle:SUCCESS:$totalMaps:$totalLayers:$startMapId:$useSlot"
             } catch (e: Exception) {
+                AppLogger.error("MapArt", "Map generation failed", e)
                 _isGenerating.value = false
                 _resultMessage.value = getString(R.string.msg_puzzle_error, e.message)
             }

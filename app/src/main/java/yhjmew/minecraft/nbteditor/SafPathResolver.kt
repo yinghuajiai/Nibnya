@@ -8,93 +8,59 @@ import android.provider.DocumentsContract
 import java.io.File
 
 /**
- * 尝试把 SAF Tree Uri 推测为普通路径
- * 这里只是推测，不保证 100% 可用
+ * SAF Tree URI → 真实路径解析器
  */
 object SafPathResolver {
 
-    fun resolveTreeUriToPath(context: Context, treeUri: Uri?): String? {
-        if (treeUri == null) return null
-        if (Build.VERSION.SDK_INT < 21) return null
-
+    /**
+     * 尝试将 SAF Tree URI 解析为文件系统路径
+     * 返回 null 表示无法解析（需要改用 DocumentFile API）
+     */
+    fun resolveTreeUriToPath(context: Context, treeUri: Uri): String? {
         return try {
-            val authority = treeUri.authority
-            if (authority != "com.android.externalstorage.documents") return null
-
-            var docId: String? = null
-
-            try {
-                docId = DocumentsContract.getTreeDocumentId(treeUri)
-            } catch (_: Throwable) {
-            }
-
-            if (docId.isNullOrEmpty()) {
-                try {
-                    if (DocumentsContract.isDocumentUri(context, treeUri)) {
-                        docId = DocumentsContract.getDocumentId(treeUri)
-                    }
-                } catch (_: Throwable) {
-                }
-            }
-
-            if (docId.isNullOrEmpty()) return null
-
-            resolveExternalStorageDocId(docId)
-        } catch (_: Throwable) {
-            null
-        }
+            val docId = DocumentsContract.getTreeDocumentId(treeUri)
+            // 格式: primary:games/com.mojang/...
+            if (docId.startsWith("primary:")) {
+                "/storage/emulated/0/" + docId.removePrefix("primary:")
+            } else if (docId.contains(":")) {
+                val parts = docId.split(":")
+                if (parts.size == 2) {
+                    "/storage/${parts[0]}/${parts[1]}"
+                } else null
+            } else null
+        } catch (_: Exception) { null }
     }
 
     /**
-     * 处理 externalstorage 文档ID
-     * 例如：
-     * primary:Download
-     * primary:Documents/Test
-     * 1234-5678:Folder/Test
-     * raw:/storage/emulated/0/Download/Test
+     * 判断路径是否可以通过普通 File API 访问
      */
-    private fun resolveExternalStorageDocId(docId: String): String? {
-        if (docId.isEmpty()) return null
-
-        if (docId.startsWith("raw:")) {
-            return docId.substring(4)
-        }
-
-        val index = docId.indexOf(':')
-        if (index < 0) return null
-
-        val volume = docId.substring(0, index)
-        var relativePath = docId.substring(index + 1)
-
-        val basePath = when {
-            "primary".equals(volume, ignoreCase = true) ->
-                Environment.getExternalStorageDirectory().absolutePath
-            "home".equals(volume, ignoreCase = true) ->
-                Environment.getExternalStorageDirectory().absolutePath + "/Documents"
-            else -> "/storage/$volume"
-        }
-
-        return joinPath(basePath, relativePath)
+    fun isProbablyUsablePath(path: String): Boolean {
+        // Android 11+ 对于 /Android/data/ 路径即使有 SAF 授权也无法直接 File API 访问
+        if (Build.VERSION.SDK_INT >= 30 && path.contains("/Android/data/")) return false
+        if (Build.VERSION.SDK_INT >= 30 && path.contains("/Android/obb/")) return false
+        val file = File(path)
+        return file.exists() && file.canRead()
     }
 
-    private fun joinPath(basePath: String, relativePath: String): String? {
-        if (basePath.isEmpty()) return null
-        if (relativePath.isEmpty()) return basePath
-
-        var rel = relativePath.replace('\\', '/')
-        while (rel.startsWith("/")) {
-            rel = rel.substring(1)
-        }
-
-        return if (basePath.endsWith("/")) basePath + rel else "$basePath/$rel"
-    }
-
-    fun isProbablyUsablePath(path: String?): Boolean {
-        if (path.isNullOrEmpty()) return false
-        return try {
-            File(path).exists()
-        } catch (_: Throwable) {
-            false
+    /**
+     * 从 SAF URI 猜测 Minecraft 世界路径
+     */
+    fun guessWorldRootFromUri(treeUri: Uri): String? {
+        val uriStr = treeUri.toString()
+        return when {
+            uriStr.contains("com.mojang.minecraftpe") -> {
+                val base = uriStr.substringAfter("com.mojang.minecraftpe")
+                val path = base.substringBefore("tree")
+                "/storage/emulated/0/Android/data/com.mojang.minecraftpe/files/games/com.mojang/minecraftWorlds/"
+            }
+            uriStr.contains("primary:") -> {
+                // 从 URI 中提取路径段
+                val docId = DocumentsContract.getTreeDocumentId(treeUri)
+                if (docId.startsWith("primary:")) {
+                    "/storage/emulated/0/" + docId.removePrefix("primary:")
+                } else null
+            }
+            else -> null
         }
     }
 }

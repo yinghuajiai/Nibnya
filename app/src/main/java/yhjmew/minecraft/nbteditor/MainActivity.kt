@@ -7,7 +7,10 @@ import android.app.AlertDialog
 import android.content.*
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.view.*
 import android.widget.*
 import androidx.core.content.edit
@@ -80,6 +83,7 @@ class MainActivity : ComponentActivity() {
     var puzzleRows = 1
     var puzzleCols = 1
     var currentTargetMapArray: JsonArray? = null
+    private var puzzleImageUri: Uri? = null
 
 
 
@@ -95,20 +99,15 @@ class MainActivity : ComponentActivity() {
             worldVM.setSafPath(uri)
             prefs?.edit()?.putString("saf_tree_uri", uri.toString())?.apply()
             toast(getString(R.string.msg_saf_selected))
-
-            // best-effort：尝试把 SAF Tree Uri 推测为真实路径，成功则直接切换为普通路径
-            val resolved = SafPathResolver.resolveTreeUriToPath(this, uri)
-            if (!resolved.isNullOrEmpty() && SafPathResolver.isProbablyUsablePath(resolved)) {
-                worldVM.switchPath(if (resolved.endsWith("/")) resolved else "$resolved/")
-            }
             showWorldSelector()
         }
     }
 
     internal val puzzleImageLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { mapVM.generatePuzzleMap(this, it, puzzleRows, puzzleCols) }
+    ) {uri ->
+        puzzleImageUri = uri  // 先暂存
+        mapVM.scanInventory(this)  // 扫描背包→弹出格子选择
     }
 
     internal val mapImageLauncher = registerForActivityResult(
@@ -161,23 +160,24 @@ class MainActivity : ComponentActivity() {
 
         val isChinese = Locale.getDefault().language.contains("zh")
         editorVM.setViewMode(prefs!!.getInt("view_mode", if (isChinese) 2 else 0))
-        worldVM.setUseShizuku(prefs!!.getBoolean("use_shizuku", true))
-
-        prefs!!.getString("saf_tree_uri", null)?.let { uriStr ->
-            try {
-                val uri = uriStr.toUri()
-                contentResolver.takePersistableUriPermission(uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                worldVM.safTreeUri = uri
-                // best-effort：尝试解析为真实路径，成功则用普通路径
-                val resolved = SafPathResolver.resolveTreeUriToPath(this, uri)
-                if (!resolved.isNullOrEmpty() && SafPathResolver.isProbablyUsablePath(resolved)) {
-                    worldVM.switchPath(if (resolved.endsWith("/")) resolved else "$resolved/")
-                } else {
-                    worldVM.switchPath("$uri/")
-                }
-            } catch (_: Exception) { prefs!!.edit { remove("saf_tree_uri") } }
+        val skipShizuku = if (prefs!!.contains("skip_shizuku")) {
+            prefs!!.getBoolean("skip_shizuku", false)
+        } else {
+            // 首次安装，根据系统版本决定默认值
+            val defaultSkip = Build.VERSION.SDK_INT < 30
+            prefs!!.edit()?.putBoolean("skip_shizuku", defaultSkip)?.apply()
+            defaultSkip
         }
+        worldVM.setUseShizuku(!skipShizuku)
+
+//        prefs!!.getString("saf_tree_uri", null)?.let { uriStr ->
+//            try {
+//                val uri = uriStr.toUri()
+//                contentResolver.takePersistableUriPermission(uri,
+//                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+//                worldVM.safTreeUri = uri; worldVM.switchPath("$uri/")
+//            } catch (_: Exception) { prefs!!.edit { remove("saf_tree_uri") } }
+//        }
 
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.main)
@@ -195,13 +195,49 @@ class MainActivity : ComponentActivity() {
                 getString(R.string.toast_shizuku_granted)
             else getString(R.string.toast_shizuku_denied))
         }
+
+        when {
+            Build.VERSION.SDK_INT >= 30 -> {
+                // Android 11+ 需要所有文件访问权限
+                if (!Environment.isExternalStorageManager()) {
+                    AlertDialog.Builder(this)
+                        .setTitle(getString(R.string.title_need_all_files_permission))
+                        .setMessage(getString(R.string.msg_all_files_permission_required))
+                        .setPositiveButton(getString(R.string.btn_go_grant)) { _, _ ->
+                            try {
+                                startActivity(Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                    data = "package:$packageName".toUri()
+                                })
+                            } catch (_: Exception) {
+                                toast(getString(R.string.toast_open_settings_failed))
+                            }
+                        }
+                        .setNegativeButton(getString(R.string.btn_cancel), null)
+                        .setCancelable(false)
+                        .show()
+                }
+            }
+            Build.VERSION.SDK_INT >= 23 -> {
+                // Android 6-10 请求存储权限
+                if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+                    checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(
+                        arrayOf(
+                            android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                            android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                        ),
+                        REQUEST_STORAGE_PERMISSION
+                    )
+                }
+            }
+        }
+
         worldVM.checkStoragePermission(this)
 
-        if (!worldVM.checkShizukuAvailable()) {
-            toast(getString(R.string.toast_shizuku_needed))
-            try { Class.forName("rikka.shizuku.Shizuku")
-                .getMethod("requestPermission", Int::class.javaPrimitiveType).invoke(null, 0) }
-            catch (_: Exception) { toast(getString(R.string.toast_install_shizuku)) }
+        Shizuku.addRequestPermissionResultListener { _, grant ->
+            toast(if (grant == PackageManager.PERMISSION_GRANTED)
+                getString(R.string.toast_shizuku_granted)
+            else getString(R.string.toast_shizuku_denied))
         }
 
         if (savedInstanceState == null) worldVM.cleanUpOldSessions(this)
@@ -309,6 +345,12 @@ class MainActivity : ComponentActivity() {
                         .setNegativeButton(getString(R.string.btn_cancel), null)
                         .show()
                 }
+            }
+        }
+
+        lifecycleScope.launch {
+            mapVM.inventorySlotInfo.collect { info ->
+                info?.let { showSlotPickerDialog(it) }
             }
         }
     }
@@ -438,10 +480,7 @@ class MainActivity : ComponentActivity() {
         val item = editorVM.wrapRawItem(raw)
         val type = item.get("t").asInt
         if (type == 10) {
-            val v = item.get("v")
-            if (v != null && v.isJsonObject) {
-                editorVM.enterFolder(key, v.asJsonObject, false, nbtListView!!.firstVisiblePosition)
-            } else toast(getString(R.string.toast_no_data))
+            editorVM.enterFolder(key, item.getAsJsonObject("v"), false, nbtListView!!.firstVisiblePosition)
         } else if (type == 9) {
             editorVM.enterFolder(key, editorVM.convertListToMap(item), true, nbtListView!!.firstVisiblePosition)
         } else {
@@ -545,7 +584,59 @@ class MainActivity : ComponentActivity() {
     // 世界选择 / 路径（轻量包装）
     // ============================================
     private fun showWorldSelector() {
-        pendingWorldSelector = true; worldVM.scanWorlds(this)
+        // 检查是否需要 Shizuku 但不可用
+        if (!prefs!!.getBoolean("skip_shizuku", false) &&
+            (worldVM.currentPath.value == PATH_STANDARD || worldVM.currentPath.value == PATH_LEGACY)) {
+            when (val status = worldVM.checkShizukuStatus(applicationContext)) {
+                is WorldViewModel.ShizukuStatus.NotInstalled -> {
+                    showShizukuNotInstalledDialog()
+                    return
+                }
+                is WorldViewModel.ShizukuStatus.NotRunning -> {
+                    toast(getString(R.string.toast_shizuku_not_running))
+                    return
+                }
+                is WorldViewModel.ShizukuStatus.PermissionDenied -> {
+                    worldVM.requestShizukuPermission()
+                    toast(getString(R.string.toast_shizuku_permission_failed))
+                    return
+                }
+                is WorldViewModel.ShizukuStatus.Available -> {
+                    // 继续
+                }
+            }
+        }
+
+        pendingWorldSelector = true
+        if (worldVM.safTreeUri != null) {
+            worldVM.scanWorldsViaSaf(this, worldVM.safTreeUri!!)
+        } else {
+            worldVM.scanWorlds(this)
+        }
+    }
+
+    private fun showShizukuNotInstalledDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_shizuku_not_found))
+            .setMessage(getString(R.string.msg_shizuku_recommend_install))
+            .setPositiveButton(getString(R.string.btn_download)) { _, _ ->
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse("https://github.com/RikkaApps/Shizuku/releases")
+                    })
+                } catch (_: Exception) {
+                    toast(getString(R.string.toast_open_browser_failed))
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_continue_without)) { _, _ ->
+                worldVM.setUseShizuku(false)
+                prefs?.edit()?.putBoolean("use_shizuku", false)?.apply()
+                // 允许继续扫描（走 File API）
+                pendingWorldSelector = true
+                worldVM.scanWorlds(this)
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun showPathSelector() {
@@ -553,8 +644,18 @@ class MainActivity : ComponentActivity() {
             .setItems(arrayOf(getString(R.string.path_standard), getString(R.string.path_legacy),
                 getString(R.string.path_custom), getString(R.string.path_saf))) { _, w ->
                 when (w) {
-                    0 -> { worldVM.switchPath(PATH_STANDARD); showWorldSelector() }
-                    1 -> { worldVM.switchPath(PATH_LEGACY); showWorldSelector() }
+                    0 -> {
+                    worldVM.safTreeUri = null
+                    prefs?.edit()?.remove("saf_tree_uri")?.apply()
+                    worldVM.switchPath(PATH_STANDARD)
+                    showWorldSelector()
+                }
+                    1 -> {
+                    worldVM.safTreeUri = null
+                    prefs?.edit()?.remove("saf_tree_uri")?.apply()
+                    worldVM.switchPath(PATH_LEGACY)
+                    showWorldSelector()
+                }
                     2 -> showCustomPathDialog()
                     3 -> safPathLauncher.launch(null)
                 }
@@ -566,7 +667,12 @@ class MainActivity : ComponentActivity() {
         AlertDialog.Builder(this).setTitle(getString(R.string.path_custom)).setView(input)
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
                 var p = input.text.toString().trim()
-                if (p.isNotEmpty()) { worldVM.switchPath(if (p.endsWith("/")) p else "$p/"); showWorldSelector() }
+                if (p.isNotEmpty()) {
+                    worldVM.safTreeUri = null
+                    prefs?.edit()?.remove("saf_tree_uri")?.apply()
+                    worldVM.switchPath(if (p.endsWith("/")) p else "$p/")
+                    showWorldSelector()
+                }
             }.show()
     }
 
@@ -637,11 +743,24 @@ class MainActivity : ComponentActivity() {
     private fun handleResult(msg: String) {
         when {
             msg.startsWith("Puzzle:SUCCESS:") -> {
-                val p = msg.removePrefix("Puzzle:SUCCESS:").split(":")
-                toast("Success! ${p.getOrElse(0){"?"}} maps, ${p.getOrElse(1){"?"}} layers")
-                worldVM.loadPlayerData(this, worldVM.currentWorldFolder.value ?: return)
+                val parts = msg.removePrefix("Puzzle:SUCCESS:").split(":")
+                val totalMaps = parts.getOrElse(0) { "0" }
+                val totalLayers = parts.getOrElse(1) { "0" }
+                val startMapId = parts.getOrElse(2) { "0" }
+                val freeSlot = parts.getOrElse(3) { "0" }
+                toast(getString(R.string.msg_puzzle_success_format,
+                    totalMaps.toIntOrNull() ?: 0,
+                    totalLayers.toIntOrNull() ?: 0,
+                    startMapId.toIntOrNull() ?: 0,
+                    freeSlot.toIntOrNull() ?: 0))
+                worldVM.currentWorldFolder.value?.let { folder ->
+                    worldVM.reloadPlayerFromCurrentDb()
+                }
             }
-            msg.startsWith("Puzzle:ERROR:") -> toast("Puzzle failed: ${msg.removePrefix("Puzzle:ERROR:")}")
+            msg.startsWith("Puzzle:ERROR:") -> {
+                val error = msg.removePrefix("Puzzle:ERROR:")
+                toast(getString(R.string.msg_puzzle_error, error))
+            }
             else -> toast(msg)
         }
     }
@@ -723,6 +842,104 @@ class MainActivity : ComponentActivity() {
         catch (_: Exception) {}
     }
 
+    private fun showSlotPickerDialog(info: MapArtViewModel.InventorySlotInfo) {
+        val uri = puzzleImageUri ?: run {
+            mapVM.clearInventorySlotInfo()
+            return
+        }
+
+        val emptyCount = info.mainSlots.count { !it.isOccupied }
+        val lines = mutableListOf<String>()
+
+        for (i in 0..35) {
+            val s = info.mainSlots[i]
+            if (s.isOccupied) {
+                lines.add("⚠ [$i] ${s.name} x${s.count}")
+            } else {
+                lines.add(getString(R.string.item_slot_empty, i))
+            }
+        }
+
+        val adapter = ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, lines)
+        val lv = ListView(this).apply { this.adapter = adapter }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_puzzle_slot_select))
+            .setMessage(getString(R.string.msg_puzzle_empty_slots_available, emptyCount))
+            .setView(lv)
+            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                mapVM.clearInventorySlotInfo()
+                puzzleImageUri = null
+            }
+            .create()
+
+        lv.onItemClickListener = AdapterView.OnItemClickListener { _, _, pos, _ ->
+            dialog.dismiss()
+            mapVM.clearInventorySlotInfo()
+
+            val targetSlot = if (pos in 0..35) pos else {
+                puzzleImageUri = null
+                return@OnItemClickListener
+            }
+
+            // 如果选了有东西的格子，二次确认
+            val slotInfo = info.mainSlots[targetSlot]
+
+            if (slotInfo.isOccupied) {
+                val label = getString(R.string.label_puzzle_slot, targetSlot)
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.title_puzzle_slot_occupied))
+                    .setMessage(getString(R.string.msg_puzzle_slot_has_items, label, slotInfo.name, slotInfo.count))
+                    .setPositiveButton(getString(R.string.btn_puzzle_confirm_overwrite)) { _, _ ->
+                        mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
+                        puzzleImageUri = null
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
+                        puzzleImageUri = null
+                    }
+                    .show()
+            } else {
+                mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
+                puzzleImageUri = null
+            }
+        }
+
+        dialog.show()
+    }
+
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_STORAGE_PERMISSION) {
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                toast(getString(R.string.toast_storage_permission_granted))
+            } else {
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.title_permission_denied))
+                    .setMessage(getString(R.string.msg_storage_permission_required))
+                    .setPositiveButton(getString(R.string.btn_go_settings)) { _, _ ->
+                        try {
+                            startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = "package:$packageName".toUri()
+                            })
+                        } catch (_: Exception) {
+                            toast(getString(R.string.toast_open_settings_failed))
+                        }
+                    }
+                    .setNegativeButton(getString(R.string.btn_cancel), null)
+                    .show()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 如果是 Android 11+ 且之前没权限，用户授予后自动刷新
+        if (Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager()) {
+            // 权限已授予，可以提示用户
+        }
+    }
+
     // ============================================
     // Companion
     // ============================================
@@ -734,5 +951,6 @@ class MainActivity : ComponentActivity() {
         const val PATH_LEGACY = "/storage/emulated/0/games/com.mojang/minecraftWorlds/"
         const val BRIDGE_ROOT = "/storage/emulated/0/Download/NbtEditor_Data/Bridge/"
         const val LEVEL_DAT_NAME = "level.dat"
+        const val REQUEST_STORAGE_PERMISSION = 100
     }
 }
