@@ -817,36 +817,17 @@ fun MainActivity.showDebugMenu() {
                     { throw RuntimeException("Manual crash test") }, 1000
                 )
                 1 -> {
-                    // 与全局错误弹窗同一形态（可选中复制 + 复制按钮）
-                    val logs = AppLogger.getLogs()
+                    // 与全局错误弹窗同一形态；「导出」是内置按钮，不用再传 actionText
                     showLogDialog(
                         title = getString(R.string.title_logs),
-                        detail = logs.ifEmpty { getString(R.string.msg_no_logs) },
-                        actionText = getString(R.string.btn_export),
-                        onAction = {
-                            val file = AppLogger.exportToFile()
-                            if (file != null) {
-                                toast(getString(R.string.toast_logs_exported, file.absolutePath))
-                            } else {
-                                toast(getString(R.string.msg_no_logs_to_export))
-                            }
-                        },
+                        detail = AppLogger.getLogs().ifEmpty { getString(R.string.msg_no_logs) },
                         cancelText = getString(R.string.btn_close)
                     )
                 }
-                // 索引 2 =「💾 导出日志到文件」
-                2 -> {
-                    val file = AppLogger.exportToFile()
-                    if (file != null) {
-                        toast(getString(R.string.toast_logs_exported, file.absolutePath))
-                    } else {
-                        toast(getString(R.string.msg_no_logs_to_export))
-                    }
-                }
+                // 索引 2 =「💾 导出日志到文件」——与日志弹窗里的导出走同一条路径
+                2 -> exportLogsToFile()
                 // 索引 3 =「📄 复制日志到剪贴板」
-                3 -> {
-                    copyToClipboard(getString(R.string.title_logs), AppLogger.getLogs())
-                }
+                3 -> copyToClipboard(getString(R.string.title_logs), AppLogger.getLogs())
             }
         }.show()
 }

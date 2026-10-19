@@ -7,6 +7,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import yhjmew.nibnya.R
 
 /**
  * 把 NBT 内容导出为文件。
@@ -64,7 +65,7 @@ object NbtExporter {
             target.writeText(content)
             target
         } catch (e: Exception) {
-            AppLogger.warn("Export", "写入导出目录失败: ${e.message}")
+            AppLogger.warn("Export", R.string.log_export_dir_failed, e.message)
             null
         }
     }
@@ -93,7 +94,7 @@ object NbtExporter {
             } ?: return false
             true
         } catch (e: Exception) {
-            AppLogger.warn("Export", "SAF 导出失败: ${e.message}")
+            AppLogger.warn("Export", R.string.log_export_saf_failed, e.message)
             false
         }
     }

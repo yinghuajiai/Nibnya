@@ -9,6 +9,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import yhjmew.nibnya.nbt.SnbtConverter
 import java.io.File
+import yhjmew.nibnya.R
 
 /**
  * 应用内 NBT 剪贴板。
@@ -44,10 +45,10 @@ object NbtClipboard {
             val f = File(context.filesDir, FILE_NAME)
             if (f.exists() && f.length() > 0) {
                 cached = JsonParser.parseString(f.readText())
-                AppLogger.info("Clipboard", "已恢复上次剪贴板内容")
+                AppLogger.info("Clipboard", R.string.log_clipboard_restored)
             }
         } catch (e: Exception) {
-            AppLogger.warn("Clipboard", "读取剪贴板失败: ${e.message}")
+            AppLogger.warn("Clipboard", R.string.log_clipboard_read_failed, e.message)
         }
     }
 
@@ -76,7 +77,7 @@ object NbtClipboard {
         try {
             File(context.filesDir, FILE_NAME).writeText(cached?.toString() ?: "")
         } catch (e: Exception) {
-            AppLogger.warn("Clipboard", "保存剪贴板失败: ${e.message}")
+            AppLogger.warn("Clipboard", R.string.log_clipboard_save_failed, e.message)
         }
     }
 
@@ -91,7 +92,7 @@ object NbtClipboard {
             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("NBT", text))
         } catch (e: Exception) {
-            AppLogger.warn("Clipboard", "写入系统剪贴板失败: ${e.message}")
+            AppLogger.warn("Clipboard", R.string.log_clipboard_write_sys_failed, e.message)
         }
     }
 
@@ -112,7 +113,7 @@ object NbtClipboard {
             val text = cm.primaryClip?.getItemAt(0)?.text?.toString() ?: return null
             SnbtConverter.parseAny(text)
         } catch (e: Exception) {
-            AppLogger.warn("Clipboard", "读取系统剪贴板失败: ${e.message}")
+            AppLogger.warn("Clipboard", R.string.log_clipboard_read_sys_failed, e.message)
             null
         }
     }

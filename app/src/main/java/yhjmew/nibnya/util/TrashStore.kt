@@ -7,6 +7,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import yhjmew.nibnya.R
 
 /**
  * 回收站：删除存档时先把整个世界目录**移进来**，而不是直接抹掉。
@@ -103,7 +104,7 @@ object TrashStore {
             o.addProperty("safFolder", safFolder)
             File(slot, META_NAME).writeText(o.toString())
         } catch (e: Exception) {
-            AppLogger.warn("Trash", "写入回收站元数据失败: ${e.message}")
+            AppLogger.warn("Trash", R.string.log_trash_meta_write_failed, e.message)
         }
     }
 
@@ -117,7 +118,7 @@ object TrashStore {
                 .mapNotNull { parse(it) }
                 .sortedByDescending { it.deletedAt }
         } catch (e: Exception) {
-            AppLogger.warn("Trash", "列出回收站失败: ${e.message}")
+            AppLogger.warn("Trash", R.string.log_trash_list_failed, e.message)
             emptyList()
         }
     }
@@ -171,9 +172,9 @@ object TrashStore {
     fun deleteForever(item: TrashItem) {
         try {
             deleteRecursive(item.dir)
-            AppLogger.info("Trash", "已彻底删除: ${item.dir.name}")
+            AppLogger.info("Trash", R.string.log_trash_deleted, item.dir.name)
         } catch (e: Exception) {
-            AppLogger.warn("Trash", "彻底删除失败: ${e.message}")
+            AppLogger.warn("Trash", R.string.log_trash_delete_failed, e.message)
         }
     }
 
@@ -206,7 +207,7 @@ object TrashStore {
                     deleteForever(it); n++
                 }
             }
-            if (n > 0) AppLogger.info("Trash", "自动清理了 $n 个超过 $days 天的回收站条目")
+            if (n > 0) AppLogger.info("Trash", R.string.log_trash_auto_cleaned, n, days)
         } catch (_: Exception) {
         }
         return n

@@ -845,4 +845,51 @@ Delete them as well?</string>
     <string name="log_abi">CPU ABI</string>
     <string name="log_app_version">App version</string>
     <string name="log_crash_header">Nibnya Crash Log</string>
+    <!-- Log messages (user-facing only; ListDebug internal diagnostics stay untranslated) -->
+    <string name="log_export_mcworld_saf_failed">SAF .mcworld export failed: %1$s</string>
+    <string name="log_puzzle_concurrency">Puzzle concurrency: %1$s (%2$d maps)</string>
+    <string name="log_puzzle_serial">serial</string>
+    <string name="log_puzzle_threads">%1$d threads</string>
+    <string name="log_backup_prune">Over limit (%1$d), removed oldest backup: %2$s</string>
+    <string name="log_backup_prune_failed">Failed to prune old backups: %1$s</string>
+    <string name="log_draft_mark_dirty">Marked as pending save</string>
+    <string name="log_draft_emergency_failed">Emergency persist failed: %1$s</string>
+    <string name="log_draft_write_failed">Failed to write draft: %1$s</string>
+    <string name="log_draft_saved">Draft saved: %1$s</string>
+    <string name="log_draft_save_failed">Failed to save draft: %1$s</string>
+    <string name="log_draft_read_failed">Failed to read draft: %1$s</string>
+    <string name="log_draft_list_failed">Failed to list drafts: %1$s</string>
+    <string name="log_draft_prune">Over limit (%1$d), removed oldest draft: %2$s</string>
+    <string name="log_clipboard_restored">Restored previous clipboard content</string>
+    <string name="log_clipboard_read_failed">Failed to read clipboard: %1$s</string>
+    <string name="log_clipboard_save_failed">Failed to save clipboard: %1$s</string>
+    <string name="log_clipboard_write_sys_failed">Failed to write to system clipboard: %1$s</string>
+    <string name="log_clipboard_read_sys_failed">Failed to read from system clipboard: %1$s</string>
+    <string name="log_export_dir_failed">Failed to write to export folder: %1$s</string>
+    <string name="log_export_saf_failed">SAF export failed: %1$s</string>
+    <string name="log_trash_meta_write_failed">Failed to write trash metadata: %1$s</string>
+    <string name="log_trash_list_failed">Failed to list trash: %1$s</string>
+    <string name="log_trash_deleted">Permanently deleted: %1$s</string>
+    <string name="log_trash_delete_failed">Failed to permanently delete: %1$s</string>
+    <string name="log_trash_auto_cleaned">Auto-cleaned %1$d trash item(s) older than %2$d days</string>
+    <string name="log_export_mcworld_ok">Exported .mcworld: %1$s (%2$d bytes)</string>
+    <string name="log_export_mcworld_pack_failed">Failed to package .mcworld: %1$s</string>
+    <string name="log_saf_delete_failed">Delete failed: %1$s</string>
+    <string name="log_saf_delete_returned_false">delete() returned false: %1$s</string>
+    <string name="log_saf_delete_exception">Delete exception (%1$s): %2$s</string>
+    <string name="log_path_restored">Restored last path: %1$s</string>
+    <string name="log_save_player_direct_ok">Player data written directly: %1$s</string>
+    <string name="log_save_direct_failed_try_shizuku">Direct write failed, trying Shizuku: %1$s</string>
+    <string name="log_save_player_saf_ok">Player data written via SAF: %1$s</string>
+    <string name="log_save_player_shizuku_ok">Player data written via Shizuku: %1$s</string>
+    <string name="log_save_level_direct_ok">level.dat written directly: %1$s</string>
+    <string name="log_save_level_saf_ok">level.dat written via SAF: %1$s</string>
+    <string name="log_save_level_shizuku_ok">level.dat written via Shizuku: %1$s</string>
+    <string name="log_save_level_shizuku_failed">level.dat Shizuku write failed (cp exit code != 0): %1$s</string>
+    <string name="log_backup_throttled">Skipped backup, within interval: %1$s (player=%2$s)</string>
+    <string name="log_world_moved_trash_saf">Moved to trash (SAF): %1$s -> %2$s</string>
+    <string name="log_world_moved_trash">Moved to trash: %1$s -> %2$s</string>
+    <string name="log_world_restored_saf">Restored from trash (SAF): %1$s</string>
+    <string name="log_world_restored">Restored from trash: %1$s</string>
+    <string name="log_copy_multithread">Multithreaded copy: %1$d threads, %2$s -> %3$s</string>
 </resources>

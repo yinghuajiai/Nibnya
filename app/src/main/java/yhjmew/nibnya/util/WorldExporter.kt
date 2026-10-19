@@ -6,6 +6,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import yhjmew.nibnya.R
 
 /**
  * 把整个世界目录打包成 `.mcworld`（本质是 zip），可被 Minecraft 直接导入。
@@ -93,10 +94,10 @@ object WorldExporter {
                     }
                 }
             }
-            AppLogger.info("Export", "已导出 .mcworld: ${out.absolutePath} (${out.length()} 字节)")
+            AppLogger.info("Export", R.string.log_export_mcworld_ok, out.absolutePath, out.length())
             out
         } catch (e: Exception) {
-            AppLogger.warn("Export", "打包 .mcworld 失败: ${e.message}")
+            AppLogger.warn("Export", R.string.log_export_mcworld_pack_failed, e.message)
             null
         }
     }

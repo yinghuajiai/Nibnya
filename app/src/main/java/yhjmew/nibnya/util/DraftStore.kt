@@ -7,6 +7,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import yhjmew.nibnya.R
 
 /**
  * 草稿箱存储：保存「未保存的编辑」，供用户在草稿箱里主动找回。
@@ -78,10 +79,10 @@ object DraftStore {
             originalData?.let { obj.add("originalData", it) }
 
             fileOf(context, sessionKey).writeText(obj.toString())
-            AppLogger.info("Draft", "草稿已保存: $sessionKey")
+            AppLogger.info("Draft", R.string.log_draft_saved, sessionKey)
             pruneTo(context, maxDrafts)
         } catch (e: Exception) {
-            AppLogger.warn("Draft", "草稿保存失败: ${e.message}")
+            AppLogger.warn("Draft", R.string.log_draft_save_failed, e.message)
         }
     }
 
@@ -96,7 +97,7 @@ object DraftStore {
             if (!f.exists() || f.length() == 0L) return null
             parse(f)
         } catch (e: Exception) {
-            AppLogger.warn("Draft", "读取草稿失败: ${e.message}")
+            AppLogger.warn("Draft", R.string.log_draft_read_failed, e.message)
             null
         }
     }
@@ -110,7 +111,7 @@ object DraftStore {
                 ?.sortedByDescending { it.savedAt }
                 ?: emptyList()
         } catch (e: Exception) {
-            AppLogger.warn("Draft", "列出草稿失败: ${e.message}")
+            AppLogger.warn("Draft", R.string.log_draft_list_failed, e.message)
             emptyList()
         }
     }
@@ -177,7 +178,7 @@ object DraftStore {
             if (all.size <= maxDrafts) return
             all.drop(maxDrafts).forEach {
                 remove(context, it.sessionKey)
-                AppLogger.info("Draft", "超出上限($maxDrafts)，已删除最旧草稿: ${it.sessionKey}")
+                AppLogger.info("Draft", R.string.log_draft_prune, maxDrafts, it.sessionKey)
             }
         } catch (_: Exception) {
         }
