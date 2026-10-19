@@ -1886,14 +1886,24 @@ class MainActivity : ComponentActivity() {
     private fun showErrorDialog(msg: String) {
         if (msg.startsWith("DB_CORRUPT:")) {
             val parts = msg.removePrefix("DB_CORRUPT:").split(":")
-            AlertDialog.Builder(this).setTitle(getString(R.string.title_database_corruption))
-                .setMessage(getString(R.string.msg_have_you_tried_a_brute_force_repair))
-                .setPositiveButton(getString(R.string.btn_try_to_fix)) { _, _ ->
+            showLogDialog(
+                title = getString(R.string.title_database_corruption),
+                detail = getString(R.string.msg_have_you_tried_a_brute_force_repair),
+                actionText = getString(R.string.btn_try_to_fix),
+                onAction = {
                     worldVM.tryRepairDb(parts[0]) { ok ->
-                        if (ok) { toast(getString(R.string.msg_under_repair)); parts.getOrNull(1)?.let { worldVM.openPlayerData(this, it) } }
+                        if (ok) {
+                            toast(getString(R.string.msg_under_repair))
+                            parts.getOrNull(1)?.let { worldVM.openPlayerData(this, it) }
+                        }
                     }
-                }.setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> toast(getString(R.string.toast_operation_canceled_please_check_archive_integrity)) }.setCancelable(false).show()
-        } else AlertDialog.Builder(this).setTitle(getString(R.string.title_error)).setMessage(msg).setPositiveButton(getString(R.string.btn_close), null).show()
+                },
+                onCancel = { toast(getString(R.string.toast_operation_canceled_please_check_archive_integrity)) },
+                cancelable = false
+            )
+        } else {
+            showLogDialog(title = getString(R.string.title_error), detail = msg)
+        }
     }
 
     // ============================================
