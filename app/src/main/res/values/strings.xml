@@ -892,4 +892,9 @@ Delete them as well?</string>
     <string name="log_world_restored_saf">Restored from trash (SAF): %1$s</string>
     <string name="log_world_restored">Restored from trash: %1$s</string>
     <string name="log_copy_multithread">Multithreaded copy: %1$d threads, %2$s -> %3$s</string>
+    <!-- Item / block / effect / enchant picker -->
+    <string name="msg_autocomplete_count">%1$d entries, %2$d matched</string>
+    <string name="msg_autocomplete_no_match">No match; you can type a custom ID above</string>
+    <string name="btn_use_custom_id">Use custom ID: %1$s</string>
+    <string name="msg_use_custom_id_hint">Not in the word list; your input is used as-is</string>
 </resources>
