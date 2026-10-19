@@ -203,7 +203,7 @@
     <string name="title_item_label">[物品] </string>
     <string name="title_effect_label">[效果] </string>
     <string name="title_enchant_label">[附魔] </string>
-    <string name="title_choose">选择</string>
+    <string name="title_choose">🔍 从列表选择</string>
     <string name="title_with_count">%1$s (%2$d)</string>
     <string name="title_search_type">搜索%1$s...</string>
     <string name="title_choose_type">选择%1$s</string>
@@ -935,4 +935,5 @@
     <string name="sub_head">头颅</string>
     <string name="sub_redstone">红石/功能</string>
     <string name="sub_element">化学元素</string>
+    <string name="title_all_types">全部</string>
 </resources>

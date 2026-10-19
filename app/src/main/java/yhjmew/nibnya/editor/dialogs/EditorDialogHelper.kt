@@ -484,7 +484,10 @@ fun MainActivity.showEditValueDialog(key: String, item: JsonObject, listElementI
         val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         layout.addView(input)
         layout.addView(Button(this).apply {
+            // 用「🔍 从列表选择」这类明确说法，而不是光秃秃的「选择」——
+            // 玩家才知道这个按钮是干什么的
             text = getString(R.string.title_choose)
+            isAllCaps = false
             setTextColor("#2196F3".toColorInt())
             setBackgroundColor(Color.TRANSPARENT)
             setOnClickListener { showAutocompleteDialog(input, detectedType) }

@@ -203,7 +203,7 @@ Delete them as well?</string>
     <string name="title_item_label">[item] </string>
     <string name="title_effect_label">[effect] </string>
     <string name="title_enchant_label">[enchant] </string>
-    <string name="title_choose">Choose</string>
+    <string name="title_choose">🔍 Pick from list</string>
     <string name="title_with_count">%1$s (%2$d)</string>
     <string name="title_search_type">Search %1$s...</string>
     <string name="title_choose_type">Choose %1$s</string>
@@ -936,4 +936,5 @@ Delete them as well?</string>
     <string name="sub_head">Heads</string>
     <string name="sub_redstone">Redstone</string>
     <string name="sub_element">Elements</string>
+    <string name="title_all_types">All</string>
 </resources>

@@ -68,10 +68,20 @@ private object AutocompleteData {
         val folder = if (lang == "zh") "zh" else "en"
         val out = ArrayList<AutocompleteEntry>()
         when (category) {
+            "all" -> {
+                read(ctx, out, "$folder/item_translation.json", "item")
+                read(ctx, out, "$folder/block_translation.json", "block")
+            }
             "item" -> read(ctx, out, "$folder/item_translation.json", "item")
             "block" -> read(ctx, out, "$folder/block_translation.json", "block")
             "effect" -> read(ctx, out, "$folder/potion_translation.json", "effect")
             "enchant" -> read(ctx, out, "$folder/ench_translation.json", "enchant")
+            "everything" -> {
+                read(ctx, out, "$folder/item_translation.json", "item")
+                read(ctx, out, "$folder/block_translation.json", "block")
+                read(ctx, out, "$folder/potion_translation.json", "effect")
+                read(ctx, out, "$folder/ench_translation.json", "enchant")
+            }
         }
         cache[key] = out
         return out
@@ -107,7 +117,11 @@ private object AutocompleteData {
 // 分类标签
 // ============================================
 
-private val CATEGORIES = listOf("item", "block", "effect", "enchant")
+/**
+ * 粗分类。首项「全部」= 物品 + 方块 + 药水效果 + 附魔 的合集，
+ * 便于「知道名字、只想快速搜一下」的场景（用户要求）。
+ */
+private val CATEGORIES = listOf("everything", "item", "block", "effect", "enchant")
 
 /** 粗分类每类可选的细分类（顺序即下拉顺序）；首项恒为「全部」 */
 private fun subCategoriesOf(category: String): List<String> = when (category) {
@@ -121,7 +135,8 @@ private fun subCategoriesOf(category: String): List<String> = when (category) {
         "sign", "candle", "coral", "light", "shulker", "copper", "head",
         "plant", "redstone", "element", "misc"
     )
-    else -> listOf(SUB_ALL)   // 效果 / 附魔 不细分
+    "everything" -> listOf(SUB_ALL)   // 全部：不细分（混在一起搜最快）
+    else -> listOf(SUB_ALL)           // 效果 / 附魔 不细分
 }
 
 /** 细分类名（走字符串资源，中英各自翻译） */
@@ -174,6 +189,7 @@ fun categoryLabelRes(type: String): Int = when (type) {
     "effect" -> R.string.title_effect
     "enchant" -> R.string.title_enchant
     "all" -> R.string.title_all
+    "everything" -> R.string.title_all_types
     else -> R.string.title_data
 }
 
@@ -182,7 +198,11 @@ fun categoryLabelRes(type: String): Int = when (type) {
 // ============================================
 
 fun MainActivity.showAutocompleteDialog(targetInput: EditText, dataType: String) {
-    var current = if (CATEGORIES.contains(dataType)) dataType else "item"
+    var current = when {
+        CATEGORIES.contains(dataType) -> dataType
+        dataType == "all" -> "everything"   // 原来 "all" 只是物品+方块，现在并入「全部」
+        else -> "item"
+    }
     // 编辑物品的 Name 时默认停在「物品」而不是混在一起的「全部」
     var currentSub = SUB_ALL
     var query = ""
