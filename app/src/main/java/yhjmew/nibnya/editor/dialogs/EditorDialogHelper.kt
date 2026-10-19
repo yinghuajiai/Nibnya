@@ -834,17 +834,18 @@ fun MainActivity.showDebugMenu() {
                         cancelText = getString(R.string.btn_close)
                     )
                 }
+                // 索引 2 =「💾 导出日志到文件」
                 2 -> {
-                    val logs = AppLogger.getLogs()
-                    copyToClipboard(getString(R.string.title_logs), logs)
-                }
-                3 -> {
                     val file = AppLogger.exportToFile()
                     if (file != null) {
                         toast(getString(R.string.toast_logs_exported, file.absolutePath))
                     } else {
                         toast(getString(R.string.msg_no_logs_to_export))
                     }
+                }
+                // 索引 3 =「📄 复制日志到剪贴板」
+                3 -> {
+                    copyToClipboard(getString(R.string.title_logs), AppLogger.getLogs())
                 }
             }
         }.show()
