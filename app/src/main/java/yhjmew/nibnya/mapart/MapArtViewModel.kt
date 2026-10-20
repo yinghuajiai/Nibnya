@@ -432,15 +432,10 @@ class MapArtViewModel : ViewModel() {
                     val endIdx = min(startIdx + mapsPerLayer, totalMaps)
                     val mapsInThisLayer = endIdx - startIdx
 
-                    // 是否需要在盒子里再装一个盒子（= 不是最内层）。
-                    // 基岩版禁止「潜影盒里放潜影盒」，着色盒子更严格；
-                    // 需要嵌套时回退到默认色，避免物品被游戏丢弃。
-                    val isNested = layer != totalLayers - 1
-                    val boxId = if (!isNested) {
-                        "minecraft:pink_shulker_box"
-                    } else {
-                        "minecraft:undyed_shulker_box"
-                    }
+                    // 全部使用粉色潜影盒（含嵌套的内层）。
+                    // 实测可行：基岩版允许着色潜影盒嵌套，不会丢物品。
+                    //   Name 与 Block.name 必须一致，否则图标/颜色会对不上。
+                    val boxId = "minecraft:pink_shulker_box"
 
                     val boxItem = JsonObject()
                     boxItem.add("Name", wrapTag(8, boxId))
