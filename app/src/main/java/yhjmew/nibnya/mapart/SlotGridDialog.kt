@@ -80,14 +80,26 @@ internal fun MainActivity.showSlotGrid(
         body, info, 9, 35, R.string.title_slot_inventory, density, onPick
     )
 
-    root.addView(ScrollView(this).apply { addView(body) })
+    // 网格区占满剩余空间（weight=1），图例才能真的「固定」在底部。
+    root.addView(
+        ScrollView(this).apply { addView(body) },
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        )
+    )
 
+    // 图例固定在底部，不随网格滚动。
+    // 原来它和内容一起放在 AlertDialog 里，宽度没约束 → 文字右侧被裁掉，
+    // 表现为「长按」后面看不见，且不能上下滑动看到。
     root.addView(TextView(this).apply {
         text = getString(R.string.msg_puzzle_slot_legend)
         textSize = 11f
         setTextColor("#999999".toColorInt())
-        setPadding((4 * density).toInt(), (6 * density).toInt(), (4 * density).toInt(), (4 * density).toInt())
-    })
+        setPadding((4 * density).toInt(), (6 * density).toInt(), (4 * density).toInt(), (6 * density).toInt())
+    }, LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+    ))
 
     val dialog = AlertDialog.Builder(this)
         .setTitle(getString(R.string.title_puzzle_slot_select))
@@ -100,6 +112,13 @@ internal fun MainActivity.showSlotGrid(
         .create()
 
     dialog.show()
+
+    // 明确指定窗口尺寸：宽度 92% 屏宽、高度最多 82% 屏高。
+    // AlertDialog 默认按内容测量，长文本会被裁在右边、底部留白也失控。
+    dialog.window?.setLayout(
+        (resources.displayMetrics.widthPixels * 0.92f).toInt(),
+        (resources.displayMetrics.heightPixels * 0.82f).toInt()
+    )
     slotDialog = dialog
 }
 

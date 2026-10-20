@@ -892,7 +892,8 @@ Delete them as well?</string>
     <!-- Puzzle maps into inventory: slot grid -->
     <string name="msg_puzzle_slots_summary">%1$d empty slots (of %2$d) · the result takes %3$d slots</string>
     <string name="msg_puzzle_slot_count">x%1$d</string>
-    <string name="msg_puzzle_slot_legend">Green = empty · Grey = occupied (tap asks to confirm) · long-press for details</string>
+    <string name="msg_puzzle_slot_legend">Green = empty　Grey = occupied
+Tap to pick · tapping a grey slot asks to confirm · long-press for details</string>
     <string name="msg_puzzle_slot_is_empty">%1$s is empty</string>
     <string name="msg_puzzle_slot_detail">%1$s
 Item: %2$s
