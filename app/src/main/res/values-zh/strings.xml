@@ -944,5 +944,9 @@
     <string name="msg_puzzle_slot_detail">%1$s
 
 物品：%2$s
-数量：%3$d</string>
+ID：%3$s
+数量：%4$d</string>
+    <string name="title_slot_hotbar">物品栏</string>
+    <string name="title_slot_inventory">背包</string>
+    <string name="msg_slot_section_header">%1$s（槽位 %2$d–%3$d）· 空 %4$d 格</string>
 </resources>

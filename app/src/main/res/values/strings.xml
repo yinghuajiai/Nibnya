@@ -945,5 +945,9 @@ Delete them as well?</string>
     <string name="msg_puzzle_slot_detail">%1$s
 
 Item: %2$s
-Count: %3$d</string>
+ID: %3$s
+Count: %4$d</string>
+    <string name="title_slot_hotbar">Hotbar</string>
+    <string name="title_slot_inventory">Inventory</string>
+    <string name="msg_slot_section_header">%1$s (slots %2$d–%3$d) · %4$d free</string>
 </resources>
