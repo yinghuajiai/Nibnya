@@ -907,4 +907,8 @@ ID：%3$s
     <string name="title_puzzle_generated">地图已生成</string>
     <string name="btn_save_now">立即保存</string>
     <string name="btn_later">稍后</string>
+    <!-- 拼图：地图与潜影盒命名 -->
+    <string name="msg_puzzle_map_name">拼图 %1$d-%2$d · %3$dx%4$d</string>
+    <string name="msg_puzzle_box_name">拼图画 · %1$dx%2$d · %3$d 张</string>
+    <string name="msg_puzzle_box_name_layer">拼图画 · %1$dx%2$d · %3$d 张（第 %4$d/%5$d 层）</string>
 </resources>

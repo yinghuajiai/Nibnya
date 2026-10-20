@@ -396,7 +396,13 @@ class MapArtViewModel : ViewModel() {
                                     tc.add("map_name_index", wrapTag(3, fMapId.toInt()))
                                     val dt = JsonObject().apply {
                                         addProperty("t", 10)
-                                        add("v", JsonObject().apply { add("Name", wrapTag(8, "Puzzle ${r + 1}-${c + 1}")) })
+                                        // 地图名走字符串资源，跟随应用语言
+                                        add("v", JsonObject().apply {
+                                            add("Name", wrapTag(8, getString(
+                                                R.string.msg_puzzle_map_name,
+                                                r + 1, c + 1, rows, cols
+                                            )))
+                                        })
                                     }
                                     tc.add("display", dt)
                                     add("v", tc)
@@ -425,15 +431,27 @@ class MapArtViewModel : ViewModel() {
                     val startIdx = layer * mapsPerLayer
                     val endIdx = min(startIdx + mapsPerLayer, totalMaps)
                     val mapsInThisLayer = endIdx - startIdx
+
+                    // 是否需要在盒子里再装一个盒子（= 不是最内层）。
+                    // 基岩版禁止「潜影盒里放潜影盒」，着色盒子更严格；
+                    // 需要嵌套时回退到默认色，避免物品被游戏丢弃。
+                    val isNested = layer != totalLayers - 1
+                    val boxId = if (!isNested) {
+                        "minecraft:pink_shulker_box"
+                    } else {
+                        "minecraft:undyed_shulker_box"
+                    }
+
                     val boxItem = JsonObject()
-                    boxItem.add("Name", wrapTag(8, "minecraft:undyed_shulker_box"))
+                    boxItem.add("Name", wrapTag(8, boxId))
                     boxItem.add("Count", wrapTag(1, 1.toByte()))
                     boxItem.add("Damage", wrapTag(2, 0.toShort()))
                     boxItem.add("WasPickedUp", wrapTag(1, 0.toByte()))
                     val blockTag = JsonObject().apply {
                         addProperty("t", 10)
                         val bc = JsonObject()
-                        bc.add("name", wrapTag(8, "minecraft:undyed_shulker_box"))
+                        // ⚠️ Block.name 必须与 Name 一致，否则游戏里图标/颜色会对不上
+                        bc.add("name", wrapTag(8, boxId))
                         bc.add("states", JsonObject().apply { addProperty("t", 10); add("v", JsonObject()) })
                         bc.add("version", wrapTag(3, 18168865))//"18168865" 需要重新按照百科重新填写
                         add("v", bc)
@@ -460,7 +478,17 @@ class MapArtViewModel : ViewModel() {
                         tc.add("Items", itemsListTag)
                         val dt = JsonObject().apply {
                             addProperty("t", 10)
-                            add("v", JsonObject().apply { add("Name", wrapTag(8, if (layer == 0) getString(R.string.msg_puzzle_set_count, totalMaps) else getString(R.string.msg_layer_arrow, layer))) })
+                            // 每一层都写名字：单层时带行列与数量，多层时额外标出第几层，
+                            // 否则外层盒子是空名，玩家分不清哪盒是哪一个。
+                            val boxName = if (totalLayers == 1) {
+                                getString(R.string.msg_puzzle_box_name, rows, cols, totalMaps)
+                            } else {
+                                getString(
+                                    R.string.msg_puzzle_box_name_layer,
+                                    rows, cols, totalMaps, layer + 1, totalLayers
+                                )
+                            }
+                            add("v", JsonObject().apply { add("Name", wrapTag(8, boxName)) })
                         }
                         tc.add("display", dt)
                         add("v", tc)

@@ -906,4 +906,8 @@ Count: %4$d</string>
     <string name="title_puzzle_generated">Maps generated</string>
     <string name="btn_save_now">Save now</string>
     <string name="btn_later">Later</string>
+    <!-- Puzzle: map and shulker box names -->
+    <string name="msg_puzzle_map_name">Puzzle %1$d-%2$d · %3$dx%4$d</string>
+    <string name="msg_puzzle_box_name">Puzzle art · %1$dx%2$d · %3$d maps</string>
+    <string name="msg_puzzle_box_name_layer">Puzzle art · %1$dx%2$d · %3$d maps (layer %4$d/%5$d)</string>
 </resources>
