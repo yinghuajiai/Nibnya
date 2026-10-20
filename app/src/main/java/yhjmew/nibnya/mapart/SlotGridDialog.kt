@@ -36,11 +36,24 @@ import yhjmew.nibnya.nbt.NbtTranslator
  * - 已占用：灰色，仍可点 —— 弹二次确认「这里已有 xxx ×N，确定覆盖？」
  * - 长按：显示完整信息（槽位号 / 本地化名 / 原始 ID / 数量）
  */
+/**
+ * 当前打开着的槽位网格对话框。
+ *
+ * 重写时曾经漏掉 dismiss：选中槽位后弹窗不关，Toast 就盖在
+ * 「生成前的旧背包」上，看起来像「没有实时刷新」。这里显式持有引用，
+ * 选中/取消时立刻关闭。
+ */
+private var slotDialog: AlertDialog? = null
+
 internal fun MainActivity.showSlotGrid(
     info: MapArtViewModel.InventorySlotInfo,
     onPick: (Int) -> Unit,
     onCancel: () -> Unit
 ) {
+    // 防连点：先关掉可能还开着的旧弹窗
+    slotDialog?.dismiss()
+    slotDialog = null
+
     val density = resources.displayMetrics.density
     val emptyCount = info.mainSlots.count { !it.isOccupied }
 
@@ -76,12 +89,18 @@ internal fun MainActivity.showSlotGrid(
         setPadding((4 * density).toInt(), (6 * density).toInt(), (4 * density).toInt(), (4 * density).toInt())
     })
 
-    AlertDialog.Builder(this)
+    val dialog = AlertDialog.Builder(this)
         .setTitle(getString(R.string.title_puzzle_slot_select))
         .setView(root)
-        .setNegativeButton(R.string.btn_cancel) { _, _ -> onCancel() }
+        .setNegativeButton(R.string.btn_cancel) { _, _ ->
+            slotDialog = null
+            onCancel()
+        }
         .setCancelable(false)
-        .show()
+        .create()
+
+    dialog.show()
+    slotDialog = dialog
 }
 
 /** 一个分区：标题（含该区空位数）+ 4 列网格 */
@@ -113,7 +132,11 @@ private fun MainActivity.addSlotSection(
         for (i in rowStart..rowEnd) {
             val s = info.mainSlots[i]
             val cell = buildCell(s, density)
-            cell.setOnClickListener { onPick(s.slot) }
+            cell.setOnClickListener {
+                slotDialog?.dismiss()
+                slotDialog = null
+                onPick(s.slot)
+            }
             cell.setOnLongClickListener {
                 showSlotDetail(s)
                 true

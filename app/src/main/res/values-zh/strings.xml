@@ -5,13 +5,11 @@
     <!-- ============================================ -->
     <string name="app_name">樱喵NBT</string>
     <string name="author_name">樱花祭喵</string>
-
     <!-- ============================================ -->
     <!-- Common Buttons -->
     <!-- ============================================ -->
     <string name="btn_confirm">确定</string>
     <string name="btn_cancel">取消</string>
-    <string name="btn_later">稍后</string>
     <string name="btn_close">关闭</string>
     <string name="label_trash_keep">回收站保留：</string>
     <string name="subtitle_trash_keep">超过该时长的内容会被自动清理</string>
@@ -25,17 +23,13 @@
     <string name="msg_restoring">正在恢复</string>
     <string name="export_progress">打包中… %1$d%%</string>
     <string name="msg_restore_overwrite_confirm">已存在同名文件夹的存档：
-
 %1$s
-
 要覆盖吗？原有的也会被移入回收站。</string>
     <string name="msg_delete_forever_confirm">彻底删除「%1$s」？
-
 此操作无法撤销。</string>
     <string name="msg_restore_all_confirm">恢复全部 %1$d 项？</string>
     <string name="toast_restore_all_result">成功恢复 %1$d 项，失败 %2$d 项</string>
     <string name="msg_clear_trash_confirm">彻底删除回收站中的全部内容？
-
 此操作无法撤销。</string>
     <string name="msg_world_dir_not_found">找不到存档目录</string>
     <string name="msg_delete_need_permission">无法删除：此路径需要 Shizuku，或授予「所有文件访问权限」。</string>
@@ -49,17 +43,13 @@
     <string name="btn_delete_forever">彻底删除</string>
     <string name="title_delete_world">删除存档</string>
     <string name="msg_delete_world_confirm1">删除「%1$s」？
-
 将移入回收站（可恢复）。</string>
     <string name="msg_delete_world_confirm2">真的确定？
-
 「%1$s」将被移入回收站。</string>
     <string name="title_also_delete">是否同时删除关联数据？</string>
     <string name="msg_also_delete">该存档有：
-
 • %1$d 份备份
 • %2$d 份草稿
-
 要一并删除吗？</string>
     <string name="btn_yes_delete_all">一起删除</string>
     <string name="btn_keep_them">保留</string>
@@ -109,7 +99,6 @@
     <string name="btn_clear">清空</string>
     <string name="btn_choose">🔍 选择%1$s</string>
     <string name="btn_understood">知道了</string>
-
     <!-- ============================================ -->
     <!-- Common Actions -->
     <!-- ============================================ -->
@@ -122,7 +111,6 @@
     <string name="action_switch_night">切换到：🌙 夜间模式</string>
     <string name="switch_to_chinese">切换中文</string>
     <string name="switch_to_english">Switch to English</string>
-
     <!-- ============================================ -->
     <!-- Dialog Titles -->
     <!-- ============================================ -->
@@ -150,7 +138,6 @@
     <string name="dialog_danger_title">⚠️ 高能预警</string>
     <string name="dialog_clear_msg">你确定要删除当前列表下的【所有 NBT 数据】吗？\n\n此操作不可撤销！</string>
     <string name="dialog_select_archive_title">选择存档 (%d)</string>
-
     <!-- ============================================ -->
     <!-- Titles -->
     <!-- ============================================ -->
@@ -214,7 +201,6 @@
     <string name="title_label_data">%s 数据</string>
     <string name="title_more_operations">更多功能</string>
     <string name="title_new_type_key">新 %s key</string>
-
     <!-- ============================================ -->
     <!-- Messages -->
     <!-- ============================================ -->
@@ -260,7 +246,6 @@
     <string name="msg_copy_process_interrupted">复制过程中断</string>
     <string name="msg_the_length_must_be_an_even_number">长度必须是偶数</string>
     <string name="msg_hex_format_error">Hex 格式错误，请检查输入 (必须是偶数长度，0-9, A-F)</string>
-
     <!-- Progress/Loading Messages -->
     <string name="msg_loading">加载中</string>
     <string name="msg_moving">Shizuku搬运中...</string>
@@ -294,7 +279,6 @@
     <string name="msg_load_failed">加载失败</string>
     <string name="msg_loading_player">加载玩家...</string>
     <string name="msg_generating_maps">生成 %d 地图...</string>
-
     <!-- Success Messages -->
     <string name="msg_success">🎉 成功！\n</string>
     <string name="msg_maps_have_been_packed"> 张地图已放入背包\n</string>
@@ -303,13 +287,11 @@
     <string name="msg_backpack_only_1_slot">仅占背包: 1 格 (Slot 0)\n</string>
     <string name="msg_start_id">起始ID: </string>
     <string name="open_the_box_in_the_game_slot_0_is_the_next_layer_of_boxes">提示：游戏中打开盒子，Slot 0 是下一层盒子</string>
-
     <!-- List Action Messages -->
     <string name="msg_list_long_press_copy_data_json">📄 复制数据 (JSON)</string>
     <string name="msg_list_long_press_paste_overlay">📝 粘贴覆盖</string>
     <string name="msg_list_long_press_rename">✏️ 重命名</string>
     <string name="msg_list_long_press_delete">🗑️ 删除</string>
-
     <!-- ============================================ -->
     <!-- Toast Messages -->
     <!-- ============================================ -->
@@ -420,7 +402,6 @@
     <string name="toast_no_saves_found">未找到保存内容</string>
     <string name="toast_all_type_deleted">所有 %s 已删除</string>
     <string name="toast_scanning_failed">扫描失败: %s</string>
-
     <!-- ============================================ -->
     <!-- Error Messages -->
     <!-- ============================================ -->
@@ -439,7 +420,6 @@
     <string name="err_shizuku_not_running">❌ Shizuku 服务未运行\n\n请先打开 Shizuku 应用，点击「启动」按钮\n并确保 Shizuku 在后台运行</string>
     <string name="err_shizuku_binder_not_ready">Shizuku 连接已断开\n\n可能原因：\n1. Shizuku 被系统杀后台\n2. 刚刚重启过手机\n3. Shizuku 权限被撤销\n\n请重新打开 Shizuku 应用启动服务</string>
     <string name="err_saf_scan_failed">SAF 扫描失败: %s</string>
-
     <!-- Technical Error Messages -->
     <string name="text_shizuku_copy_error" formatted="false">Shizuku 复制错误 (%d): %s</string>
     <string name="text_source_dir_empty">目录显示为空: %s</string>
@@ -459,7 +439,6 @@
     <string name="msg_binder_haven_t_been_received">还没有收到连接</string>
     <string name="msg_copy_failed">复制失败: %s</string>
     <string name="msg_export_failed">导出失败: %1$s</string>
-
     <!-- ============================================ -->
     <!-- Labels & Hints -->
     <!-- ============================================ -->
@@ -472,7 +451,6 @@
     <string name="hint_height_row">高 (行)</string>
     <string name="hint_start_0">起始 (0)</string>
     <string name="hint_count_200">结束 (~200)</string>
-
     <!-- ============================================ -->
     <!-- Paths -->
     <!-- ============================================ -->
@@ -485,7 +463,6 @@
     <string name="path_current_level">当前：世界数据 (level.dat)</string>
     <string name="path_editing_player">当前: 玩家数据 (~local_player) (%1$s)</string>
     <string name="path_restored_player">已恢复备份 (玩家)</string>
-
     <!-- ============================================ -->
     <!-- Menu Items -->
     <!-- ============================================ -->
@@ -496,7 +473,6 @@
     <string name="menu_add_child">添加子项</string>
     <string name="menu_del_backup">删除备份</string>
     <string name="menu_root_title">根节点操作</string>
-
     <!-- ============================================ -->
     <!-- NBT Key Translations -->
     <!-- ============================================ -->
@@ -504,25 +480,21 @@
     <string name="key_game_time">游戏时间</string>
     <string name="key_seed_display">🌱 %1$s</string>
     <string name="key_seed_placeholder">种子: -</string>
-    
     <!-- Difficulty -->
     <string name="key_difficulty_peace">0: 和平</string>
     <string name="key_difficulty_simple">1: 简单</string>
     <string name="key_difficulty_ordinary">2: 普通</string>
     <string name="key_difficulty_difficulty">3: 困难</string>
-    
     <!-- Game Mode -->
     <string name="key_game_mode_survive">0: 生存</string>
     <string name="key_game_mode_create">1: 创造</string>
     <string name="key_game_mode_adventure">2: 冒险</string>
     <string name="key_game_mode_watch">3: 旁观</string>
     <string name="key_game_mode_default">5: 默认</string>
-    
     <!-- Dimension -->
     <string name="key_dimension_main_world">0: 主世界 (Overworld)</string>
     <string name="key_dimension_nether">1: 下界 (Nether)</string>
     <string name="key_dimension_end">2: 末地 (The End)</string>
-    
     <!-- World Generator Type -->
     <string name="key_world_generator_type_limited">0: 有限 (Limited)</string>
     <string name="key_world_generator_type_unlimited">1: 无限 (Infinite)</string>
@@ -531,15 +503,12 @@
     <string name="key_world_generator_type_end">4: 末地?</string>
     <string name="key_world_generator_type_void">5: 虚空</string>
     <string name="key_world_generator_type_unknown"> (未知)</string>
-    
     <!-- Boolean Logic -->
     <string name="key_boolean_logic_turn_on">1 (开启 / True)</string>
     <string name="key_boolean_logic_closure">0 (关闭 / False)</string>
-    
     <!-- Time Calculations -->
     <string name="key_time_tick_calculation">%.1f 天</string>
     <string name="key_thunderstorm_rainfall_mtimes">%1$d 秒 (%2$.1f 分)</string>
-
     <!-- ============================================ -->
     <!-- Editor Module -->
     <!-- ============================================ -->
@@ -574,24 +543,20 @@
     <string name="text_debug_logs">调试日志</string>
     <string name="long_press_here_to_open_the_root_menu">长按此处打开根菜单</string>
     <string name="search_type_hint">搜索 %s...</string>
-
     <!-- View Modes -->
     <string name="mode_raw">原始数据 (Key + Value)</string>
     <string name="mode_smart">智能注释 (Key + 翻译 + 解析)</string>
     <string name="mode_simple">极简模式 (仅翻译 + 解析)</string>
     <string name="mode_raw_trans">原文+翻译 (Key + 翻译)</string>
-
     <!-- Tree View -->
     <string name="emoji_tree">🌳 树 /</string>
     <string name="emoji_tree_player_data">"🌳 树 / 玩家数据</string>
     <string name="emoji_tree_world_data">🌳 树 / 世界数据</string>
-
     <!-- ============================================ -->
     <!-- World/Archive Module -->
     <!-- ============================================ -->
     <string name="select_world_count">选择世界 (%d)</string>
     <string name="msg_save_failed_with_details">保存失败: %s</string>
-    
     <!-- ============================================ -->
     <!-- Player Module -->
     <!-- ============================================ -->
@@ -605,7 +570,6 @@
     <string name="toast_player_restored">玩家备份已恢复</string>
     <string name="toast_player_data_copied_to_clipboard">玩家数据已复制到剪贴板</string>
     <string name="msg_player">玩家</string>
-
     <!-- ============================================ -->
     <!-- Map/Village Module -->
     <!-- ============================================ -->
@@ -617,7 +581,6 @@
     <string name="msg_for_example_village">例如: VILLAGE_Overworld_xxx</string>
     <string name="msg_map">地图</string>
     <string name="msg_village">村庄</string>
-
     <!-- ============================================ -->
     <!-- Puzzle Module -->
     <!-- ============================================ -->
@@ -640,8 +603,8 @@
     <string name="btn_i_understand_continue">我已清空，继续</string>
     <string name="msg_puzzle_set_count">拼图设置 (%d 地图)</string>
     <string name="msg_layer_arrow">层数 %d →</string>
-    <string name="msg_puzzle_success_format">成功生成 %1$d 张地图，共 %2$d 层，起始ID: %3$d，放入背包格子: %4$d</string>
-
+    <string name="msg_puzzle_success_format">成功生成 %1$d 张地图（%2$d 层），起始 ID %3$d，已放入背包格子 %4$d。
+记得点「保存修改」，否则重启游戏后会丢失！</string>
     <!-- ============================================ -->
     <!-- Backup Module -->
     <!-- ============================================ -->
@@ -664,7 +627,6 @@
     <string name="btn_restore">🕒 恢复备份</string>
     <string name="toast_level_restored">世界备份已恢复</string>
     <string name="toast_level_dat_saved">level.dat 已保存</string>
-
     <!-- ============================================ -->
     <!-- Shizuku & Permissions -->
     <!-- ============================================ -->
@@ -713,7 +675,6 @@
     <string name="subtitle_draft_max">达到上限后会删除最旧的草稿</string>
     <string name="box_skip_shizuku">跳过 Shizuku（适用于 Android 10 及以下）</string>
     <string name="toast_shizuku_init">shizuku 初始化: %s</string>
-
     <!-- ============================================ -->
     <!-- Debug Module -->
     <!-- ============================================ -->
@@ -729,7 +690,6 @@
     <string name="toast_logs_copied">日志已复制</string>
     <string name="toast_logs_exported">已导出到: %s</string>
     <string name="log_please_wait">请稍等</string>
-
     <!-- ============================================ -->
     <!-- Global System Data -->
     <!-- ============================================ -->
@@ -750,13 +710,11 @@
     <string name="msg_global_system_data_list_main_world_0">主世界 (Dimension 0)</string>
     <string name="msg_global_system_data_list_nether_1">下界 (Dimension 1)</string>
     <string name="msg_global_system_data_list_end_2">末地 (Dimension 2)</string>
-
     <!-- ============================================ -->
     <!-- Item/Block/Effect/Enchant Search -->
     <!-- ============================================ -->
     <string name="msg_enchant">附魔: </string>
     <string name="msg_potion">效果: </string>
-
     <!-- ============================================ -->
     <!-- Cache Management -->
     <!-- ============================================ -->
@@ -769,7 +727,6 @@
     <string name="btn_delete_all_in_list">删除列表中的所有内容</string>
     <string name="btn_cover">覆盖</string>
     <string name="btn_copy_error">复制报错</string>
-
     <!-- ============================================ -->
     <!-- Miscellaneous -->
     <!-- ============================================ -->
@@ -792,7 +749,6 @@
     <string name="msg_delete_all_type_data">删除所有 %1$d %2$s 数据？无法撤销！</string>
     <string name="copying_progress">复制 %1$d/%2$d (%3$d%%)</string>
     <string name="msg_value_out_of_range">%1$s 值必须在 %2$s 到 %3$s 之间</string>
-
     <!-- ============================================
          旧数据目录迁移（NbtEditor_Data → Nibnya）
          ============================================ -->
@@ -806,7 +762,6 @@
     <string name="msg_migrate_nothing">没有需要迁移的旧数据。</string>
     <string name="label_migrate_settings">📦 迁移旧数据（旧目录 → 新目录）</string>
     <string name="msg_migrate_none_left">未发现旧数据目录，无需迁移。</string>
-
     <!-- ============================================
          权限说明弹窗 / 切换语言提示
          ============================================ -->
@@ -816,7 +771,6 @@
     <string name="msg_perm_needed_for_path">切换目标目录可能涉及受保护的位置。</string>
     <string name="title_switch_language">切换语言</string>
     <string name="msg_switch_language_restart">切换语言会重启应用：\n\n· 未保存的编辑会先存入草稿箱，之后可在草稿箱找回\n· 应用会回到主页\n\n确定要切换吗？</string>
-
     <!-- ============================================
          保存前自动备份（策略对齐草稿箱）
          ============================================ -->
@@ -942,11 +896,15 @@
     <string name="msg_puzzle_slot_legend">绿色=空位 · 灰色=已有物品（点我会先确认覆盖）· 长按看详情</string>
     <string name="msg_puzzle_slot_is_empty">%1$s 是空位</string>
     <string name="msg_puzzle_slot_detail">%1$s
-
 物品：%2$s
 ID：%3$s
 数量：%4$d</string>
     <string name="title_slot_hotbar">物品栏</string>
     <string name="title_slot_inventory">背包</string>
     <string name="msg_slot_section_header">%1$s（槽位 %2$d–%3$d）· 空 %4$d 格</string>
+    <string name="msg_reloading_player">正在重新载入玩家数据…</string>
+    <string name="msg_player_reloaded_save_hint">已重新载入玩家数据。记得点「保存修改」写入存档！</string>
+    <string name="title_puzzle_generated">地图已生成</string>
+    <string name="btn_save_now">立即保存</string>
+    <string name="btn_later">稍后</string>
 </resources>

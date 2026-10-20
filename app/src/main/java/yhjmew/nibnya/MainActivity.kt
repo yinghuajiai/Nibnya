@@ -573,20 +573,9 @@ class MainActivity : ComponentActivity() {
                 }.show()
         }
         findViewById<Button?>(R.id.btn_save)?.setOnClickListener {
-            // 树形视图同样支持保存：树上的编辑直接作用于根数据对象图，
-            // getRootData() 返回真正的根，所见即所存。
-            val d = editorVM.getRootData() ?: run { toast(getString(R.string.toast_no_data)); return@setOnClickListener }
-            val f = etWorldName!!.text.toString().trim()
-            if (f.isEmpty() || f == getString(R.string.hint_select_world))
-            { toast(getString(R.string.toast_select_world)); return@setOnClickListener }
             // 防狂点：保存期间按钮置灰，结束（成功或失败）后由 isLoading 观察者恢复
             it.isEnabled = false
-            // 保存前确认为什么要「所有文件访问」权限（而不是在启动时不分青红皂白地跳设置）
-            if (!askAllFilesPermission(getString(R.string.msg_perm_needed_for_save))) {
-                it.isEnabled = true
-                return@setOnClickListener
-            }
-            worldVM.saveAndPushBack(this, d, f)
+            if (!saveAllChanges()) it.isEnabled = true
         }
 
         val btnTree = findViewById<View?>(R.id.btn_tree_mode)
@@ -1909,6 +1898,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * 保存当前编辑内容到存档。
+     *
+     * 从「保存修改」按钮里抽出来，供拼图生成成功后的提醒弹窗复用 ——
+     * 用户在那里点「立即保存」就走同一套逻辑，不会出现两份不一致。
+     *
+     * @return true 表示已发起保存（异步结果另行提示），false 表示前置条件不满足
+     */
+    private fun saveAllChanges(): Boolean {
+        // 树形视图同样支持保存：树上的编辑直接作用于根数据对象图，
+        // getRootData() 返回真正的根，所见即所存。
+        val d = editorVM.getRootData() ?: run {
+            toast(getString(R.string.toast_no_data)); return false
+        }
+        val f = etWorldName!!.text.toString().trim()
+        if (f.isEmpty() || f == getString(R.string.hint_select_world)) {
+            toast(getString(R.string.toast_select_world)); return false
+        }
+        // 保存前确认为什么要「所有文件访问」权限
+        // （而不是在启动时不分青红皂白地跳设置）
+        if (!askAllFilesPermission(getString(R.string.msg_perm_needed_for_save))) return false
+        worldVM.saveAndPushBack(this, d, f)
+        return true
+    }
+
     // ============================================
     // 结果处理
     // ============================================
@@ -1920,11 +1934,22 @@ class MainActivity : ComponentActivity() {
                 val totalLayers = parts.getOrElse(1) { "0" }
                 val startMapId = parts.getOrElse(2) { "0" }
                 val freeSlot = parts.getOrElse(3) { "0" }
-                toast(getString(R.string.msg_puzzle_success_format,
-                    totalMaps.toIntOrNull() ?: 0,
-                    totalLayers.toIntOrNull() ?: 0,
-                    startMapId.toIntOrNull() ?: 0,
-                    freeSlot.toIntOrNull() ?: 0))
+                // 数据只写进了 LevelDB，存档文件还没落地 —— 用弹窗提醒手动保存，
+                // 不用 Toast：一来 Toast 撑不下两行，二来容易被忽略。
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.title_puzzle_generated))
+                    .setMessage(
+                        getString(
+                            R.string.msg_puzzle_success_format,
+                            totalMaps.toIntOrNull() ?: 0,
+                            totalLayers.toIntOrNull() ?: 0,
+                            startMapId.toIntOrNull() ?: 0,
+                            freeSlot.toIntOrNull() ?: 0
+                        )
+                    )
+                    .setPositiveButton(R.string.btn_save_now) { _, _ -> saveAllChanges() }
+                    .setNegativeButton(R.string.btn_later, null)
+                    .show()
                 worldVM.currentWorldFolder.value?.let { folder ->
                     worldVM.reloadPlayerFromCurrentDb()
                 }

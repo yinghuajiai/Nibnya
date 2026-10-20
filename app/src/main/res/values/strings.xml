@@ -5,13 +5,11 @@
     <!-- ============================================ -->
     <string name="app_name">Nibnya</string>
     <string name="author_name">yhjmew</string>
-
     <!-- ============================================ -->
     <!-- Common Buttons -->
     <!-- ============================================ -->
     <string name="btn_confirm">Sure</string>
     <string name="btn_cancel">Cancel</string>
-    <string name="btn_later">Later</string>
     <string name="btn_close">Close</string>
     <string name="label_trash_keep">Recycle bin:</string>
     <string name="subtitle_trash_keep">Items older than this are cleaned automatically</string>
@@ -25,17 +23,13 @@
     <string name="msg_restoring">Restoring</string>
     <string name="export_progress">Packing… %1$d%%</string>
     <string name="msg_restore_overwrite_confirm">A save with the same folder name already exists:
-
 %1$s
-
 Overwrite it? The existing one will also be moved to the recycle bin.</string>
     <string name="msg_delete_forever_confirm">Permanently delete "%1$s"?
-
 This CANNOT be undone.</string>
     <string name="msg_restore_all_confirm">Restore all %1$d items?</string>
     <string name="toast_restore_all_result">Restored %1$d, failed %2$d</string>
     <string name="msg_clear_trash_confirm">Permanently delete ALL items in the recycle bin?
-
 This CANNOT be undone.</string>
     <string name="msg_world_dir_not_found">Save folder not found</string>
     <string name="msg_delete_need_permission">Cannot delete: this path needs Shizuku, or "All files access" permission.</string>
@@ -49,17 +43,13 @@ This CANNOT be undone.</string>
     <string name="btn_delete_forever"> Delete permanently</string>
     <string name="title_delete_world">Delete save</string>
     <string name="msg_delete_world_confirm1">Delete "%1$s"?
-
 It will be moved to the recycle bin (recoverable).</string>
     <string name="msg_delete_world_confirm2">Are you sure?
-
 "%1$s" will be moved to the recycle bin.</string>
     <string name="title_also_delete">Also delete related data?</string>
     <string name="msg_also_delete">This save has:
-
 • %1$d backups
 • %2$d drafts
-
 Delete them as well?</string>
     <string name="btn_yes_delete_all">Yes, delete them too</string>
     <string name="btn_keep_them">No, keep them</string>
@@ -109,7 +99,6 @@ Delete them as well?</string>
     <string name="btn_clear">Clear</string>
     <string name="btn_choose">Select %1$s</string>
     <string name="btn_understood">knew</string>
-
     <!-- ============================================ -->
     <!-- Common Actions -->
     <!-- ============================================ -->
@@ -122,7 +111,6 @@ Delete them as well?</string>
     <string name="action_switch_night">Switch to: 🌙 Night Mode</string>
     <string name="switch_to_chinese">Switch to Chinese</string>
     <string name="switch_to_english">Switch to English</string>
-
     <!-- ============================================ -->
     <!-- Dialog Titles -->
     <!-- ============================================ -->
@@ -150,7 +138,6 @@ Delete them as well?</string>
     <string name="dialog_danger_title">⚠️ High energy warning</string>
     <string name="dialog_clear_msg">Are you sure you want to delete [all NBT data] under the current list?\n\nThis action is irreversible!</string>
     <string name="dialog_select_archive_title">Select archive (%d)</string>
-
     <!-- ============================================ -->
     <!-- Titles -->
     <!-- ============================================ -->
@@ -214,7 +201,6 @@ Delete them as well?</string>
     <string name="title_label_data">%s Data</string>
     <string name="title_more_operations">More Operations</string>
     <string name="title_new_type_key">New %s Key</string>
-
     <!-- ============================================ -->
     <!-- Messages -->
     <!-- ============================================ -->
@@ -260,7 +246,6 @@ Delete them as well?</string>
     <string name="msg_copy_process_interrupted">Copy process interrupted</string>
     <string name="msg_the_length_must_be_an_even_number">The length must be an even number</string>
     <string name="msg_hex_format_error">Hex format error, please check the input (must be even length, 0-9, A-F)</string>
-
     <!-- Progress/Loading Messages -->
     <string name="msg_loading">loading</string>
     <string name="msg_moving">Shizuku in transit...</string>
@@ -294,7 +279,6 @@ Delete them as well?</string>
     <string name="msg_load_failed">Load failed</string>
     <string name="msg_loading_player">Loading player...</string>
     <string name="msg_generating_maps">Generating %d maps...</string>
-
     <!-- Success Messages -->
     <string name="msg_success">🎉 Success!\n</string>
     <string name="msg_maps_have_been_packed"> Maps have been put into the backpack\n</string>
@@ -303,13 +287,11 @@ Delete them as well?</string>
     <string name="msg_backpack_only_1_slot">Backpack only: 1 slot (Slot 0)\n</string>
     <string name="msg_start_id">Start ID: </string>
     <string name="open_the_box_in_the_game_slot_0_is_the_next_layer_of_boxes">Tip: Open the box in the game, Slot 0 is the next layer of boxes</string>
-
     <!-- List Action Messages -->
     <string name="msg_list_long_press_copy_data_json">📄 Copy data (JSON)</string>
     <string name="msg_list_long_press_paste_overlay">📝 Paste overlay</string>
     <string name="msg_list_long_press_rename">✏️ Rename</string>
     <string name="msg_list_long_press_delete">🗑️ Delete</string>
-
     <!-- ============================================ -->
     <!-- Toast Messages -->
     <!-- ============================================ -->
@@ -353,7 +335,6 @@ Delete them as well?</string>
     <string name="toast_successfully_deleted">successfully deleted</string>
     <string name="toast_deleted_count">Deleted %d</string>
     <string name="toast_delete_key_confirm">Delete %s</string>
-
     <string name="toast_created">Created successfully:</string>
     <string name="toast_created_item">Created: %s</string>
     <string name="toast_creation_failed">Creation failed: %s</string>
@@ -421,7 +402,6 @@ Delete them as well?</string>
     <string name="toast_no_saves_found">No saves found</string>
     <string name="toast_all_type_deleted">All %s deleted</string>
     <string name="toast_scanning_failed">Scan failed: %s</string>
-
     <!-- ============================================ -->
     <!-- Error Messages -->
     <!-- ============================================ -->
@@ -440,7 +420,6 @@ Delete them as well?</string>
     <string name="err_shizuku_not_running">❌ Shizuku service not running\n\nPlease open Shizuku app and tap \"Start\"\nEnsure Shizuku is running in background</string>
     <string name="err_shizuku_binder_not_ready">Shizuku connection lost\n\nPossible causes:\n1. Shizuku was killed by system\n2. Phone just rebooted\n3. Shizuku permission revoked\n\nPlease restart Shizuku service</string>
     <string name="err_saf_scan_failed">SAF scan failed: %s</string>
-
     <!-- Technical Error Messages -->
     <string name="text_shizuku_copy_error" formatted="false">Shizuku Copy Error (%d): %s</string>
     <string name="text_source_dir_empty">Source directory appears empty: %s</string>
@@ -460,7 +439,6 @@ Delete them as well?</string>
     <string name="msg_binder_haven_t_been_received">binder haven\'t been received</string>
     <string name="msg_copy_failed">Copy failed: %s</string>
     <string name="msg_export_failed">Export failed: %1$s</string>
-
     <!-- ============================================ -->
     <!-- Labels & Hints -->
     <!-- ============================================ -->
@@ -473,7 +451,6 @@ Delete them as well?</string>
     <string name="hint_height_row">high (row)</string>
     <string name="hint_start_0">Start (0)</string>
     <string name="hint_count_200">Count (~200)</string>
-
     <!-- ============================================ -->
     <!-- Paths -->
     <!-- ============================================ -->
@@ -486,7 +463,6 @@ Delete them as well?</string>
     <string name="path_current_level">Current: world data (level.dat)</string>
     <string name="path_editing_player">Editing: Player Data (~local_player) (%1$s)</string>
     <string name="path_restored_player">Backup restored (player)</string>
-
     <!-- ============================================ -->
     <!-- Menu Items -->
     <!-- ============================================ -->
@@ -497,7 +473,6 @@ Delete them as well?</string>
     <string name="menu_add_child">Add child</string>
     <string name="menu_del_backup">Delete backup</string>
     <string name="menu_root_title">Root node operation</string>
-
     <!-- ============================================ -->
     <!-- NBT Key Translations -->
     <!-- ============================================ -->
@@ -505,25 +480,21 @@ Delete them as well?</string>
     <string name="key_game_time">game time</string>
     <string name="key_seed_display">🌱 %1$s</string>
     <string name="key_seed_placeholder">Seed: -</string>
-
     <!-- Difficulty -->
     <string name="key_difficulty_peace">0: Peace</string>
     <string name="key_difficulty_simple">1: Simple</string>
     <string name="key_difficulty_ordinary">2: Normal</string>
     <string name="key_difficulty_difficulty">3: Difficult</string>
-
     <!-- Game Mode -->
     <string name="key_game_mode_survive">0: Survive</string>
     <string name="key_game_mode_create">1: Create</string>
     <string name="key_game_mode_adventure">2: Adventure</string>
     <string name="key_game_mode_watch">3: spectate</string>
     <string name="key_game_mode_default">5: Default</string>
-
     <!-- Dimension -->
     <string name="key_dimension_main_world">0: Overworld</string>
     <string name="key_dimension_nether">1: Nether</string>
     <string name="key_dimension_end">2: The End</string>
-
     <!-- World Generator Type -->
     <string name="key_world_generator_type_limited">0: Limited</string>
     <string name="key_world_generator_type_unlimited">1: Infinite</string>
@@ -532,15 +503,12 @@ Delete them as well?</string>
     <string name="key_world_generator_type_end">4: The End?</string>
     <string name="key_world_generator_type_void">5: Void</string>
     <string name="key_world_generator_type_unknown">(unknown)</string>
-
     <!-- Boolean Logic -->
     <string name="key_boolean_logic_turn_on">1 (On/True)</string>
     <string name="key_boolean_logic_closure">0 (Off / False)</string>
-
     <!-- Time Calculations -->
     <string name="key_time_tick_calculation">%.1f days</string>
     <string name="key_thunderstorm_rainfall_mtimes">%1$d seconds (%2$.1f minutes)</string>
-
     <!-- ============================================ -->
     <!-- Editor Module -->
     <!-- ============================================ -->
@@ -575,24 +543,20 @@ Delete them as well?</string>
     <string name="text_debug_logs">Debug logs</string>
     <string name="long_press_here_to_open_the_root_menu">long press here to open the root menu</string>
     <string name="search_type_hint">Search %s...</string>
-
     <!-- View Modes -->
     <string name="mode_raw">Raw data (Key + Value)</string>
     <string name="mode_smart">Smart annotation (Key + translation + parsing)</string>
     <string name="mode_simple">Minimalist mode (only translation + parsing)</string>
     <string name="mode_raw_trans">Original text + translation (Key + translation)</string>
-
     <!-- Tree View -->
     <string name="emoji_tree">🌳 Tree /</string>
     <string name="emoji_tree_player_data">"🌳 Tree / Player Data</string>
     <string name="emoji_tree_world_data">🌳 Tree / World Data</string>
-
     <!-- ============================================ -->
     <!-- World/Archive Module -->
     <!-- ============================================ -->
     <string name="select_world_count">Select World (%d)</string>
     <string name="msg_save_failed_with_details">Save failed: %s</string>
-
     <!-- ============================================ -->
     <!-- Player Module -->
     <!-- ============================================ -->
@@ -606,7 +570,6 @@ Delete them as well?</string>
     <string name="toast_player_restored">Player backup has been restored</string>
     <string name="toast_player_data_copied_to_clipboard">Player data copied to clipboard</string>
     <string name="msg_player">Player</string>
-
     <!-- ============================================ -->
     <!-- Map/Village Module -->
     <!-- ============================================ -->
@@ -618,7 +581,6 @@ Delete them as well?</string>
     <string name="msg_for_example_village">For example: VILLAGE_Overworld_xxx</string>
     <string name="msg_map">Map</string>
     <string name="msg_village">Village</string>
-
     <!-- ============================================ -->
     <!-- Puzzle Module -->
     <!-- ============================================ -->
@@ -641,8 +603,7 @@ Delete them as well?</string>
     <string name="btn_i_understand_continue">I Understand, Continue</string>
     <string name="msg_puzzle_set_count">Puzzle Set (%d maps)</string>
     <string name="msg_layer_arrow">Layer %d →</string>
-    <string name="msg_puzzle_success_format">Puzzle:SUCCESS:%1$d:%2$d:%3$d:%4$d</string>
-
+    <string name="msg_puzzle_success_format">Generated %1$d maps in %2$d layer(s), starting ID %3$d, placed in slot %4$d. Remember to tap Save!</string>
     <!-- ============================================ -->
     <!-- Backup Module -->
     <!-- ============================================ -->
@@ -665,7 +626,6 @@ Delete them as well?</string>
     <string name="btn_restore">🕒 Restore backup</string>
     <string name="toast_level_restored">The world backup has been restored</string>
     <string name="toast_level_dat_saved">level.dat saved</string>
-
     <!-- ============================================ -->
     <!-- Shizuku & Permissions -->
     <!-- ============================================ -->
@@ -714,7 +674,6 @@ Delete them as well?</string>
     <string name="subtitle_draft_max">Oldest drafts are deleted when the limit is reached</string>
     <string name="box_skip_shizuku">Skip Shizuku (for Android 10 and below)</string>
     <string name="toast_shizuku_init">shizuku init: %s</string>
-
     <!-- ============================================ -->
     <!-- Debug Module -->
     <!-- ============================================ -->
@@ -730,7 +689,6 @@ Delete them as well?</string>
     <string name="toast_logs_copied">Logs copied</string>
     <string name="toast_logs_exported">Exported to: %s</string>
     <string name="log_please_wait">Please wait</string>
-
     <!-- ============================================ -->
     <!-- Global System Data -->
     <!-- ============================================ -->
@@ -751,13 +709,11 @@ Delete them as well?</string>
     <string name="msg_global_system_data_list_main_world_0">Main world (Dimension 0)</string>
     <string name="msg_global_system_data_list_nether_1">Lower world (Dimension 1)</string>
     <string name="msg_global_system_data_list_end_2">End (Dimension 2)</string>
-
     <!-- ============================================ -->
     <!-- Item/Block/Effect/Enchant Search -->
     <!-- ============================================ -->
     <string name="msg_enchant">Enchantment:</string>
     <string name="msg_potion">Effect:</string>
-
     <!-- ============================================ -->
     <!-- Cache Management -->
     <!-- ============================================ -->
@@ -770,7 +726,6 @@ Delete them as well?</string>
     <string name="btn_delete_all_in_list">Delete ALL in list</string>
     <string name="btn_cover">cover</string>
     <string name="btn_copy_error">Copy error</string>
-
     <!-- ============================================ -->
     <!-- Miscellaneous -->
     <!-- ============================================ -->
@@ -793,7 +748,6 @@ Delete them as well?</string>
     <string name="msg_delete_all_type_data">Delete all %1$d %2$s data? Cannot undo!</string>
     <string name="copying_progress">Copying %1$d/%2$d (%3$d%%)</string>
     <string name="msg_value_out_of_range">%1$s value must be between %2$s and %3$s</string>
-
     <!-- ============================================
          旧数据目录迁移（NbtEditor_Data → Nibnya）
          ============================================ -->
@@ -807,7 +761,6 @@ Delete them as well?</string>
     <string name="msg_migrate_nothing">No old data to migrate.</string>
     <string name="label_migrate_settings">📦 Migrate old data (old → new folder)</string>
     <string name="msg_migrate_none_left">No old data folder found. Nothing to do.</string>
-
     <!-- ============================================
          权限说明弹窗 / 切换语言提示
          ============================================ -->
@@ -817,7 +770,6 @@ Delete them as well?</string>
     <string name="msg_perm_needed_for_path">Switching the target folder may need access to protected locations.</string>
     <string name="title_switch_language">Switch language</string>
     <string name="msg_switch_language_restart">Switching the language restarts the app:\n\n· Unsaved edits are saved to the draft box first, so you can find them again\n· The app will return to the home screen\n\nContinue?</string>
-
     <!-- ============================================
          保存前自动备份（策略对齐草稿箱）
          ============================================ -->
@@ -943,11 +895,15 @@ Delete them as well?</string>
     <string name="msg_puzzle_slot_legend">Green = empty · Grey = occupied (tap asks to confirm) · long-press for details</string>
     <string name="msg_puzzle_slot_is_empty">%1$s is empty</string>
     <string name="msg_puzzle_slot_detail">%1$s
-
 Item: %2$s
 ID: %3$s
 Count: %4$d</string>
     <string name="title_slot_hotbar">Hotbar</string>
     <string name="title_slot_inventory">Inventory</string>
     <string name="msg_slot_section_header">%1$s (slots %2$d–%3$d) · %4$d free</string>
+    <string name="msg_reloading_player">Reloading player data…</string>
+    <string name="msg_player_reloaded_save_hint">Player data reloaded. Remember to tap Save to write it to the world!</string>
+    <string name="title_puzzle_generated">Maps generated</string>
+    <string name="btn_save_now">Save now</string>
+    <string name="btn_later">Later</string>
 </resources>

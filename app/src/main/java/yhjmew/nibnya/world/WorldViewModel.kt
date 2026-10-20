@@ -2155,7 +2155,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _loadingMessage.value = "Reloading player..."
+            _loadingMessage.value = getString(R.string.msg_reloading_player)
             try {
                 val db = PlayerDbManager(dbPath)
                 val data = db.readLocalPlayer()
@@ -2171,7 +2171,8 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 evm.scrollPositionStack.clear()
                 evm.updatePathTitle()
                 _isLoading.value = false
-                _toastMessage.value = "Player reloaded"
+                // 数据只写进了 LevelDB，玩家存档文件还没落地 —— 必须提醒手动保存
+                _toastMessage.value = getString(R.string.msg_player_reloaded_save_hint)
             } catch (e: Exception) {
                 _isLoading.value = false
                 _errorMessage.value = e.message
