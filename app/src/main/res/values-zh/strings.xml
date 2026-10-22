@@ -947,4 +947,10 @@ ID：%3$s
     <string name="chk_dont_ask_again">不再提示</string>
     <string name="msg_crop_min_invalid">请输入 1 到 100 之间的百分数</string>
     <string name="title_crop_min_size">自定义裁剪最小尺寸</string>
+    <string name="msg_puzzle_will_crop_sides">✂ 原图比 列:行 更宽，将居中裁掉左右约 %1$d%%</string>
+    <string name="msg_puzzle_will_crop_top_bottom">✂ 原图比 列:行 更高，将居中裁掉上下约 %1$d%%</string>
+    <string name="msg_puzzle_pad_edges">补边（保留完整画面，不裁剪）</string>
+    <string name="msg_puzzle_pad_black">黑</string>
+    <string name="msg_puzzle_pad_white">白</string>
+    <string name="msg_puzzle_pad_transparent">透明</string>
 </resources>

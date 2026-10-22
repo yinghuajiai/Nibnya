@@ -239,7 +239,9 @@ fun generatePuzzleMap(
     rows: Int,
     cols: Int,
     targetSlot: Int = -1,
-    crop: android.graphics.RectF? = null
+    crop: android.graphics.RectF? = null,
+    /** 行列模式：-1 = 不补边（居中裁剪）；0 黑 / 1 白 / 2 透明 = 补边 */
+    padColor: Int = -1
 ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
@@ -355,6 +357,56 @@ fun generatePuzzleMap(
                             val cropped = Bitmap.createBitmap(rawSrc, l, tp, cw, ch)
                             if (cropped !== rawSrc) rawSrc.recycle()
                             rawSrc = cropped
+                        }
+                    }
+                }
+
+                // ⚠️ 每张地图都是 128x128 正方形，而这里是「整图铺满 rows x cols」。
+                //    若原图长宽比 != 列:行，每块会被拉成正方形 -> 画面变形。
+                //    因此先按 列:行 的比例**居中裁一刀**，每块天然是正方形。
+                //    （自由裁剪模式已指定区域，不再二次裁剪）
+                if (crop == null) {
+                    val targetRatio = cols.toDouble() / rows.toDouble()
+                    val curRatio = rawSrc.width.toDouble() / rawSrc.height.toDouble()
+                    if (kotlin.math.abs(curRatio - targetRatio) > 0.005) {
+                        if (padColor >= 0) {
+                            // 补边：保留整张原图，等比放进目标比例的画布，四周围填色
+                            val fill = when (padColor) {
+                                1 -> android.graphics.Color.WHITE
+                                2 -> android.graphics.Color.TRANSPARENT
+                                else -> android.graphics.Color.BLACK
+                            }
+                            val tw: Int
+                            val th: Int
+                            if (curRatio > targetRatio) {
+                                tw = rawSrc.width
+                                th = (rawSrc.width / targetRatio).toInt().coerceAtLeast(1)
+                            } else {
+                                th = rawSrc.height
+                                tw = (rawSrc.height * targetRatio).toInt().coerceAtLeast(1)
+                            }
+                            val padded = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
+                            val c = android.graphics.Canvas(padded)
+                            if (fill != android.graphics.Color.TRANSPARENT) c.drawColor(fill)
+                            c.drawBitmap(
+                                rawSrc,
+                                (tw - rawSrc.width) / 2f, (th - rawSrc.height) / 2f,
+                                android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+                            )
+                            rawSrc.recycle()
+                            rawSrc = padded
+                        } else {
+                        val cropped = if (curRatio > targetRatio) {
+                            val w = (rawSrc.height * targetRatio).toInt().coerceAtLeast(1)
+                            val l = (rawSrc.width - w) / 2
+                            Bitmap.createBitmap(rawSrc, l, 0, w, rawSrc.height)
+                        } else {
+                            val h = (rawSrc.width / targetRatio).toInt().coerceAtLeast(1)
+                            val tp = (rawSrc.height - h) / 2
+                            Bitmap.createBitmap(rawSrc, 0, tp, rawSrc.width, h)
+                        }
+                        if (cropped !== rawSrc) rawSrc.recycle()
+                        rawSrc = cropped
                         }
                     }
                 }

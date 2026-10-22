@@ -108,6 +108,12 @@ class MainActivity : ComponentActivity() {
      */
     private var pendingPuzzleCrop: android.graphics.RectF? = null
 
+    /**
+     * 行列模式的补边颜色：-1 = 不补边（居中裁剪，默认）；
+     * 0 = 黑 / 1 = 白 / 2 = 透明。与 [pendingPuzzleCrop] 互斥。
+     */
+    private var pendingPuzzlePad: Int = -1
+
 
 
 
@@ -246,9 +252,10 @@ class MainActivity : ComponentActivity() {
     private fun openPuzzlePreview(uri: Uri) {
         showPuzzlePreview(
             uri = uri,
-            onConfirm = { _, _ ->
+            onConfirm = { _, _, padOn, padClr ->
                 // 按行列切：沿用现有流程（扫背包 -> 选槽位 -> 生成 N 张）
                 puzzleImageUri = uri
+                pendingPuzzlePad = if (padOn) padClr else -1
                 pendingPuzzleCrop = null
                 mapVM.scanInventory(this)
             },
@@ -2134,9 +2141,9 @@ class MainActivity : ComponentActivity() {
                         .setPositiveButton(getString(R.string.btn_puzzle_confirm_overwrite)) { _, _ ->
                             // 裁剪模式固定 1x1：只出 1 张地图
                         if (pendingPuzzleCrop != null) {
-                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop)
+                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop, -1)
                         } else {
-                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null)
+                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null, pendingPuzzlePad)
                         }
                             puzzleImageUri = null
                         }
@@ -2147,9 +2154,9 @@ class MainActivity : ComponentActivity() {
                 } else {
                     // 裁剪模式固定 1x1：只出 1 张地图
                         if (pendingPuzzleCrop != null) {
-                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop)
+                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop, -1)
                         } else {
-                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null)
+                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null, pendingPuzzlePad)
                         }
                     puzzleImageUri = null
                 }

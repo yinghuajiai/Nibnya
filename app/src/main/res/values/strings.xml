@@ -946,4 +946,10 @@ Uses one map ID near map_%3$d</string>
     <string name="chk_dont_ask_again">Do not ask again</string>
     <string name="msg_crop_min_invalid">Enter a percentage between 1 and 100</string>
     <string name="title_crop_min_size">Custom minimum crop size</string>
+    <string name="msg_puzzle_will_crop_sides">✂ Image is wider than cols:rows; about %1$d%% will be cropped from left/right</string>
+    <string name="msg_puzzle_will_crop_top_bottom">✂ Image is taller than cols:rows; about %1$d%% will be cropped from top/bottom</string>
+    <string name="msg_puzzle_pad_edges">Pad edges (keep the whole image)</string>
+    <string name="msg_puzzle_pad_black">Black</string>
+    <string name="msg_puzzle_pad_white">White</string>
+    <string name="msg_puzzle_pad_transparent">Transparent</string>
 </resources>

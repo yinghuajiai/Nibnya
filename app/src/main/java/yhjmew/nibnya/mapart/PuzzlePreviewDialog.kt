@@ -44,12 +44,17 @@ import kotlin.math.roundToInt
 private const val STEP_MAX = 999
 
 /** 标签页编号 */
+/** 补边颜色：0 黑 / 1 白 / 2 透明 */
+private const val PAD_BLACK = 0
+private const val PAD_WHITE = 1
+private const val PAD_TRANSPARENT = 2
+
 private const val TAB_GRID = 0
 private const val TAB_CROP = 1
 
 internal fun MainActivity.showPuzzlePreview(
     uri: Uri,
-    onConfirm: (rows: Int, cols: Int) -> Unit,
+    onConfirm: (rows: Int, cols: Int, padEnabled: Boolean, padColor: Int) -> Unit,
     onCropConfirm: (cropRect: RectF) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -84,6 +89,9 @@ internal fun MainActivity.showPuzzlePreview(
     var rows = puzzleRows.coerceAtLeast(1)
     var cols = puzzleCols.coerceAtLeast(1)
     var lockRatio = true
+    /** 行列模式：不裁剪而是补边（保留完整画面），以及补边颜色 */
+    var padEnabled = false
+    var padColor = PAD_BLACK
     /** 锁定比例 宽:高（默认 1:1）。行列模式可传 cols:rows。 */
     var ratioW = 1f
     var ratioH = 1f
@@ -236,6 +244,66 @@ internal fun MainActivity.showPuzzlePreview(
     lockRow.addView(switchLock)
     root.addView(lockRow)
 
+    // ---- 行列模式：补边（不裁剪，保留完整画面）----
+    val padRow = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(px(4), px(8), px(4), 0)
+    }
+    val cbPad = android.widget.CheckBox(this).apply {
+        isChecked = false
+        text = getString(R.string.msg_puzzle_pad_edges)
+        textSize = 13f
+    }
+
+    // 颜色三选（黑 / 白 / 透明）
+    val colorRow = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(px(28), 0, 0, 0)
+        visibility = View.GONE
+    }
+    val rgPad = android.widget.RadioGroup(this).apply {
+        orientation = android.widget.RadioGroup.HORIZONTAL
+    }
+    val rbBlack = android.widget.RadioButton(this).apply {
+        id = View.generateViewId(); text = getString(R.string.msg_puzzle_pad_black); textSize = 12f
+    }
+    val rbWhite = android.widget.RadioButton(this).apply {
+        id = View.generateViewId(); text = getString(R.string.msg_puzzle_pad_white); textSize = 12f
+    }
+    val rbTrans = android.widget.RadioButton(this).apply {
+        id = View.generateViewId(); text = getString(R.string.msg_puzzle_pad_transparent); textSize = 12f
+    }
+    rgPad.addView(rbBlack); rgPad.addView(rbWhite); rgPad.addView(rbTrans)
+    rbBlack.isChecked = true
+    colorRow.addView(rgPad)
+
+    fun syncPadToView() {
+        previewView.padEnabled = padEnabled
+        previewView.padColor = padColor
+        previewView.invalidate()
+    }
+
+    cbPad.setOnCheckedChangeListener { _, checked ->
+        padEnabled = checked
+        colorRow.visibility = if (checked) View.VISIBLE else View.GONE
+        syncPadToView()
+        refresh()
+    }
+    rgPad.setOnCheckedChangeListener { _, id ->
+        padColor = when (id) {
+            rbWhite.id -> PAD_WHITE
+            rbTrans.id -> PAD_TRANSPARENT
+            else -> PAD_BLACK
+        }
+        syncPadToView()
+        refresh()
+    }
+
+    padRow.addView(cbPad)
+    padRow.addView(colorRow)
+    root.addView(padRow)
+
     // 撤销/重做/重置行
     val undoRow = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -272,6 +340,7 @@ internal fun MainActivity.showPuzzlePreview(
         val isGrid = mode == TAB_GRID
         stepperRow.visibility = if (isGrid) View.VISIBLE else View.GONE
         lockRow.visibility = if (isGrid) View.GONE else View.VISIBLE
+        padRow.visibility = if (isGrid) View.VISIBLE else View.GONE
 
         setTabStyle(tabGrid, isGrid, density)
         setTabStyle(tabCrop, !isGrid, density)
@@ -309,7 +378,12 @@ internal fun MainActivity.showPuzzlePreview(
         }
 
         tvWarn.text = if (isGrid) {
-            if (cellW < 128 || cellH < 128) getString(R.string.msg_puzzle_low_res) else ""
+            // 补边时不裁内容，只提示分辨率；不补边才提示会被裁掉多少
+            val cropMsg = if (padEnabled) ""
+            else cropCoverageNote(originalSize.first, originalSize.second, cols, rows)
+            val lowMsg = if (cellW < 128 || cellH < 128)
+                getString(R.string.msg_puzzle_low_res) else ""
+            listOf(cropMsg, lowMsg).filter { it.isNotEmpty() }.joinToString("\n")
         } else {
             if (lockRatio && kotlin.math.abs(cropW(crop) - cropH(crop)) > 1f)
                 getString(R.string.msg_puzzle_crop_not_square) else ""
@@ -345,7 +419,7 @@ internal fun MainActivity.showPuzzlePreview(
             if (mode == TAB_GRID) {
                 puzzleRows = rows
                 puzzleCols = cols
-                onConfirm(rows, cols)
+                onConfirm(rows, cols, padEnabled, padColor)
             } else {
                 onCropConfirm(RectF(crop))
             }
@@ -362,6 +436,30 @@ internal fun MainActivity.showPuzzlePreview(
         ViewGroup.LayoutParams.WRAP_CONTENT
     )
     refresh()
+}
+
+/**
+ * 行列模式下的「居中裁剪」会丢掉多少内容。
+ *
+ * 每块地图必须是 128x128 正方形，所以原图长宽比必须等于 列:行；
+ * 否则生成端会居中裁一刀。返回一句给用户看的说明（不需要裁时返回空串）。
+ */
+private fun MainActivity.cropCoverageNote(
+    imgW: Int, imgH: Int, cols: Int, rows: Int
+): String {
+    if (imgW <= 0 || imgH <= 0 || cols <= 0 || rows <= 0) return ""
+    val target = cols.toDouble() / rows.toDouble()
+    val cur = imgW.toDouble() / imgH.toDouble()
+    if (kotlin.math.abs(cur - target) < 0.005) return ""
+
+    return if (cur > target) {
+        // 太宽：裁左右
+        val keepRatio = target / cur              // 保留的宽度占比
+        getString(R.string.msg_puzzle_will_crop_sides, ((1 - keepRatio) * 100).roundToInt())
+    } else {
+        val keepRatio = cur / target
+        getString(R.string.msg_puzzle_will_crop_top_bottom, ((1 - keepRatio) * 100).roundToInt())
+    }
 }
 
 private fun cropW(r: RectF) = r.right - r.left
@@ -448,6 +546,10 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
     var cropImage: RectF = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
         set(v) { field = v; invalidate() }
     var lockRatio = true
+    /** 行列模式：true = 补边保留完整画面；false = 居中裁剪（默认） */
+    var padEnabled = false
+    /** 补边颜色：0 黑 / 1 白 / 2 透明 */
+    var padColor = PAD_BLACK
     /** 裁剪框最小尺寸占图片短边的比例（由设置决定） */
     var minFrac = 0.25f
     /** 锁定比例 宽:高（默认 1:1 正方形；行列模式传 列:行） */
@@ -470,6 +572,8 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
     private val dimPaint = Paint().apply {
         color = Color.parseColor("#99000000"); style = Paint.Style.FILL
     }
+    /** 补边填充色（跟随 padColor；透明时画浅灰格纹感的半透明色以便辨认） */
+    private val padFillPaint = Paint().apply { style = Paint.Style.FILL }
     private val handlePaint = Paint().apply {
         color = Color.WHITE; style = Paint.Style.FILL; isAntiAlias = true
     }
@@ -529,25 +633,76 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
         cropView.set(toView(cropImage))
     }
 
+    /**
+     * 行列切割下的「有效区域」（视图坐标）。
+     *
+     * 生成端会按 列:行 的比例居中裁剪原图，这里算出对应的屏幕矩形，
+     * 用于（a）只在有效区内画网格线，（b）把会被裁掉的部分压暗。
+     */
+    private fun effectiveRect(): RectF {
+        if (cols <= 0 || rows <= 0) return RectF(dst)
+        val targetRatio = cols.toDouble() / rows.toDouble()
+        val curRatio = dst.width().toDouble() / dst.height().toDouble()
+        return if (kotlin.math.abs(curRatio - targetRatio) < 0.005) {
+            RectF(dst)
+        } else if (curRatio > targetRatio) {
+            // 视图里图片偏宽 → 裁左右
+            val w = (dst.height() * targetRatio).toFloat()
+            val l = dst.left + (dst.width() - w) / 2f
+            RectF(l, dst.top, l + w, dst.bottom)
+        } else {
+            // 视图里图片偏高 → 裁上下
+            val h = (dst.width() / targetRatio).toFloat()
+            val tp = dst.top + (dst.height() - h) / 2f
+            RectF(dst.left, tp, dst.right, tp + h)
+        }
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val vw = width.toFloat(); val vh = height.toFloat()
         if (vw <= 0f || vh <= 0f) return
         computeGeom()
+        padFillPaint.color = when (padColor) {
+            PAD_WHITE -> Color.WHITE
+            PAD_TRANSPARENT -> Color.TRANSPARENT
+            else -> Color.BLACK
+        }
         canvas.drawBitmap(bitmap, null, dst, bmpPaint)
 
         if (mode == TAB_GRID) {
+            // 每块地图都是 128x128 正方形，所以整图必须先满足 列:行 的比例，
+            // 否则每块会被拉成正方形 → 画面变形。
+            // 生成时会「居中裁一刀」，这里把**有效区域**画出来：区域内画网格，
+            // 区域外压暗（让用户一眼看到会丢掉哪部分）。
+            val eff = effectiveRect()
+            // 补边：被裁掉的那部分用**真实颜色**填充（黑/白/透明），
+            //       让用户直接看到成品效果；不补边：压暗表示「这里会被裁掉」。
+            val barPaint = if (padEnabled) padFillPaint else dimPaint
+            if (eff.left > dst.left + 0.5f) {
+                canvas.drawRect(dst.left, dst.top, eff.left, dst.bottom, barPaint)
+            }
+            if (eff.right < dst.right - 0.5f) {
+                canvas.drawRect(eff.right, dst.top, dst.right, dst.bottom, barPaint)
+            }
+            if (eff.top > dst.top + 0.5f) {
+                canvas.drawRect(eff.left, dst.top, eff.right, eff.top, barPaint)
+            }
+            if (eff.bottom < dst.bottom - 0.5f) {
+                canvas.drawRect(eff.left, eff.bottom, eff.right, dst.bottom, barPaint)
+            }
+
             gridPaint.strokeWidth = max(1.5f, resources.displayMetrics.density * 1.2f)
             for (c in 1 until cols) {
-                val x = dst.left + dst.width() * c / cols
-                canvas.drawLine(x, dst.top, x, dst.bottom, gridPaint)
+                val x = eff.left + eff.width() * c / cols
+                canvas.drawLine(x, eff.top, x, eff.bottom, gridPaint)
             }
             for (r in 1 until rows) {
-                val y = dst.top + dst.height() * r / rows
-                canvas.drawLine(dst.left, y, dst.right, y, gridPaint)
+                val y = eff.top + eff.height() * r / rows
+                canvas.drawLine(eff.left, y, eff.right, y, gridPaint)
             }
             gridPaint.strokeWidth = resources.displayMetrics.density * 1.6f
-            canvas.drawRect(dst, gridPaint)
+            canvas.drawRect(eff, gridPaint)
         } else {
             // 框外压暗
             canvas.drawRect(dst.left, dst.top, dst.right, cropView.top, dimPaint)
