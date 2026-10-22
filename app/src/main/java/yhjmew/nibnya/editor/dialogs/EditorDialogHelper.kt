@@ -1073,10 +1073,11 @@ internal fun MainActivity.bindPresetSpinner(
             val tv = super.getDropDownView(position, convertView, parent) as TextView
             tv.text = expanded[position]
             // 复用 View 时必须清掉上一次挂的监听，否则滚动后会串号
+            // ⚠️ 不能给列表行挂 OnClickListener：
+            //    ListView 的行一旦可点击会抢掉 AdapterView.onItemClick，
+            //    结果其它预设行全部点不动（只有自定义能点）。
             tv.setOnClickListener(null)
-            if (position == customIdx) {
-                tv.setOnClickListener { openCustom() }
-            }
+            tv.isClickable = false
             return tv
         }
     }
@@ -1111,11 +1112,21 @@ internal fun MainActivity.bindPresetSpinner(
     // ⚠️ 这里**只负责标记「用户真的操作过」**，不要再加 postDelayed 之类的兜底：
     //    早期版本在触摸后延迟检查「当前是否停在自定义格」就弹框，结果用户每次
     //    「单纯展开下拉」都会被弹出输入框（选中项本来就是自定义格）。
+    // 只标记「用户真的操作过」。
+    // ⚠️ 不要在这里补弹自定义框：触摸发生在「展开下拉」的瞬间，
+    //    用户只是想看看选项，却会被输入框糊一脸（之前踩过这个坑）。
+    //    重复点自定义由「选中项已经是自定义时，onItemSelected 不回调」这个
+    //    Android 限制导致 —— 这里接受它：想改名时先选别的再选自定义即可。
     sp.setOnTouchListener { _, _ -> userPicked = true; false }
     sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
         override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
             if (!userPicked) return                  // 程序回显不处理
-            if (position == customIdx) openCustom() else applyValue(presetValues[position])
+            if (position == customIdx) {
+                // 延后一拍：等下拉收起再弹，否则弹窗会被列表盖住
+                sp.post { openCustom() }
+            } else {
+                applyValue(presetValues[position])
+            }
         }
         override fun onNothingSelected(p: AdapterView<*>?) {}
     }
@@ -1171,8 +1182,9 @@ private fun MainActivity.bindPercentSpinner(
         ): View {
             val tv = super.getDropDownView(position, convertView, parent) as TextView
             tv.text = expanded[position]
-            tv.setOnClickListener(null)      // 复用 View 时清掉旧监听，防串号
-            if (position == customIdx) tv.setOnClickListener { openCustom() }
+            // 同 bindPresetSpinner：不能挂行监听，否则预设行点不动
+            tv.setOnClickListener(null)
+            tv.isClickable = false
             return tv
         }
     }
@@ -1208,7 +1220,7 @@ private fun MainActivity.bindPercentSpinner(
         override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
             if (!userPicked) return          // 程序回显不处理
             if (position == customIdx) {
-                openCustom()
+                sp.post { openCustom() }   // 等下拉收起再弹
             } else {
                 value = presetPercent[position]
                 onApply(value)
