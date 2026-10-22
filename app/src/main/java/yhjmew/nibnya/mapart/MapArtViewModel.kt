@@ -227,7 +227,20 @@ class MapArtViewModel : ViewModel() {
     // ============================================
     // 巨型拼图生成
     // ============================================
-    fun generatePuzzleMap(context: Context, imageUri: Uri, rows: Int, cols: Int, targetSlot: Int = -1) {
+    /**
+ * 生成拼图地图。
+ *
+ * @param crop 非空表示「自由裁剪」：先按此矩形（**原图像素坐标**）裁出那一块，
+ *             调用方传 1×1，最终只出 1 张地图。
+ */
+fun generatePuzzleMap(
+    context: Context,
+    imageUri: Uri,
+    rows: Int,
+    cols: Int,
+    targetSlot: Int = -1,
+    crop: android.graphics.RectF? = null
+) {
         viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
             _progressMessage.value = getString(R.string.msg_analyzing_backpack)
@@ -320,6 +333,31 @@ class MapArtViewModel : ViewModel() {
                 // 图片处理（降采样解码，避免大图 OOM）
                 var rawSrc = decodeSampledBitmap(context, imageUri, cols * 128, rows * 128)
                 if (rawSrc == null) throw Exception(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
+
+                // 自由裁剪：crop 是**原图像素坐标**，rawSrc 可能已被降采样，按比例换算后裁
+                if (crop != null) {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    context.contentResolver.openInputStream(imageUri)?.use {
+                        BitmapFactory.decodeStream(it, null, bounds)
+                    }
+                    val ow = bounds.outWidth
+                    val oh = bounds.outHeight
+                    if (ow > 0 && oh > 0) {
+                        val sx = rawSrc.width.toFloat() / ow
+                        val sy = rawSrc.height.toFloat() / oh
+                        val l = (crop.left * sx).toInt().coerceIn(0, rawSrc.width - 1)
+                        val tp = (crop.top * sy).toInt().coerceIn(0, rawSrc.height - 1)
+                        val cw = (crop.width() * sx).toInt().coerceAtLeast(1)
+                            .coerceAtMost(rawSrc.width - l)
+                        val ch = (crop.height() * sy).toInt().coerceAtLeast(1)
+                            .coerceAtMost(rawSrc.height - tp)
+                        if (cw > 0 && ch > 0) {
+                            val cropped = Bitmap.createBitmap(rawSrc, l, tp, cw, ch)
+                            if (cropped !== rawSrc) rawSrc.recycle()
+                            rawSrc = cropped
+                        }
+                    }
+                }
 
                 if (rawSrc.width < cols || rawSrc.height < rows) {
                     rawSrc = Bitmap.createScaledBitmap(rawSrc, max(rawSrc.width, cols), max(rawSrc.height, rows), true)

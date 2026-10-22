@@ -102,6 +102,12 @@ class MainActivity : ComponentActivity() {
     var currentTargetMapArray: JsonArray? = null
     private var puzzleImageUri: Uri? = null
 
+    /**
+     * 自由裁剪模式下待用的裁剪矩形（**原图像素坐标**）。
+     * null 表示走「按行列切」。选完槽位后连同图片一起交给生成器。
+     */
+    private var pendingPuzzleCrop: android.graphics.RectF? = null
+
 
 
 
@@ -192,7 +198,15 @@ class MainActivity : ComponentActivity() {
         showPuzzlePreview(
             uri = uri,
             onConfirm = { _, _ ->
+                // 按行列切：沿用现有流程（扫背包 -> 选槽位 -> 生成 N 张）
                 puzzleImageUri = uri
+                pendingPuzzleCrop = null
+                mapVM.scanInventory(this)
+            },
+            onCropConfirm = { rect ->
+                // 自由裁剪：只出 1 张，先记下矩形再走同一套「选槽位」流程
+                puzzleImageUri = uri
+                pendingPuzzleCrop = rect
                 mapVM.scanInventory(this)
             },
             onCancel = { puzzleImageUri = null }
@@ -2069,7 +2083,12 @@ class MainActivity : ComponentActivity() {
                             )
                         )
                         .setPositiveButton(getString(R.string.btn_puzzle_confirm_overwrite)) { _, _ ->
-                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
+                            // 裁剪模式固定 1x1：只出 1 张地图
+                        if (pendingPuzzleCrop != null) {
+                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop)
+                        } else {
+                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null)
+                        }
                             puzzleImageUri = null
                         }
                         .setNegativeButton(getString(R.string.btn_cancel)) { _, _ ->
@@ -2077,7 +2096,12 @@ class MainActivity : ComponentActivity() {
                         }
                         .show()
                 } else {
-                    mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot)
+                    // 裁剪模式固定 1x1：只出 1 张地图
+                        if (pendingPuzzleCrop != null) {
+                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop)
+                        } else {
+                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null)
+                        }
                     puzzleImageUri = null
                 }
             },

@@ -925,4 +925,12 @@ ID：%3$s
     <string name="msg_puzzle_boxes_many">装 %1$d 个潜影盒（嵌套）</string>
     <string name="msg_puzzle_low_res">⚠ 每块不足 128×128，上墙后会模糊</string>
     <string name="btn_next_pick_slot">下一步：选槽位</string>
+    <!-- 拼图预览：自由裁剪 -->
+    <string name="btn_undo">↶ 撤销</string>
+    <string name="btn_redo">↷ 重做</string>
+    <string name="btn_reset">⟲ 重置</string>
+    <string name="msg_puzzle_lock_ratio">锁定比例（正方形）</string>
+    <string name="msg_puzzle_crop_info">裁出 %1$d×%2$d → 输出 1 张 128×128
+将占用 map_%3$d 附近的一个 ID</string>
+    <string name="msg_puzzle_crop_not_square">⚠ 当前裁剪比例接近正方形，上墙才不会变形</string>
 </resources>
