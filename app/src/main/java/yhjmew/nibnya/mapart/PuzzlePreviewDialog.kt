@@ -253,7 +253,12 @@ internal fun MainActivity.showPuzzlePreview(
         previewView.mode = mode
         previewView.rows = rows
         previewView.cols = cols
-        if (updateCrop) previewView.cropImage = RectF(crop)
+        if (updateCrop) {
+            // 兜底：若裁剪框小于可操作尺寸（例如从撤销历史恢复回来的极框），
+            // 自动撑开，避免「太小 → 把手重叠 → 怎么拖都不动 → 只能重置」
+            normalizeCrop(crop, originalSize.first.toFloat(), originalSize.second.toFloat())
+            previewView.cropImage = RectF(crop)
+        }
         previewView.lockRatio = lockRatio
         previewView.ratioW = cols.toFloat()
         previewView.ratioH = rows.toFloat()
@@ -356,6 +361,34 @@ internal fun MainActivity.showPuzzlePreview(
 
 private fun cropW(r: RectF) = r.right - r.left
 private fun cropH(r: RectF) = r.bottom - r.top
+
+/**
+ * 把裁剪框修正到「可操作」的范围：
+ *  · 不小于最小尺寸（图片短边的 8%，且至少约 88dp 屏幕尺寸）
+ *  · 不超出图片边界
+ *
+ * 这样做是为了兜底：万一从撤销历史里恢复出一个极小的框，
+ * 四个角把手会重叠在一起，hitTest 就无法区分，导致「怎么拖都拖不动」。
+ */
+private fun normalizeCrop(r: RectF, imageW: Float, imageH: Float) {
+    if (imageW <= 0f || imageH <= 0f) return
+
+    val minSize = min(imageW, imageH) * 0.08f
+    var w = cropW(r).coerceAtLeast(minSize)
+    var h = cropH(r).coerceAtLeast(minSize)
+    w = w.coerceAtMost(imageW)
+    h = h.coerceAtMost(imageH)
+
+    var l = r.left
+    var t = r.top
+    if (l + w > imageW) l = (imageW - w).coerceAtLeast(0f)
+    if (t + h > imageH) t = (imageH - h).coerceAtLeast(0f)
+    l = l.coerceAtLeast(0f)
+    t = t.coerceAtLeast(0f)
+
+    r.set(l, t, l + w, t + h)
+}
+
 
 private fun MainActivity.makeTab(text: String, selected: Boolean, density: Float): TextView =
     TextView(this).apply {
@@ -651,7 +684,17 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
         val dx = dxView * sx
         val dy = dyView * sy
 
-        val minSize = max(16f, min(imageW, imageH) * 0.02f)
+        // 最小尺寸：按**屏幕可抓取尺寸**换算成图片像素。
+        // 之前写的是 max(16f, 短边*2%) —— 1024 宽的图上只有 20px，
+        // 缩到那么小之后四个角把手互相重叠，hitTest 全部命中同一处，
+        // 于是「怎么拖都拖不动，只能撤销/重置」。
+        // 这里保证至少约 88dp 见方（手指能稳定抓住），且不小于短边的 8%。
+        val minDp = 88f * resources.displayMetrics.density
+        val scaleView = if (dst.width() > 0f) imageW / dst.width() else 1f
+        val minSize = max(
+            minDp * scaleView,
+            min(imageW, imageH) * 0.08f
+        ).coerceAtMost(min(imageW, imageH))
 
         var l = dragStartImage.left; var t0 = dragStartImage.top
         var r = dragStartImage.right; var b = dragStartImage.bottom
