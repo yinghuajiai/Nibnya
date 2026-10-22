@@ -759,6 +759,35 @@ fun MainActivity.showAppInfoDialog() {
         onChanged = { mapVM.setPuzzleThreadCount(it) }
     )
 
+    // ③ 裁剪框最小尺寸（太小的框四个角把手会重叠，导致拖不动）
+    dialogView.findViewById<Spinner?>(R.id.sp_puzzle_crop_min)?.let { sp ->
+        val values = CROP_MIN_VALUES            // 0.08 / 0.15 / 0.25 / 0.40
+        val labels = listOf(
+            getString(R.string.crop_min_8), getString(R.string.crop_min_15),
+            getString(R.string.crop_min_25), getString(R.string.crop_min_40)
+        )
+        sp.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels).also {
+            it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        val current = prefs?.getFloat("puzzle_crop_min", 0.25f) ?: 0.25f
+        sp.setSelection(values.indexOfFirst { kotlin.math.abs(it - current) < 0.001f }
+            .let { if (it < 0) 2 else it }, false)
+        sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
+                prefs?.edit()?.putFloat("puzzle_crop_min", values[pos])?.apply()
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+    }
+
+    // ④ 每次生成前是否询问是否调整裁剪
+    dialogView.findViewById<CheckBox?>(R.id.cb_puzzle_ask_crop)?.let { cb ->
+        cb.isChecked = prefs?.getBoolean("puzzle_ask_crop", true) ?: true
+        cb.setOnCheckedChangeListener { _, c ->
+            prefs?.edit()?.putBoolean("puzzle_ask_crop", c)?.apply()
+        }
+    }
+
     // ---- 保存前自动备份（放在草稿箱上面）----
     setupBackupSettings(dialogView)
 
@@ -862,6 +891,9 @@ private fun unitFactor(unit: Int): Long = when (unit) {
     2 -> 3_600_000L
     else -> 1_000L
 }
+
+/** 裁剪框最小尺寸候选（占图片短边比例） */
+private val CROP_MIN_VALUES = floatArrayOf(0.08f, 0.15f, 0.25f, 0.40f)
 
 private fun MainActivity.setupDraftSettings(root: android.view.View) {
     val intervalSp = root.findViewById<Spinner?>(R.id.sp_draft_interval)

@@ -241,6 +241,56 @@
                     android:layout_height="wrap_content" />
             </LinearLayout>
 
+            <!-- 2.5 裁剪框最小尺寸 -->
+            <LinearLayout
+                android:id="@+id/layout_puzzle_crop_min"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_crop_min_size"
+                    android:textSize="13sp" />
+
+                <Spinner
+                    android:id="@+id/sp_puzzle_crop_min"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_crop_min_size"
+                android:textSize="12sp"
+                android:textColor="#888888"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="12dp" />
+
+            <!-- 2.6 每次进入裁剪前询问 -->
+            <CheckBox
+                android:id="@+id/cb_puzzle_ask_crop"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/box_puzzle_ask_crop"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_puzzle_ask_crop"
+                android:textSize="12sp"
+                android:textColor="#888888"
+                android:paddingStart="32dp"
+                android:layout_marginBottom="14dp" />
+
+
             <!-- 保存前自动备份（策略对齐草稿箱；放在草稿箱上面） -->
             <CheckBox
                 android:id="@+id/cb_backup_auto"

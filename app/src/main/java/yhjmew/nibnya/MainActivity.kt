@@ -192,9 +192,58 @@ class MainActivity : ComponentActivity() {
 
     internal val puzzleImageLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
-    ) {uri ->
+    ) { uri ->
         if (uri == null) return@registerForActivityResult
-        // 先预览（可调行列），确认后才扫背包选槽位
+
+        // 是否每次都询问「要不要调整裁剪」
+        //  · 设置里关掉 → 直接按当前行列装箱（等于「不调整」）
+        //  · 询问时勾了「不再提示」→ 记住本次选择，以后照办
+        val pref = getSharedPreferences("nbt_config", android.content.Context.MODE_PRIVATE)
+        val askCrop = pref.getBoolean("puzzle_ask_crop", true)
+        val skipCrop = pref.getBoolean("puzzle_skip_crop", false)
+
+        // 直接装箱的分支
+        fun packDirectly() {
+            puzzleImageUri = uri
+            pendingPuzzleCrop = null
+            mapVM.scanInventory(this)
+        }
+
+        if (!askCrop) {
+            if (skipCrop) packDirectly() else openPuzzlePreview(uri)
+            return@registerForActivityResult
+        }
+
+        // 询问框（带「不再提示」）
+        val chk = android.widget.CheckBox(this).apply {
+            text = getString(R.string.chk_dont_ask_again)
+            val pad = (10 * resources.displayMetrics.density).toInt()
+            setPadding(pad * 2, pad, 0, pad)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.title_puzzle_ask_crop))
+            .setMessage(getString(R.string.msg_puzzle_ask_crop))
+            .setView(chk)
+            .setPositiveButton(getString(R.string.btn_go_crop)) { _, _ ->
+                if (chk.isChecked) {
+                    pref.edit().putBoolean("puzzle_ask_crop", false)
+                        .putBoolean("puzzle_skip_crop", false).apply()
+                }
+                openPuzzlePreview(uri)
+            }
+            .setNegativeButton(getString(R.string.btn_skip_crop)) { _, _ ->
+                if (chk.isChecked) {
+                    pref.edit().putBoolean("puzzle_ask_crop", false)
+                        .putBoolean("puzzle_skip_crop", true).apply()
+                }
+                packDirectly()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    /** 打开拼图预览（按行列切 / 自由裁剪） */
+    private fun openPuzzlePreview(uri: Uri) {
         showPuzzlePreview(
             uri = uri,
             onConfirm = { _, _ ->

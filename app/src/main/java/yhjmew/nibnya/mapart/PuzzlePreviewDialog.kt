@@ -56,6 +56,10 @@ internal fun MainActivity.showPuzzlePreview(
     val density = resources.displayMetrics.density
     fun px(v: Int) = (v * density).toInt()
 
+    // 裁剪框最小尺寸（占图片短边比例），由设置决定
+    val minFrac = getSharedPreferences("nbt_config", android.content.Context.MODE_PRIVATE)
+        .getFloat("puzzle_crop_min", 0.25f)
+
     val decoded = decodePreviewBitmap(uri, 720)
     if (decoded == null) {
         toast(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
@@ -115,6 +119,7 @@ internal fun MainActivity.showPuzzlePreview(
         imageW = originalSize.first.toFloat()
         imageH = originalSize.second.toFloat()
         cropImage = RectF(0f, 0f, imageW, imageH)
+        this.minFrac = minFrac
     }
 
     // 撤销 / 重做 / 重置（底部左侧）—— 先建出来，回调里要用
@@ -256,7 +261,7 @@ internal fun MainActivity.showPuzzlePreview(
         if (updateCrop) {
             // 兜底：若裁剪框小于可操作尺寸（例如从撤销历史恢复回来的极框），
             // 自动撑开，避免「太小 → 把手重叠 → 怎么拖都不动 → 只能重置」
-            normalizeCrop(crop, originalSize.first.toFloat(), originalSize.second.toFloat())
+            normalizeCrop(crop, originalSize.first.toFloat(), originalSize.second.toFloat(), minFrac)
             previewView.cropImage = RectF(crop)
         }
         previewView.lockRatio = lockRatio
@@ -370,10 +375,10 @@ private fun cropH(r: RectF) = r.bottom - r.top
  * 这样做是为了兜底：万一从撤销历史里恢复出一个极小的框，
  * 四个角把手会重叠在一起，hitTest 就无法区分，导致「怎么拖都拖不动」。
  */
-private fun normalizeCrop(r: RectF, imageW: Float, imageH: Float) {
+private fun normalizeCrop(r: RectF, imageW: Float, imageH: Float, minFrac: Float) {
     if (imageW <= 0f || imageH <= 0f) return
 
-    val minSize = min(imageW, imageH) * 0.08f
+    val minSize = min(imageW, imageH) * minFrac
     var w = cropW(r).coerceAtLeast(minSize)
     var h = cropH(r).coerceAtLeast(minSize)
     w = w.coerceAtMost(imageW)
@@ -443,6 +448,8 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
     var cropImage: RectF = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
         set(v) { field = v; invalidate() }
     var lockRatio = true
+    /** 裁剪框最小尺寸占图片短边的比例（由设置决定） */
+    var minFrac = 0.25f
     /** 锁定比例 宽:高（默认 1:1 正方形；行列模式传 列:行） */
     var ratioW = 1f
     var ratioH = 1f
@@ -693,7 +700,7 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
         val scaleView = if (dst.width() > 0f) imageW / dst.width() else 1f
         val minSize = max(
             minDp * scaleView,
-            min(imageW, imageH) * 0.08f
+            min(imageW, imageH) * minFrac
         ).coerceAtMost(min(imageW, imageH))
 
         var l = dragStartImage.left; var t0 = dragStartImage.top

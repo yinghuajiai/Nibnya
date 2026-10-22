@@ -924,7 +924,7 @@ ID：%3$s
     <string name="msg_puzzle_boxes_one">装 1 个潜影盒</string>
     <string name="msg_puzzle_boxes_many">装 %1$d 个潜影盒（嵌套）</string>
     <string name="msg_puzzle_low_res">⚠ 每块不足 128×128，上墙后会模糊</string>
-    <string name="btn_next_pick_slot">下一步：选槽位</string>
+    <string name="btn_next_pick_slot">选槽位</string>
     <!-- 拼图预览：自由裁剪 -->
     <string name="btn_undo">↶ 撤销</string>
     <string name="btn_redo">↷ 重做</string>
@@ -933,4 +933,20 @@ ID：%3$s
     <string name="msg_puzzle_crop_info">裁出 %1$d×%2$d → 输出 1 张 128×128
 将占用 map_%3$d 附近的一个 ID</string>
     <string name="msg_puzzle_crop_not_square">⚠ 当前裁剪比例接近正方形，上墙才不会变形</string>
+    <!-- 拼图：裁剪相关设置 -->
+    <string name="label_crop_min_size">裁剪框最小尺寸</string>
+    <string name="subtitle_crop_min_size">太小会难以拖动，建议保持默认</string>
+    <string name="box_puzzle_ask_crop">每次生成前询问是否调整裁剪</string>
+    <string name="subtitle_puzzle_ask_crop">关闭后直接装箱，不再弹出预览</string>
+    <string name="crop_min_8">小（8%）</string>
+    <string name="crop_min_15">较小（15%）</string>
+    <string name="crop_min_25">中（25%，默认）</string>
+    <string name="crop_min_40">较大（40%）</string>
+
+    <!-- 拼图：进入裁剪前的询问 -->
+    <string name="title_puzzle_ask_crop">要调整裁剪吗？</string>
+    <string name="msg_puzzle_ask_crop">可以在预览里按行列切分，或自由裁剪出想要的一块。</string>
+    <string name="btn_go_crop">进入调整</string>
+    <string name="btn_skip_crop">直接装箱</string>
+    <string name="chk_dont_ask_again">不再提示</string>
 </resources>

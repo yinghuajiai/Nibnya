@@ -923,7 +923,7 @@ Source %5$d×%6$d → %7$d×%8$d each</string>
     <string name="msg_puzzle_boxes_one">Fits in 1 shulker box</string>
     <string name="msg_puzzle_boxes_many">Needs %1$d shulker boxes (nested)</string>
     <string name="msg_puzzle_low_res">⚠ Each tile is under 128×128; it will look blurry</string>
-    <string name="btn_next_pick_slot">Next: pick slot</string>
+    <string name="btn_next_pick_slot">Pick slot</string>
     <!-- Puzzle preview: free crop -->
     <string name="btn_undo">↶ Undo</string>
     <string name="btn_redo">↷ Redo</string>
@@ -932,4 +932,20 @@ Source %5$d×%6$d → %7$d×%8$d each</string>
     <string name="msg_puzzle_crop_info">Crop %1$d×%2$d → one 128×128 map
 Uses one map ID near map_%3$d</string>
     <string name="msg_puzzle_crop_not_square">⚠ Keep the crop square so it will not stretch</string>
+    <!-- Puzzle: crop settings -->
+    <string name="label_crop_min_size">Minimum crop size</string>
+    <string name="subtitle_crop_min_size">Too small is hard to drag; default is recommended</string>
+    <string name="box_puzzle_ask_crop">Ask before cropping each time</string>
+    <string name="subtitle_puzzle_ask_crop">When off, it packs directly without the preview</string>
+    <string name="crop_min_8">Small (8%)</string>
+    <string name="crop_min_15">Medium-small (15%)</string>
+    <string name="crop_min_25">Medium (25%, default)</string>
+    <string name="crop_min_40">Large (40%)</string>
+
+    <!-- Puzzle: ask before crop -->
+    <string name="title_puzzle_ask_crop">Adjust the crop?</string>
+    <string name="msg_puzzle_ask_crop">Split by rows/columns in the preview, or freely crop the part you want.</string>
+    <string name="btn_go_crop">Adjust</string>
+    <string name="btn_skip_crop">Pack directly</string>
+    <string name="chk_dont_ask_again">Do not ask again</string>
 </resources>
