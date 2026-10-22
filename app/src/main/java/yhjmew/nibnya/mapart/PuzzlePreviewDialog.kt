@@ -243,11 +243,17 @@ internal fun MainActivity.showPuzzlePreview(
     root.addView(undoRow)
 
     // ---------------- 刷新 ----------------
-    refresh = {
+    /**
+     * 把「当前状态」推给视图并刷新界面。
+     *
+     * ⚠️ updateCrop=false 时不碰视图里的裁剪框 —— 拖动结束后调用 refresh()
+     * 若又用旧状态回写，会把用户刚拖出来的结果冲掉（表现为「一拖就复位」）。
+     */
+    fun refreshInternal(updateCrop: Boolean) {
         previewView.mode = mode
         previewView.rows = rows
         previewView.cols = cols
-        previewView.cropImage = RectF(crop)
+        if (updateCrop) previewView.cropImage = RectF(crop)
         previewView.lockRatio = lockRatio
         previewView.ratioW = cols.toFloat()
         previewView.ratioH = rows.toFloat()
@@ -301,10 +307,15 @@ internal fun MainActivity.showPuzzlePreview(
         updateUndoButtons()
     }
 
+    /** 状态有变化时用（切标签、撤销、重置）—— 同时同步裁剪框 */
+    refresh = { refreshInternal(true) }
+
     // 拖动结束才记历史
     previewView.onDragEnd = {
+        // 把用户拖出来的结果写回共享状态，再刷新文字信息（不覆盖裁剪框）
+        crop.set(previewView.cropImage)
         pushHistory(previewView.dragStartSnapshot ?: snapshot())
-        refresh()
+        refreshInternal(false)
     }
     previewView.onDragStart = {
         previewView.dragStartSnapshot = snapshot()
@@ -462,15 +473,27 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
         )
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
+    /**
+     * 计算 dst（图片在视图里的位置）与 cropView（裁剪框在视图里的位置）。
+     *
+     * ⚠️ 必须在触摸时也调用一次。之前 cropView 只在 onDraw 里算，
+     * 首次触摸时它还是空的 → hitTest 永远返回 0 → 拖动毫无反应。
+     */
+    private fun computeGeom() {
         val vw = width.toFloat(); val vh = height.toFloat()
         if (vw <= 0f || vh <= 0f) return
-
         val scale = min(vw / bitmap.width, vh / bitmap.height)
         val dw = bitmap.width * scale
         val dh = bitmap.height * scale
         dst.set((vw - dw) / 2f, (vh - dh) / 2f, (vw + dw) / 2f, (vh + dh) / 2f)
+        cropView.set(toView(cropImage))
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val vw = width.toFloat(); val vh = height.toFloat()
+        if (vw <= 0f || vh <= 0f) return
+        computeGeom()
         canvas.drawBitmap(bitmap, null, dst, bmpPaint)
 
         if (mode == TAB_GRID) {
@@ -486,7 +509,6 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
             gridPaint.strokeWidth = resources.displayMetrics.density * 1.6f
             canvas.drawRect(dst, gridPaint)
         } else {
-            cropView.set(toView(cropImage))
             // 框外压暗
             canvas.drawRect(dst.left, dst.top, dst.right, cropView.top, dimPaint)
             canvas.drawRect(dst.left, cropView.bottom, dst.right, dst.bottom, dimPaint)
@@ -525,29 +547,51 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
     private var dragCorner = 0   // 0=none 1=TL 2=TR 3=BL 4=BR 5=move
     private var lastX = 0f
     private var lastY = 0f
+    private var downX = 0f
+    private var downY = 0f
     private var dragStartView = RectF()
 
+    /**
+     * 命中判定（视图坐标）。
+     *
+     * 注意顺序：**先判内部，再判角点**。
+     * 之前先判角点，导致框很小或在框内按下时被误判成拖角点，
+     * 表现为「拖框没反应 / 框自己乱缩」。
+     */
     private fun hitTest(x: Float, y: Float): Int {
-        val hs = resources.displayMetrics.density * 26f
-        val l = kotlin.math.abs(x - cropView.left) < hs
-        val r = kotlin.math.abs(x - cropView.right) < hs
-        val t = kotlin.math.abs(y - cropView.top) < hs
-        val b = kotlin.math.abs(y - cropView.bottom) < hs
-        return when {
-            l && t -> 1
-            r && t -> 2
-            l && b -> 3
-            r && b -> 4
-            cropView.contains(x, y) -> 5
-            else -> 0
-        }
+        val hs = resources.displayMetrics.density * 28f
+        val dl = kotlin.math.abs(x - cropView.left)
+        val dr = kotlin.math.abs(x - cropView.right)
+        val dt = kotlin.math.abs(y - cropView.top)
+        val db = kotlin.math.abs(y - cropView.bottom)
+
+        // 角点优先（明确要调大小），但必须同时靠近两条边
+        if (dl < hs && dt < hs) return 1
+        if (dr < hs && dt < hs) return 2
+        if (dl < hs && db < hs) return 3
+        if (dr < hs && db < hs) return 4
+
+        // 边（只改一个方向）：编号 6=左 7=上 8=右 9=下
+        if (dl < hs) return 6
+        if (dt < hs) return 7
+        if (dr < hs) return 8
+        if (db < hs) return 9
+
+        // 框内 → 整体平移
+        if (x > cropView.left && x < cropView.right && y > cropView.top && y < cropView.bottom) return 5
+
+        return 0
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
         if (mode != TAB_CROP) return false
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                // 先算一次几何：cropView 以往只在 onDraw 里更新，
+                // 首次触摸时为空，导致 hitTest 永远返回 0（拖不动）
+                computeGeom()
                 lastX = e.x; lastY = e.y
+                downX = e.x; downY = e.y
                 dragStartView.set(cropView)
                 dragStartImage.set(cropImage)
                 dragCorner = hitTest(e.x, e.y)
@@ -564,11 +608,13 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
 
             MotionEvent.ACTION_MOVE -> {
                 if (dragCorner == 0) return true
-                val dx = e.x - lastX
-                val dy = e.y - lastY
+                // 传「相对按下点的总位移」，由 applyDrag 从 dragStartImage 推算绝对位置。
+                // 之前用增量累加，一旦 cropImage 被外部覆盖就会看起来完全不动。
+                val dxTotal = e.x - downX
+                val dyTotal = e.y - downY
                 lastX = e.x; lastY = e.y
                 // 手势运算绝不该把 App 弄崩：算不出来就当作没动
-                runCatching { applyDrag(dx, dy) }
+                runCatching { applyDragFromStart(dxTotal, dyTotal) }
                 invalidate()
                 return true
             }
@@ -592,66 +638,80 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
 
     private val dragStartImage = RectF()
 
-    private fun applyDrag(dxView: Float, dyView: Float) {
+    /**
+     * 按「相对按下点的总位移」重新计算裁剪框。
+     *
+     * 每次都用 dragStartImage（按下那一刻的矩形）做基准，
+     * 而不是在 cropImage 上累加增量 —— 累加式一旦基准被外部改掉就会失效。
+     */
+    private fun applyDragFromStart(dxView: Float, dyView: Float) {
         if (dragStartView.isEmpty || dst.width() <= 0f || dst.height() <= 0f) return
         val sx = imageW / dst.width()
         val sy = imageH / dst.height()
         val dx = dxView * sx
         val dy = dyView * sy
 
-        val minSize = 16f
-        var l = cropImage.left; var t = cropImage.top
-        var r = cropImage.right; var b = cropImage.bottom
+        val minSize = max(16f, min(imageW, imageH) * 0.02f)
+
+        var l = dragStartImage.left; var t0 = dragStartImage.top
+        var r = dragStartImage.right; var b = dragStartImage.bottom
 
         when (dragCorner) {
-            1 -> { l += dx; t += dy }
-            2 -> { r += dx; t += dy }
-            3 -> { l += dx; b += dy }
-            4 -> { r += dx; b += dy }
-            5 -> {
-                // 整体平移，不越界。
-                // 注意：不能写 coerceIn(0f, imageW - w) —— 一旦 w > imageW
-                // （降采样位图与原图尺寸不一致时极易发生）上限会变成负数，
-                // coerceIn 直接抛 IllegalArgumentException 导致闪退。
-                val w = min(r - l, imageW)
-                val h = min(b - t, imageH)
+            1 -> { l += dx; t0 += dy }   // 左上
+            2 -> { r += dx; t0 += dy }   // 右上
+            3 -> { l += dx; b += dy }    // 左下
+            4 -> { r += dx; b += dy }    // 右下
+            6 -> { l += dx }             // 左边
+            7 -> { t0 += dy }            // 上边
+            8 -> { r += dx }             // 右边
+            9 -> { b += dy }             // 下边
+            else -> {                    // 整体平移
+                val w = (r - l).coerceAtMost(imageW)
+                val h = (b - t0).coerceAtMost(imageH)
                 l = (l + dx).coerceIn(0f, max(0f, imageW - w))
-                t = (t + dy).coerceIn(0f, max(0f, imageH - h))
-                r = l + w; b = t + h
+                t0 = (t0 + dy).coerceIn(0f, max(0f, imageH - h))
+                r = l + w; b = t0 + h
             }
         }
 
+        // 夹紧到图内
         l = l.coerceIn(0f, imageW)
-        t = t.coerceIn(0f, imageH)
+        t0 = t0.coerceIn(0f, imageH)
         r = r.coerceIn(0f, imageW)
         b = b.coerceIn(0f, imageH)
 
-        if (r - l < minSize) { if (dragCorner == 1 || dragCorner == 3) l = r - minSize else r = l + minSize }
-        if (b - t < minSize) { if (dragCorner == 1 || dragCorner == 2) t = b - minSize else b = t + minSize }
-
-        if (lockRatio) {
-            // 按 ratioW:ratioH 修正（默认 1:1 正方形；行列模式下是 列:行）
-            val ratio = if (ratioH > 0f) ratioW / ratioH else 1f
-            var w = r - l
-            var h = b - t
-            if (h <= 0f) h = 1f
-            if (w / h > ratio) w = h * ratio else h = w / ratio
-            when (dragCorner) {
-                1 -> { l = r - w; t = b - h }
-                2 -> { r = l + w; t = b - h }
-                3 -> { l = r - w; b = t + h }
-                4 -> { r = l + w; b = t + h }
-                else -> { r = l + w; b = t + h }
-            }
-            // 夹紧到图内（先把左上推回，再限制右下，避免出现负范围）
-            if (l < 0f) { r -= l; l = 0f }
-            if (t < 0f) { b -= t; t = 0f }
-            if (r > imageW) { l -= (r - imageW); r = imageW }
-            if (b > imageH) { t -= (b - imageH); b = imageH }
-            l = l.coerceAtLeast(0f); t = t.coerceAtLeast(0f)
+        // 最小尺寸（按被拖动的那条边推回去）
+        if (r - l < minSize) {
+            if (dragCorner == 1 || dragCorner == 3) l = max(0f, r - minSize)
+            else r = min(imageW, l + minSize)
+        }
+        if (b - t0 < minSize) {
+            if (dragCorner == 1 || dragCorner == 2) t0 = max(0f, b - minSize)
+            else b = min(imageH, t0 + minSize)
         }
 
-        cropImage.set(l, t, r, b)
+        if (lockRatio) {
+            val ratio = if (ratioH > 0f) ratioW / ratioH else 1f
+            var w = r - l
+            var h = b - t0
+            if (h <= 0f) h = 1f
+            if (w / h > ratio) w = h * ratio else h = w / ratio
+
+            when (dragCorner) {
+                1 -> { l = r - w; t0 = b - h }
+                2 -> { r = l + w; t0 = b - h }
+                3 -> { l = r - w; b = t0 + h }
+                else -> { r = l + w; b = t0 + h }
+            }
+            // 先推回左上，再限右下，避免产生负范围
+            if (l < 0f) { r -= l; l = 0f }
+            if (t0 < 0f) { b -= t0; t0 = 0f }
+            if (r > imageW) { l -= (r - imageW); r = imageW }
+            if (b > imageH) { t0 -= (b - imageH); b = imageH }
+            l = l.coerceAtLeast(0f); t0 = t0.coerceAtLeast(0f)
+        }
+
+        cropImage.set(l, t0, r, b)
     }
 }
 
