@@ -80,6 +80,9 @@ internal fun MainActivity.showPuzzlePreview(
     var rows = puzzleRows.coerceAtLeast(1)
     var cols = puzzleCols.coerceAtLeast(1)
     var lockRatio = true
+    /** 锁定比例 宽:高（默认 1:1）。行列模式可传 cols:rows。 */
+    var ratioW = 1f
+    var ratioH = 1f
     // 裁剪框：**原图像素坐标**（不是屏幕坐标），缩放/转屏都不会错位
     val crop = RectF(0f, 0f, originalSize.first.toFloat(), originalSize.second.toFloat())
 
@@ -106,7 +109,13 @@ internal fun MainActivity.showPuzzlePreview(
     tabs.addView(tabCrop)
     root.addView(tabs)
 
-    val previewView = GridPreviewView<Snap>(this, bitmap)
+    val previewView = GridPreviewView<Snap>(this, bitmap).apply {
+        // 裁剪框用的是原图像素坐标，视图必须知道原图有多大，
+        // 否则降采样后的位图会把框画到视图外（右下角拖不到）
+        imageW = originalSize.first.toFloat()
+        imageH = originalSize.second.toFloat()
+        cropImage = RectF(0f, 0f, imageW, imageH)
+    }
 
     // 撤销 / 重做 / 重置（底部左侧）—— 先建出来，回调里要用
     lateinit var btnUndo: Button
@@ -240,6 +249,8 @@ internal fun MainActivity.showPuzzlePreview(
         previewView.cols = cols
         previewView.cropImage = RectF(crop)
         previewView.lockRatio = lockRatio
+        previewView.ratioW = cols.toFloat()
+        previewView.ratioH = rows.toFloat()
         previewView.invalidate()
 
         val isGrid = mode == TAB_GRID
@@ -386,7 +397,11 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
     var rows = 1
     var cols = 1
     var cropImage: RectF = RectF(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat())
+        set(v) { field = v; invalidate() }
     var lockRatio = true
+    /** 锁定比例 宽:高（默认 1:1 正方形；行列模式传 列:行） */
+    var ratioW = 1f
+    var ratioH = 1f
 
     var isDragging = false
         private set
@@ -414,10 +429,23 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
     private val dst = RectF()          // 图片在视图里的位置
     private val cropView = RectF()     // 裁剪框在视图里的位置
 
+    /**
+     * 原图尺寸（像素）。
+     *
+     * ⚠️ 裁剪框存的是**原图坐标**，而 [bitmap] 只是为省内存降采样出来的
+     * （可能只有 720px）。若用 bitmap.width 当坐标基准，裁剪框会被放大
+     * 约 原图宽/720 倍画到视图外（右下角看不见、拖不到），
+     * 拖动还会算出负数的取值范围 → coerceIn 抛
+     * 「Cannot coerce value to an empty range」崩溃。
+     * 所以一切换算都基于这两个值。
+     */
+    var imageW: Float = bitmap.width.toFloat()
+    var imageH: Float = bitmap.height.toFloat()
+
     /** 原图坐标 → 视图坐标 */
     private fun toView(r: RectF): RectF {
-        val sx = dst.width() / bitmap.width
-        val sy = dst.height() / bitmap.height
+        val sx = dst.width() / imageW
+        val sy = dst.height() / imageH
         return RectF(
             dst.left + r.left * sx, dst.top + r.top * sy,
             dst.left + r.right * sx, dst.top + r.bottom * sy
@@ -426,11 +454,11 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
 
     /** 视图坐标 → 原图坐标 */
     private fun toImage(x: Float, y: Float): Pair<Float, Float> {
-        val sx = dst.width() / bitmap.width
-        val sy = dst.height() / bitmap.height
+        val sx = dst.width() / imageW
+        val sy = dst.height() / imageH
         return Pair(
-            ((x - dst.left) / sx).coerceIn(0f, bitmap.width.toFloat()),
-            ((y - dst.top) / sy).coerceIn(0f, bitmap.height.toFloat())
+            ((x - dst.left) / sx).coerceIn(0f, imageW),
+            ((y - dst.top) / sy).coerceIn(0f, imageH)
         )
     }
 
@@ -539,7 +567,8 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
                 val dx = e.x - lastX
                 val dy = e.y - lastY
                 lastX = e.x; lastY = e.y
-                applyDrag(dx, dy)
+                // 手势运算绝不该把 App 弄崩：算不出来就当作没动
+                runCatching { applyDrag(dx, dy) }
                 invalidate()
                 return true
             }
@@ -564,9 +593,9 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
     private val dragStartImage = RectF()
 
     private fun applyDrag(dxView: Float, dyView: Float) {
-        if (dragStartView.isEmpty) return
-        val sx = bitmap.width / dst.width()
-        val sy = bitmap.height / dst.height()
+        if (dragStartView.isEmpty || dst.width() <= 0f || dst.height() <= 0f) return
+        val sx = imageW / dst.width()
+        val sy = imageH / dst.height()
         val dx = dxView * sx
         val dy = dyView * sy
 
@@ -580,33 +609,46 @@ private class GridPreviewView<T>(ctx: Context, val bitmap: Bitmap) : View(ctx) {
             3 -> { l += dx; b += dy }
             4 -> { r += dx; b += dy }
             5 -> {
-                // 整体平移，不越界
-                val w = r - l; val h = b - t
-                l = (l + dx).coerceIn(0f, bitmap.width - w)
-                t = (t + dy).coerceIn(0f, bitmap.height - h)
+                // 整体平移，不越界。
+                // 注意：不能写 coerceIn(0f, imageW - w) —— 一旦 w > imageW
+                // （降采样位图与原图尺寸不一致时极易发生）上限会变成负数，
+                // coerceIn 直接抛 IllegalArgumentException 导致闪退。
+                val w = min(r - l, imageW)
+                val h = min(b - t, imageH)
+                l = (l + dx).coerceIn(0f, max(0f, imageW - w))
+                t = (t + dy).coerceIn(0f, max(0f, imageH - h))
                 r = l + w; b = t + h
             }
         }
 
-        l = l.coerceIn(0f, bitmap.width.toFloat())
-        t = t.coerceIn(0f, bitmap.height.toFloat())
-        r = r.coerceIn(0f, bitmap.width.toFloat())
-        b = b.coerceIn(0f, bitmap.height.toFloat())
+        l = l.coerceIn(0f, imageW)
+        t = t.coerceIn(0f, imageH)
+        r = r.coerceIn(0f, imageW)
+        b = b.coerceIn(0f, imageH)
 
         if (r - l < minSize) { if (dragCorner == 1 || dragCorner == 3) l = r - minSize else r = l + minSize }
         if (b - t < minSize) { if (dragCorner == 1 || dragCorner == 2) t = b - minSize else b = t + minSize }
 
         if (lockRatio) {
-            // 锁定正方形：以较大边为准
-            val side = max(r - l, b - t)
+            // 按 ratioW:ratioH 修正（默认 1:1 正方形；行列模式下是 列:行）
+            val ratio = if (ratioH > 0f) ratioW / ratioH else 1f
+            var w = r - l
+            var h = b - t
+            if (h <= 0f) h = 1f
+            if (w / h > ratio) w = h * ratio else h = w / ratio
             when (dragCorner) {
-                1 -> { l = r - side; t = b - side }
-                2 -> { r = l + side; t = b - side }
-                3 -> { l = r - side; b = t + side }
-                4 -> { r = l + side; b = t + side }
+                1 -> { l = r - w; t = b - h }
+                2 -> { r = l + w; t = b - h }
+                3 -> { l = r - w; b = t + h }
+                4 -> { r = l + w; b = t + h }
+                else -> { r = l + w; b = t + h }
             }
+            // 夹紧到图内（先把左上推回，再限制右下，避免出现负范围）
+            if (l < 0f) { r -= l; l = 0f }
+            if (t < 0f) { b -= t; t = 0f }
+            if (r > imageW) { l -= (r - imageW); r = imageW }
+            if (b > imageH) { t -= (b - imageH); b = imageH }
             l = l.coerceAtLeast(0f); t = t.coerceAtLeast(0f)
-            r = r.coerceAtMost(bitmap.width.toFloat()); b = b.coerceAtMost(bitmap.height.toFloat())
         }
 
         cropImage.set(l, t, r, b)
