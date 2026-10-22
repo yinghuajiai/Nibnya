@@ -36,7 +36,9 @@ fun MainActivity.showPuzzleConfigDialog() {
                 2 -> { puzzleRows = 3; puzzleCols = 3; pickPuzzleImage() }
                 3 -> showPuzzleCustomSizeDialog()
             }
-        }.show()
+        }
+        .setNegativeButton(R.string.btn_cancel, null)
+        .show()
 }
 
 private fun MainActivity.showPuzzleCustomSizeDialog() {

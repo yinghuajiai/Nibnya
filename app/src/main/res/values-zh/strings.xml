@@ -912,4 +912,17 @@ ID：%3$s
     <string name="msg_puzzle_map_name">拼图 %1$d-%2$d · %3$dx%4$d</string>
     <string name="msg_puzzle_box_name">拼图画 · %1$dx%2$d · %3$d 张</string>
     <string name="msg_puzzle_box_name_layer">拼图画 · %1$dx%2$d · %3$d 张（第 %4$d/%5$d 层）</string>
+    <!-- 拼图预览 -->
+    <string name="title_puzzle_preview">拼图预览</string>
+    <string name="tab_puzzle_grid">按行列切</string>
+    <string name="tab_puzzle_crop">自由裁剪</string>
+    <string name="msg_puzzle_rows">行 %1$d</string>
+    <string name="msg_puzzle_cols">列 %1$d</string>
+    <string name="msg_puzzle_preview_info">%1$d 行 × %2$d 列 = %3$d 张地图
+%4$s
+原图 %5$d×%6$d → 每块 %7$d×%8$d</string>
+    <string name="msg_puzzle_boxes_one">装 1 个潜影盒</string>
+    <string name="msg_puzzle_boxes_many">装 %1$d 个潜影盒（嵌套）</string>
+    <string name="msg_puzzle_low_res">⚠ 每块不足 128×128，上墙后会模糊</string>
+    <string name="btn_next_pick_slot">下一步：选槽位</string>
 </resources>

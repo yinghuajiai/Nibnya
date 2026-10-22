@@ -36,6 +36,7 @@ import yhjmew.nibnya.world.WorldViewModel.WorldItem
 import yhjmew.nibnya.mapart.MapArtViewModel
 import yhjmew.nibnya.mapart.MapArtViewModel.InventorySlotInfo
 import yhjmew.nibnya.mapart.showSlotGrid
+import yhjmew.nibnya.mapart.showPuzzlePreview
 import yhjmew.nibnya.nbt.BedrockParser
 import yhjmew.nibnya.nbt.NbtTranslator
 import yhjmew.nibnya.nbt.adapter.NbtAdapter
@@ -186,8 +187,16 @@ class MainActivity : ComponentActivity() {
     internal val puzzleImageLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) {uri ->
-        puzzleImageUri = uri  // 先暂存
-        mapVM.scanInventory(this)  // 扫描背包→弹出格子选择
+        if (uri == null) return@registerForActivityResult
+        // 先预览（可调行列），确认后才扫背包选槽位
+        showPuzzlePreview(
+            uri = uri,
+            onConfirm = { _, _ ->
+                puzzleImageUri = uri
+                mapVM.scanInventory(this)
+            },
+            onCancel = { puzzleImageUri = null }
+        )
     }
 
     internal val mapImageLauncher = registerForActivityResult(
