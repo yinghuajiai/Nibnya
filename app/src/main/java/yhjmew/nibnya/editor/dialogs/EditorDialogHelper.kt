@@ -1101,7 +1101,10 @@ internal fun MainActivity.bindPresetSpinner(
         ) { n ->
             applyValue(n)
             refreshLabels()
-            sp.setSelection(customIdx)
+            // 输入值恰好等于某个预设（如 4）时，直接选中该预设，
+            // 否则会出现「值是预设、文案却写自定义」的矛盾。
+            val hit = presetValues.indexOf(n)
+            sp.setSelection(if (hit >= 0) hit else customIdx, false)
         }
     }
 
@@ -1194,7 +1197,9 @@ private fun MainActivity.bindPercentSpinner(
             value = n
             onApply(n)
             refreshLabels()
-            sp.setSelection(customIdx)
+            // 同上：命中预设档位就直接选中它
+            val hit = presetPercent.indexOf(n)
+            sp.setSelection(if (hit >= 0) hit else customIdx, false)
         }
     }
 
