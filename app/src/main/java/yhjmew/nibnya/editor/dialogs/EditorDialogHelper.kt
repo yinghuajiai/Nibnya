@@ -760,24 +760,14 @@ fun MainActivity.showAppInfoDialog() {
     )
 
     // ③ 裁剪框最小尺寸（太小的框四个角把手会重叠，导致拖不动）
-    dialogView.findViewById<Spinner?>(R.id.sp_puzzle_crop_min)?.let { sp ->
-        val values = CROP_MIN_VALUES            // 0.08 / 0.15 / 0.25 / 0.40
-        val labels = listOf(
-            getString(R.string.crop_min_8), getString(R.string.crop_min_15),
-            getString(R.string.crop_min_25), getString(R.string.crop_min_40)
-        )
-        sp.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels).also {
-            it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        val current = prefs?.getFloat("puzzle_crop_min", 0.25f) ?: 0.25f
-        sp.setSelection(values.indexOfFirst { kotlin.math.abs(it - current) < 0.001f }
-            .let { if (it < 0) 2 else it }, false)
-        sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
-                prefs?.edit()?.putFloat("puzzle_crop_min", values[pos])?.apply()
-            }
-            override fun onNothingSelected(p: AdapterView<*>?) {}
-        }
+    bindPercentSpinner(
+        sp = dialogView.findViewById(R.id.sp_puzzle_crop_min),
+        presetPercent = listOf(8, 15, 25, 40),
+        titleRes = R.string.title_crop_min_size,
+        invalidMsgRes = R.string.msg_crop_min_invalid,
+        currentPercent = (prefs?.getFloat("puzzle_crop_min", 0.25f) ?: 0.25f) * 100f
+    ) { pct ->
+        prefs?.edit()?.putFloat("puzzle_crop_min", pct / 100f)?.apply()
     }
 
     // ④ 每次生成前是否询问是否调整裁剪
@@ -891,9 +881,6 @@ private fun unitFactor(unit: Int): Long = when (unit) {
     2 -> 3_600_000L
     else -> 1_000L
 }
-
-/** 裁剪框最小尺寸候选（占图片短边比例） */
-private val CROP_MIN_VALUES = floatArrayOf(0.08f, 0.15f, 0.25f, 0.40f)
 
 private fun MainActivity.setupDraftSettings(root: android.view.View) {
     val intervalSp = root.findViewById<Spinner?>(R.id.sp_draft_interval)
@@ -1126,6 +1113,101 @@ internal fun MainActivity.bindPresetSpinner(
         override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
             if (!userPicked) return                  // 程序回显不处理
             if (position == customIdx) openCustom() else applyValue(presetValues[position])
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+}
+
+/**
+ * 百分比版的下拉框：预设几档 + 「自定义」。
+ *
+ * 与 [bindPresetSpinner] 同一套交互（✎ N（点此修改）），
+ * 但值是百分比（Float），内部用**整数万分比**传参给实现，
+ * 这样复用同一套 Spinner 逻辑，避免浮点在 indexOf 上比较失败。
+ *
+ * @param presetPercent 预设档位（百分数，如 8 / 15 / 25 / 40）
+ * @param currentPercent 当前值（百分数）
+ * @param onApply 用户选定后回调（百分数）
+ */
+private fun MainActivity.bindPercentSpinner(
+    sp: Spinner?,
+    presetPercent: List<Int>,
+    titleRes: Int,
+    invalidMsgRes: Int,
+    currentPercent: Float,
+    onApply: (Int) -> Unit
+) {
+    if (sp == null) return
+    val customIdx = presetPercent.size
+    val pen = getString(R.string.draft_interval_custom)
+    val tapHint = getString(R.string.custom_tap_to_edit)
+
+    var value = currentPercent.toInt()
+
+    fun hasCustomValue(): Boolean = value > 0 && presetPercent.indexOf(value) < 0
+
+    fun collapsedLabel(): String =
+        if (hasCustomValue()) "$pen $value%"
+        else getString(R.string.thread_count_custom).removeSuffix("…")
+
+    fun expandedLabel(): String =
+        if (hasCustomValue()) "$pen $value%$tapHint"
+        else getString(R.string.thread_count_custom).removeSuffix("…") + tapHint
+
+    val labels = presetPercent.map { "$it%" }
+    val collapsed = (labels + collapsedLabel()).toMutableList()
+    val expanded = (labels + expandedLabel()).toMutableList()
+
+    lateinit var openCustom: () -> Unit
+
+    val adapter = object : ArrayAdapter<String>(
+        this, android.R.layout.simple_spinner_item, collapsed
+    ) {
+        override fun getDropDownView(
+            position: Int, convertView: View?, parent: android.view.ViewGroup
+        ): View {
+            val tv = super.getDropDownView(position, convertView, parent) as TextView
+            tv.text = expanded[position]
+            tv.setOnClickListener(null)      // 复用 View 时清掉旧监听，防串号
+            if (position == customIdx) tv.setOnClickListener { openCustom() }
+            return tv
+        }
+    }
+    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+    sp.adapter = adapter
+
+    fun refreshLabels() {
+        collapsed[customIdx] = collapsedLabel()
+        expanded[customIdx] = expandedLabel()
+        adapter.notifyDataSetChanged()
+    }
+
+    val idx = presetPercent.indexOf(value)
+    sp.setSelection(if (idx >= 0) idx else customIdx)
+
+    var userPicked = false
+    openCustom = {
+        showCustomNumberDialog(
+            getString(titleRes), 1, 100, getString(invalidMsgRes),
+            value.takeIf { it > 0 } ?: 25
+        ) { n ->
+            value = n
+            onApply(n)
+            refreshLabels()
+            sp.setSelection(customIdx)
+        }
+    }
+
+    sp.setOnTouchListener { _, _ -> userPicked = true; false }
+    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
+            if (!userPicked) return          // 程序回显不处理
+            if (position == customIdx) {
+                openCustom()
+            } else {
+                value = presetPercent[position]
+                onApply(value)
+            }
         }
         override fun onNothingSelected(p: AdapterView<*>?) {}
     }

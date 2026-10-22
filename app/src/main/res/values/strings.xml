@@ -937,10 +937,6 @@ Uses one map ID near map_%3$d</string>
     <string name="subtitle_crop_min_size">Too small is hard to drag; default is recommended</string>
     <string name="box_puzzle_ask_crop">Ask before cropping each time</string>
     <string name="subtitle_puzzle_ask_crop">When off, it packs directly without the preview</string>
-    <string name="crop_min_8">Small (8%)</string>
-    <string name="crop_min_15">Medium-small (15%)</string>
-    <string name="crop_min_25">Medium (25%, default)</string>
-    <string name="crop_min_40">Large (40%)</string>
 
     <!-- Puzzle: ask before crop -->
     <string name="title_puzzle_ask_crop">Adjust the crop?</string>
@@ -948,4 +944,6 @@ Uses one map ID near map_%3$d</string>
     <string name="btn_go_crop">Adjust</string>
     <string name="btn_skip_crop">Pack directly</string>
     <string name="chk_dont_ask_again">Do not ask again</string>
+    <string name="msg_crop_min_invalid">Enter a percentage between 1 and 100</string>
+    <string name="title_crop_min_size">Custom minimum crop size</string>
 </resources>
