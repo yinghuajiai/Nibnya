@@ -170,7 +170,7 @@
                 android:id="@+id/cb_dialog_multithread"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/box_enable_multi_thread_acceleration"
+                android:text="@string/box_multithread_io"
                 android:textSize="14sp" />
 
             <TextView

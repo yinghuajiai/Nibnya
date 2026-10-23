@@ -28,15 +28,15 @@ import yhjmew.nibnya.nbt.NbtTranslator.getString
 // ============================================
 // 玩家 / 地图 / 村庄 / 全局 数据列表入口
 // ============================================
-fun MainActivity.showMultiPlayerDialog() = showDataListDialog(MainActivity.TYPE_PLAYER, getString(R.string.msg_player))
-fun MainActivity.showMapListDialog()     = showDataListDialog(MainActivity.TYPE_MAP, getString(R.string.msg_map))
-fun MainActivity.showVillageListDialog() = showDataListDialog(MainActivity.TYPE_VILLAGE, getString(R.string.msg_village))
+fun MainActivity.showMultiPlayerDialog() = showDataListDialog(MainActivity.TYPE_PLAYER, getString(R.string.label_sub_player))
+fun MainActivity.showMapListDialog()     = showDataListDialog(MainActivity.TYPE_MAP, getString(R.string.label_sub_map))
+fun MainActivity.showVillageListDialog() = showDataListDialog(MainActivity.TYPE_VILLAGE, getString(R.string.label_sub_village))
 fun MainActivity.showGlobalDataDialog()  = showGlobalDataListDialog()
 
 private fun MainActivity.showDataListDialog(type: Int, label: String) {
     val dbPath = worldVM.currentWorkingDbPath
     if (dbPath == null || !File(dbPath).exists()) {
-        toast(getString(R.string.toast_please_initialize_the_database_first)); return
+        toast(getString(R.string.toast_init_db_first)); return
     }
 
     // 如果是地图或村庄，先重扫缓存（确保拼图生成后的数据可见）
@@ -58,7 +58,7 @@ private fun MainActivity.showDataListDialog(type: Int, label: String) {
         showListDialogUI(cachedList, type, label)
         return
     }
-    showProgressDialog(getString(R.string.msg_scanning), getString(R.string.searching_label_data, label))
+    showProgressDialog(getString(R.string.status_scanning), getString(R.string.searching_label_data, label))
     Thread {
         try {
             val db = PlayerDbManager(dbPath)
@@ -90,21 +90,21 @@ private fun MainActivity.showDataListDialog(type: Int, label: String) {
 // ============================================
 private fun MainActivity.showGlobalDataListDialog() {
     val globalKeys = arrayOf(
-        arrayOf("LevelChunkMetaDataDictionary", getString(R.string.msg_global_system_data_list_metadata)),
-        arrayOf("BiomeData", getString(R.string.msg_global_system_data_list_community)),
-        arrayOf("Overworld", getString(R.string.msg_global_system_data_list_main_world_data)),
-        arrayOf("Nether", getString(R.string.msg_global_system_data_list_iower_bound_data)),
-        arrayOf("TheEnd", getString(R.string.msg_global_system_data_list_end_data)),
-        arrayOf("Villages", getString(R.string.msg_global_system_data_list_village)),
-        arrayOf("Portals", getString(R.string.msg_global_system_data_list_portal)),
-        arrayOf("AutonomousEntities", getString(R.string.msg_global_system_data_list_autonoous_entity)),
-        arrayOf("schedulerWT", getString(R.string.msg_global_system_data_list_scheduler)),
-        arrayOf("Scoreboard", getString(R.string.msg_global_system_data_list_scoreboard_data)),
-        arrayOf("Mobevents", getString(R.string.msg_global_system_data_list_biological_events)),
-        arrayOf("PositionTrackDBLastID", getString(R.string.msg_global_system_data_list_last_targeting_id)),
-        arrayOf("dimension0", getString(R.string.msg_global_system_data_list_main_world_0)),
-        arrayOf("dimension1", getString(R.string.msg_global_system_data_list_nether_1)),
-        arrayOf("dimension2", getString(R.string.msg_global_system_data_list_end_2)),
+        arrayOf("LevelChunkMetaDataDictionary", getString(R.string.gsdata_metadata)),
+        arrayOf("BiomeData", getString(R.string.gsdata_community)),
+        arrayOf("Overworld", getString(R.string.gsdata_main_world_data)),
+        arrayOf("Nether", getString(R.string.gsdata_lower_bound_data)),
+        arrayOf("TheEnd", getString(R.string.gsdata_end_data)),
+        arrayOf("Villages", getString(R.string.gsdata_village)),
+        arrayOf("Portals", getString(R.string.gsdata_portal)),
+        arrayOf("AutonomousEntities", getString(R.string.gsdata_autonomous_entity)),
+        arrayOf("schedulerWT", getString(R.string.gsdata_scheduler)),
+        arrayOf("Scoreboard", getString(R.string.gsdata_scoreboard_data)),
+        arrayOf("Mobevents", getString(R.string.gsdata_biological_events)),
+        arrayOf("PositionTrackDBLastID", getString(R.string.gsdata_last_targeting_id)),
+        arrayOf("dimension0", getString(R.string.gsdata_main_world)),
+        arrayOf("dimension1", getString(R.string.gsdata_nether)),
+        arrayOf("dimension2", getString(R.string.gsdata_end)),
     )
     val displayList = mutableListOf<String>()
     val realKeys = mutableListOf<String>()
@@ -150,7 +150,7 @@ private fun MainActivity.showListDialogUI(
     val adapter = FuzzyListAdapter(this, dataList)
     val listView = ListView(this).apply { this.adapter = adapter }
     val emptyView = TextView(this).apply {
-        text = getString(R.string.text_no_data_or_no_search_results_found); gravity = Gravity.CENTER
+        text = getString(R.string.text_no_data); gravity = Gravity.CENTER
     }
     val container = FrameLayout(this).apply { addView(listView); addView(emptyView) }
     listView.emptyView = emptyView
@@ -196,16 +196,16 @@ private fun MainActivity.showListDialogUI(
     btnBatchDelete.setOnClickListener {
         if (!adapter.isSelectionMode()) {
             adapter.setSelectionMode(true)
-            toast(getString(R.string.toast_please_check_the_items_you_want_to_delete))
+            toast(getString(R.string.toast_batch_mode_on))
             return@setOnClickListener
         }
         val toDelete = adapter.selectedList
-        if (toDelete.isEmpty()) { adapter.setSelectionMode(false); toast(getString(R.string.toast_exited_from_batch_management)); return@setOnClickListener }
+        if (toDelete.isEmpty()) { adapter.setSelectionMode(false); toast(getString(R.string.toast_batch_mode_off)); return@setOnClickListener }
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.title_batch_delete))
             .setMessage(getString(R.string.msg_delete_items_confirm, toDelete.size))
             .setPositiveButton(getString(R.string.btn_delete)) { _, _ ->
-                showProgressDialog(getString(R.string.msg_deleting), getString(R.string.msg_processing_ing))
+                showProgressDialog(getString(R.string.status_deleting), getString(R.string.msg_processing_ing))
                 val dbPath = worldVM.currentWorkingDbPath
                 Thread {
                     try {
@@ -256,7 +256,7 @@ private fun MainActivity.showListDialogUI(
     listView.onItemLongClickListener = AdapterView.OnItemLongClickListener { _, _, pos, _ ->
         if (adapter.isSelectionMode()) return@OnItemLongClickListener false
         val targetKey = adapter.getItem(pos)
-        val ops = arrayOf(getString(R.string.msg_list_long_press_copy_data_json), getString(R.string.msg_list_long_press_paste_overlay), getString(R.string.msg_list_long_press_rename), getString(R.string.msg_list_long_press_delete))
+        val ops = arrayOf(getString(R.string.msg_copy_data_json), getString(R.string.btn_paste_overlay), getString(R.string.btn_list_long_press_rename), getString(R.string.btn_list_long_press_delete))
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.title_manage, targetKey))
             .setItems(ops) { _, w ->
@@ -344,7 +344,7 @@ private fun MainActivity.renamePlayerKey(
     val input = EditText(this).apply { setText(oldKey) }
     AlertDialog.Builder(this)
         .setTitle(getString(R.string.title_rename_key))
-        .setMessage(getString(R.string.msg_move_data_to_new_key_and_delete_old_key))
+        .setMessage(getString(R.string.msg_move_to_new_key))
         .setView(input)
         .setPositiveButton(getString(R.string.menu_rename)) { _, _ ->
             val newKey = input.text.toString().trim()
@@ -388,7 +388,7 @@ fun MainActivity.showPlayerRootMenu(currentList: MutableList<String>, dataType: 
         getString(R.string.msg_paste_as_new, typeName),
         getString(R.string.btn_delete_all_in_list)
     )
-    if (dataType == MainActivity.TYPE_MAP) menuList.add(getString(R.string.msg_create_a_giant_jigsaw_puzzle))
+    if (dataType == MainActivity.TYPE_MAP) menuList.add(getString(R.string.msg_create_puzzle))
 
     AlertDialog.Builder(this)
         .setTitle(getString(R.string.title_more_operations))
@@ -396,10 +396,10 @@ fun MainActivity.showPlayerRootMenu(currentList: MutableList<String>, dataType: 
             when {
                 // 删除全部
                 w == 2 -> AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.title_high_energy_early_warning))
+                    .setTitle(getString(R.string.title_danger_warning))
                     .setMessage(getString(R.string.msg_delete_all_type_data, currentList.size, typeName))
                     .setPositiveButton(getString(R.string.btn_delete_all)) { _, _ ->
-                        showProgressDialog(getString(R.string.msg_deleting), getString(R.string.msg_cleaning_up))
+                        showProgressDialog(getString(R.string.status_deleting), getString(R.string.status_cleaning_up))
                         Thread {
                             try {
                                 val db = PlayerDbManager(worldVM.currentWorkingDbPath!!)

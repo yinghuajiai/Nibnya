@@ -111,7 +111,7 @@ class MapArtViewModel : ViewModel() {
             _progressMessage.value = getString(R.string.msg_processing_ing)
             try {
                 val original = decodeSampledBitmap(context, imageUri, 128, 128)
-                if (original == null) throw Exception(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
+                if (original == null) throw Exception(getString(R.string.toast_image_too_large))
 
                 val targetW = 128
                 val targetH = 128
@@ -245,11 +245,11 @@ fun generatePuzzleMap(
 ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
-            _progressMessage.value = getString(R.string.msg_analyzing_backpack)
+            _progressMessage.value = getString(R.string.status_analyzing_backpack)
             var db: PlayerDbManager? = null
             try {
                 val wm = worldVM ?: throw Exception(getString(R.string.msg_worldvm_missing))
-                val dbPath = wm.currentWorkingDbPath ?: throw Exception(getString(R.string.msg_db_not_loaded))
+                val dbPath = wm.currentWorkingDbPath ?: throw Exception(getString(R.string.label_sub_db_not_loaded))
 
                 val dbManager = PlayerDbManager(dbPath)
                 db = dbManager
@@ -318,7 +318,7 @@ fun generatePuzzleMap(
                     for (i in 0..35) if (!occupiedSlots[i]) { found = i; break }
                     if (found < 0) {
                         dbManager.close(); db = null
-                        throw Exception(getString(R.string.msg_backpack_is_full_least_1_empty_slot))
+                        throw Exception(getString(R.string.msg_backpack_full))
                     }
                     found
                 }
@@ -334,7 +334,7 @@ fun generatePuzzleMap(
 
                 // 图片处理（降采样解码，避免大图 OOM）
                 var rawSrc = decodeSampledBitmap(context, imageUri, cols * 128, rows * 128)
-                if (rawSrc == null) throw Exception(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
+                if (rawSrc == null) throw Exception(getString(R.string.toast_image_too_large))
 
                 // 自由裁剪：crop 是**原图像素坐标**，rawSrc 可能已被降采样，按比例换算后裁
                 if (crop != null) {
@@ -582,7 +582,7 @@ fun generatePuzzleMap(
                     currentContainer = boxItem
                 }
 
-                val finalBox = currentContainer ?: throw Exception(getString(R.string.msg_packing_failed))
+                val finalBox = currentContainer ?: throw Exception(getString(R.string.label_sub_packing_failed))
                 // 背包：先删除旧条目，包装新盒子，再插入
                 if (inventory != null) {
                     var removeIndex = -1

@@ -313,7 +313,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     fun scanWorlds(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _loadingMessage.value = getString(R.string.msg_scanning)
+            _loadingMessage.value = getString(R.string.status_scanning)
             try {
                 val dir = File(_currentPath.value)
                 val rawFolders = mutableListOf<String>()
@@ -386,7 +386,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     fun scanWorldsViaSaf(context: Context, treeUri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _loadingMessage.value = NbtTranslator.getString(R.string.msg_scanning)
+            _loadingMessage.value = NbtTranslator.getString(R.string.status_scanning)
 
             try {
                 val resolvedPath = SafPathResolver.resolveTreeUriToPath(context, treeUri)
@@ -448,7 +448,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _loadingMessage.value = NbtTranslator.getString(R.string.msg_loading_level_dat)
+            _loadingMessage.value = NbtTranslator.getString(R.string.status_loading_level_dat)
 
             try {
                 val treeDoc = DocumentFile.fromTreeUri(context, treeUri)
@@ -489,7 +489,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
             } catch (e: Exception) {
                 _isLoading.value = false
-                _errorMessage.value = e.message ?: NbtTranslator.getString(R.string.msg_load_failed)
+                _errorMessage.value = e.message ?: NbtTranslator.getString(R.string.label_sub_load_failed)
             }
         }
     }
@@ -689,7 +689,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _loadingMessage.value = getString(R.string.msg_loading_level_dat)
+            _loadingMessage.value = getString(R.string.status_loading_level_dat)
             try {
                 val worldPath = resolveWorldPath(folder)
                 val src = "${worldPath}level.dat"
@@ -737,7 +737,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             } catch (e: Exception) {
                 AppLogger.error("LoadLevelDat", "Load level.dat failed", e)
                 _isLoading.value = false
-                _errorMessage.value = e.message ?: getString(R.string.msg_load_failed)
+                _errorMessage.value = e.message ?: getString(R.string.label_sub_load_failed)
             }
         }
     }
@@ -828,7 +828,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     useNative = true
                 } else if (!canUseShizuku) {
                     // issue #6：给出可操作的提示，而不是笼统的「需要 Shizuku」
-                    throw Exception(getString(R.string.msg_cannot_read_need_permission_or_path, srcPath))
+                    throw Exception(getString(R.string.msg_read_denied, srcPath))
                 }
 
                 // 清理锁
@@ -985,20 +985,20 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     fun saveAndPushBack(context: Context, dataToSave: JsonObject?, folder: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _loadingMessage.value = getString(R.string.msg_saving)
-            _progressMessage.value = getString(R.string.msg_backup_and_save_progress, 0)
+            _loadingMessage.value = getString(R.string.status_saving)
+            _progressMessage.value = getString(R.string.status_backup_save, 0)
             try {
                 // 备份阶段占进度 0~50%；createBackup 内部会随拷贝字节往上推
                 val backed = createBackup(context, folder)
                 // 备份阶段结束（跳过节流时直接落到 50%），接着是写回存档 50~100%
                 _progressMessage.value =
-                    getString(R.string.msg_backup_and_save_progress, if (backed) 50 else 50)
+                    getString(R.string.status_backup_save, if (backed) 50 else 50)
                 val evm = editorVM ?: throw Exception(getString(R.string.msg_editorvm_missing))
 
                 if (evm.isEditingPlayer.value) {
                     val dbPath = currentWorkingDbPath ?: throw Exception(getString(R.string.text_db_path_is_null))
                     val oldWorkDir = File(dbPath)
-                    if (!oldWorkDir.exists()) throw Exception(getString(R.string.msg_workdir_lost))
+                    if (!oldWorkDir.exists()) throw Exception(getString(R.string.label_sub_workdir_lost))
 
                     val uniqueId = System.currentTimeMillis().toString()
                     val newWorkDir = File(worksDir(context), "working_db_$uniqueId")
@@ -1060,12 +1060,12 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             copyDirectoryMetered(newWorkDir, mcDbDir) { done, total ->
                                 val half = if (total > 0) (done * 100 / total).toInt() / 2 else 50
                                 _progressMessage.value =
-                                    getString(R.string.msg_backup_and_save_progress, 50 + half.coerceIn(0, 50))
+                                    getString(R.string.status_backup_save, 50 + half.coerceIn(0, 50))
                             }
                             savedDirectly = true
                             AppLogger.info("Save", R.string.log_save_player_direct_ok, mcDbPath)
                         } catch (e: Exception) {
-                            AppLogger.warn("Save", R.string.log_save_direct_failed_try_shizuku, e.message)
+                            AppLogger.warn("Save", R.string.log_save_fail_try_shizuku, e.message)
                         }
                     }
 
@@ -1073,9 +1073,9 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     //    ⚠️ 失败必须抛错。绝不能像原来那样「发个命令就当成功」，那是数据丢失。
                     if (!savedDirectly && isSafMode()) {
                         val worldDoc = SafIo.worldDirOf(context, safTreeUri!!, folder)
-                            ?: throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
+                            ?: throw Exception(getString(R.string.msg_write_denied, mcDbPath))
                         val (safOk, safErr) = SafIo.replaceDirInSaf(context, worldDoc, "db", newWorkDir)
-                        if (!safOk) throw Exception(safErr ?: getString(R.string.msg_save_need_permission_or_path, mcDbPath))
+                        if (!safOk) throw Exception(safErr ?: getString(R.string.msg_write_denied, mcDbPath))
                         savedDirectly = true
                         AppLogger.info("Save", R.string.log_save_player_saf_ok, mcDbPath)
                     }
@@ -1092,11 +1092,11 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             val exit = cp.waitFor()
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
                             // 必须检查退出码：非 0 时数据其实没写进去，绝不能提示成功
-                            if (exit != 0) throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
+                            if (exit != 0) throw Exception(getString(R.string.msg_write_denied, mcDbPath))
                             AppLogger.info("Save", R.string.log_save_player_shizuku_ok, mcDbPath)
                         } else {
                             // 4) 都不行 -> 明确报错，提示用户处理权限/换路径
-                            throw Exception(getString(R.string.msg_save_need_permission_or_path, mcDbPath))
+                            throw Exception(getString(R.string.msg_write_denied, mcDbPath))
                         }
                     }
 
@@ -1125,11 +1125,11 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     // SAF 模式：content:// 路径 File 写不了，改用 DocumentFile 覆盖
                     if (!success && isSafMode()) {
                         val worldDoc = SafIo.worldDirOf(context, safTreeUri!!, folder)
-                            ?: throw Exception(getString(R.string.msg_save_need_permission_or_path, targetPath))
+                            ?: throw Exception(getString(R.string.msg_write_denied, targetPath))
                         val (safOk, safErr) = SafIo.replaceFileInSaf(
                             context, worldDoc, MainActivity.LEVEL_DAT_NAME, workingFile
                         )
-                        if (!safOk) throw Exception(safErr ?: getString(R.string.msg_save_need_permission_or_path, targetPath))
+                        if (!safOk) throw Exception(safErr ?: getString(R.string.msg_write_denied, targetPath))
                         success = true
                         AppLogger.info("Save", R.string.log_save_level_saf_ok, targetPath)
                     }
@@ -1150,7 +1150,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     }
 
                     if (!success) {
-                        throw Exception(getString(R.string.msg_save_need_permission_or_path, targetPath))
+                        throw Exception(getString(R.string.msg_write_denied, targetPath))
                     }
                     // 已成功写回磁盘，会话不再需要
                     onSavedSuccessfully(context, "level.dat")
@@ -1170,7 +1170,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         val pct = if (total > 0) (done * 100 / total).toInt() else 0
         // 备份阶段占总进度的一半（0~50%），写回阶段占另一半
         val overall = (pct / 2).coerceIn(0, 50)
-        _progressMessage.value = getString(R.string.msg_backup_and_save_progress, overall)
+        _progressMessage.value = getString(R.string.status_backup_save, overall)
     }
 
     /**
@@ -1333,7 +1333,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 // 恢复会覆盖当前存档 —— 先给当前状态强制留一份保底快照，
                 // 免得「恢复错了就再也回不去」。（force=true：忽略开关与节流）
                 runCatching {
-                    _progressMessage.value = getString(R.string.msg_backup_and_save_progress, 0)
+                    _progressMessage.value = getString(R.string.status_backup_save, 0)
                     createBackup(context, lastLoadedWorldFolder ?: return@runCatching, force = true)
                 }
                 if (backupItem.isDirectory) {
@@ -1428,11 +1428,11 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             val copyErr = SafIo.copyDocToFile(context, worldDoc, dest) { it in levelDbMetaFiles }
             if (copyErr != null) {
                 deleteRecursive(dest)   // 清掉半成品，源目录原样保留
-                return Pair(false, getString(R.string.msg_delete_failed) + "：$copyErr")
+                return Pair(false, getString(R.string.label_sub_delete_failed) + "：$copyErr")
             }
             if (!SafIo.deleteDoc(worldDoc)) {
                 // 已复制成功但删不掉源：回收站里有副本、源也还在，明确报告失败
-                return Pair(false, getString(R.string.msg_delete_failed))
+                return Pair(false, getString(R.string.label_sub_delete_failed))
             }
             TrashStore.writeMeta(slot, folder, worldName, alsoBackups, alsoDrafts, safFolder = true)
             if (alsoBackups) moveBackupsIntoSlot(context, folder, slot)
@@ -1493,7 +1493,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             }
         }
 
-        if (!moved) return Pair(false, getString(R.string.msg_delete_failed))
+        if (!moved) return Pair(false, getString(R.string.label_sub_delete_failed))
 
         TrashStore.writeMeta(slot, folder, worldName, alsoBackups, alsoDrafts)
 
@@ -1739,7 +1739,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
     private fun hexStringToByteArray(s: String): ByteArray {
         val hex = s.replace(" ", "")
-        require(hex.length % 2 == 0) { getString(R.string.msg_the_length_must_be_an_even_number) }
+        require(hex.length % 2 == 0) { getString(R.string.msg_hex_length_even) }
         val data = ByteArray(hex.length / 2)
         for (i in hex.indices step 2) {
             val high = hex[i].digitToIntOrNull(16) ?: throw IllegalArgumentException(getString(R.string.msg_invalid_hex, hex[i]))
@@ -1839,7 +1839,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         m.isAccessible = true
         try { return m.invoke(null, cmd, null, null) as Process }
         catch (e: Exception) {
-            if (e.message?.contains(getString(R.string.msg_binder_haven_t_been_received)) == true)
+            if (e.message?.contains(getString(R.string.msg_binder_missing)) == true)
                 throw Exception(getString(R.string.err_shizuku_binder_not_ready))
             throw e
         }
@@ -2155,7 +2155,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _loadingMessage.value = getString(R.string.msg_reloading_player)
+            _loadingMessage.value = getString(R.string.status_reloading_player)
             try {
                 val db = PlayerDbManager(dbPath)
                 val data = db.readLocalPlayer()
@@ -2172,7 +2172,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 evm.updatePathTitle()
                 _isLoading.value = false
                 // 数据只写进了 LevelDB，玩家存档文件还没落地 —— 必须提醒手动保存
-                _toastMessage.value = getString(R.string.msg_player_reloaded_save_hint)
+                _toastMessage.value = getString(R.string.status_player_reloaded)
             } catch (e: Exception) {
                 _isLoading.value = false
                 _errorMessage.value = e.message

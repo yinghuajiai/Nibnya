@@ -409,8 +409,8 @@ class MainActivity : ComponentActivity() {
                 // Android 11+ 需要所有文件访问权限
                 if (!Environment.isExternalStorageManager()) {
                     AlertDialog.Builder(this)
-                        .setTitle(getString(R.string.title_need_all_files_permission))
-                        .setMessage(getString(R.string.msg_all_files_permission_required))
+                        .setTitle(getString(R.string.title_need_all_files))
+                        .setMessage(getString(R.string.msg_need_all_files))
                         .setPositiveButton(getString(R.string.btn_go_grant)) { _, _ ->
                             try {
                                 startActivity(Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
@@ -570,7 +570,7 @@ class MainActivity : ComponentActivity() {
                     worldVM.clearOfferCreateKey()
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle(getString(R.string.title_data_not_exist))
-                        .setMessage(getString(R.string.msg_this_archive_has_not_generated_data_yet, it))
+                        .setMessage(getString(R.string.msg_no_data_create_new, it))
                         .setPositiveButton(getString(R.string.btn_create_and_open)) { _, _ ->
                             worldVM.createNewGlobalData(it)
                         }
@@ -594,7 +594,7 @@ class MainActivity : ComponentActivity() {
     private fun setupButtons() {
         val sc = findViewById<View?>(R.id.custom_sidebar_container)
 
-        tvCurrentPath?.setOnClickListener { toast(getString(R.string.long_press_here_to_open_the_root_menu)) }
+        tvCurrentPath?.setOnClickListener { toast(getString(R.string.hint_long_press_root)) }
         tvCurrentPath?.setOnLongClickListener { showRootMenu(); true }
 
         findViewById<View?>(R.id.btn_go_fullscreen)?.setOnClickListener { toggleFullScreen(true) }
@@ -690,7 +690,7 @@ class MainActivity : ComponentActivity() {
             findViewById<View?>(R.id.btn_search_nbt)?.performClick()
         }
         findViewById<View?>(R.id.btn_open_any_key)?.setOnClickListener {
-            if (worldVM.currentWorkingDbPath == null) toast(getString(R.string.toast_please_initialize_the_database_first))
+            if (worldVM.currentWorkingDbPath == null) toast(getString(R.string.toast_init_db_first))
             else { sc?.isVisible = false; showOpenByKeyDialog() }
         }
 
@@ -778,7 +778,7 @@ class MainActivity : ComponentActivity() {
 
     private fun toggleTreeMode() {
         editorVM.toggleTreeMode()
-        toast(if (editorVM.isTreeMode.value) getString(R.string.toast_tree_switch_mode_blocktopograph)
+        toast(if (editorVM.isTreeMode.value) getString(R.string.toast_view_tree)
         else getString(R.string.toast_tree_switch_mode_default))
 
         if (editorVM.isTreeMode.value) {
@@ -859,7 +859,7 @@ class MainActivity : ComponentActivity() {
                 }
                 is WorldViewModel.ShizukuStatus.PermissionDenied -> {
                     worldVM.requestShizukuPermission()
-                    toast(getString(R.string.toast_shizuku_permission_failed))
+                    toast(getString(R.string.toast_shizuku_perm_failed))
                 }
                 is WorldViewModel.ShizukuStatus.Available -> {
                     // 继续
@@ -1137,7 +1137,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun doDeleteWorld(w: WorldItem, alsoBackups: Boolean, alsoDrafts: Boolean) {
-        showProgressDialog(getString(R.string.msg_deleting), getString(R.string.msg_processing_ing))
+        showProgressDialog(getString(R.string.status_deleting), getString(R.string.msg_processing_ing))
         Thread {
             val (ok, msg) = worldVM.moveWorldToTrash(
                 this, w.folderName, w.displayName, alsoBackups, alsoDrafts
@@ -1145,7 +1145,7 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 dismissProgressDialog()
                 if (ok) toast(getString(R.string.toast_world_deleted))
-                else toast(msg ?: getString(R.string.msg_delete_failed))
+                else toast(msg ?: getString(R.string.label_sub_delete_failed))
                 // 清空存档名（若删的正是当前选中的）
                 if (etWorldName?.text?.toString() == w.folderName) etWorldName?.setText("")
                 if (ok) {
@@ -1163,7 +1163,7 @@ class MainActivity : ComponentActivity() {
 
     private fun showTrashDialog() {
         val items = TrashStore.list(this)
-        if (items.isEmpty()) { toast(getString(R.string.msg_trash_empty)); return }
+        if (items.isEmpty()) { toast(getString(R.string.label_sub_trash_empty)); return }
         val view = layoutInflater.inflate(R.layout.dialog_list_with_tabs, null, false)
         val lv = view.findViewById<ListView>(R.id.lv_tabbed_items)
         val bar = view.findViewById<LinearLayout>(R.id.layout_tab_bar)
@@ -1229,7 +1229,7 @@ class MainActivity : ComponentActivity() {
             val inc = mutableListOf<String>()
             if (item.hasBackups) inc.add(getString(R.string.label_includes_backups))
             if (item.hasDrafts) inc.add(getString(R.string.label_includes_drafts))
-            append(if (inc.isEmpty()) getString(R.string.msg_none) else inc.joinToString("、"))
+            append(if (inc.isEmpty()) getString(R.string.label_sub_none) else inc.joinToString("、"))
         }
         val opts = arrayOf(
             getString(R.string.btn_restore_action),
@@ -1253,7 +1253,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun restoreTrashItem(item: TrashStore.TrashItem, dlg: AlertDialog?) {
-        showProgressDialog(getString(R.string.msg_restoring), getString(R.string.msg_processing_ing))
+        showProgressDialog(getString(R.string.status_restoring), getString(R.string.msg_processing_ing))
         Thread {
             val (ok, msg) = worldVM.restoreFromTrash(this, item, overwrite = false)
             runOnUiThread {
@@ -1279,7 +1279,7 @@ class MainActivity : ComponentActivity() {
             .setTitle(getString(R.string.dialog_danger_title))
             .setMessage(getString(R.string.msg_restore_overwrite_confirm, item.originalFolder))
             .setPositiveButton(getString(R.string.btn_cover)) { _, _ ->
-                showProgressDialog(getString(R.string.msg_restoring), getString(R.string.msg_processing_ing))
+                showProgressDialog(getString(R.string.status_restoring), getString(R.string.msg_processing_ing))
                 Thread {
                     val (ok, msg) = worldVM.restoreFromTrash(this, item, overwrite = true)
                     runOnUiThread {
@@ -1316,7 +1316,7 @@ class MainActivity : ComponentActivity() {
             .setTitle(getString(R.string.btn_restore_all))
             .setMessage(getString(R.string.msg_restore_all_confirm, items.size))
             .setPositiveButton(getString(R.string.btn_confirm)) { _, _ ->
-                showProgressDialog(getString(R.string.msg_restoring), getString(R.string.msg_processing_ing))
+                showProgressDialog(getString(R.string.status_restoring), getString(R.string.msg_processing_ing))
                 Thread {
                     var okCount = 0
                     var failCount = 0
@@ -1395,8 +1395,8 @@ class MainActivity : ComponentActivity() {
             tabOf = { backupTabOf(it) },
             linesOf = { b ->
                 val line1 = listTitleLine(worldName, folderId)
-                val type = if (b.isPlayerData) getString(R.string.msg_local_player)
-                           else getString(R.string.msg_world_data)
+                val type = if (b.isPlayerData) getString(R.string.label_sub_local_player)
+                           else getString(R.string.label_sub_world_data)
                 "$line1\n" + listSubLine(type, b.time, agoTextOfMillis(b.timestamp))
             },
             onShortClick = { worldVM.restoreBackup(this, it) },
@@ -1460,7 +1460,7 @@ class MainActivity : ComponentActivity() {
                 val newName = input.text.toString().trim()
                 when {
                     newName.isEmpty() ->
-                        toast(getString(R.string.msg_name_cannot_be_empty))
+                        toast(getString(R.string.label_sub_name_cannot_be_empty))
                     newName.contains('/') || newName.contains('\\') ->
                         toast(getString(R.string.toast_Invalid_name))
                     newName == item.name -> { /* 没改动，忽略 */ }
@@ -1698,7 +1698,7 @@ class MainActivity : ComponentActivity() {
                         .setTitle(R.string.menu_more_actions_title)
                         .setItems(labels) { _, w ->
                             if (menuItems[w].second != null) menuItems[w].second!!.invoke()
-                            else toast(getString(R.string.msg_action_unavailable))
+                            else toast(getString(R.string.label_sub_action_unavailable))
                         }
                         .show()
                 }
@@ -1779,13 +1779,13 @@ class MainActivity : ComponentActivity() {
     private fun draftTypeLabel(d: DraftStore.Draft): String {
         val key = d.sessionKey
         return when {
-            key == "level.dat" -> getString(R.string.msg_world_data)
-            key == "~local_player" -> getString(R.string.msg_local_player)
-            key.startsWith("map_") -> getString(R.string.msg_map)
-            key.startsWith("VILLAGE_") -> getString(R.string.msg_village)
-            key.startsWith("player") -> getString(R.string.msg_player)
-            d.isPlayerMode -> getString(R.string.msg_player)
-            else -> getString(R.string.msg_world_data)
+            key == "level.dat" -> getString(R.string.label_sub_world_data)
+            key == "~local_player" -> getString(R.string.label_sub_local_player)
+            key.startsWith("map_") -> getString(R.string.label_sub_map)
+            key.startsWith("VILLAGE_") -> getString(R.string.label_sub_village)
+            key.startsWith("player") -> getString(R.string.label_sub_player)
+            d.isPlayerMode -> getString(R.string.label_sub_player)
+            else -> getString(R.string.label_sub_world_data)
         }
     }
 
@@ -1821,7 +1821,7 @@ class MainActivity : ComponentActivity() {
         val drafts = if (viewAll) all
                      else all.filter { it.folder.isNullOrBlank() || it.folder == folder }
 
-        if (drafts.isEmpty()) { toast(getString(R.string.msg_no_drafts)); return }
+        if (drafts.isEmpty()) { toast(getString(R.string.label_sub_no_drafts)); return }
 
         // 本存档的草稿数（用于「清空本存档」文案与是否可点）
         val hereCount = all.count { !it.folder.isNullOrBlank() && it.folder == folder }
@@ -1881,8 +1881,8 @@ class MainActivity : ComponentActivity() {
         row(getString(R.string.label_type), draftTypeLabel(d))
         row(getString(R.string.label_key), d.sessionKey)
         row(getString(R.string.label_world),
-            d.worldName?.takeIf { it.isNotBlank() } ?: getString(R.string.msg_unknown))
-        row(getString(R.string.label_folder), d.folder ?: getString(R.string.msg_unknown))
+            d.worldName?.takeIf { it.isNotBlank() } ?: getString(R.string.label_sub_unknown))
+        row(getString(R.string.label_folder), d.folder ?: getString(R.string.label_sub_unknown))
         row(getString(R.string.label_time),
             fullTimeOf(d.savedAt) + "  (" + agoTextOf(d.minutesAgo()) + ")")
         row(getString(R.string.label_fields), d.data.size().toString())
@@ -1959,17 +1959,17 @@ class MainActivity : ComponentActivity() {
             val parts = msg.removePrefix("DB_CORRUPT:").split(":")
             showLogDialog(
                 title = getString(R.string.title_database_corruption),
-                detail = getString(R.string.msg_have_you_tried_a_brute_force_repair),
+                detail = getString(R.string.msg_try_force_repair),
                 actionText = getString(R.string.btn_try_to_fix),
                 onAction = {
                     worldVM.tryRepairDb(parts[0]) { ok ->
                         if (ok) {
-                            toast(getString(R.string.msg_under_repair))
+                            toast(getString(R.string.status_under_repair))
                             parts.getOrNull(1)?.let { worldVM.openPlayerData(this, it) }
                         }
                     }
                 },
-                onCancel = { toast(getString(R.string.toast_operation_canceled_please_check_archive_integrity)) },
+                onCancel = { toast(getString(R.string.toast_operation_canceled)) },
                 cancelable = false
             )
         } else {
@@ -2085,7 +2085,7 @@ class MainActivity : ComponentActivity() {
         }
         val f = etWorldName?.text.toString()
         if (f.isEmpty() || f == getString(R.string.hint_select_world)) {
-            toast(getString(R.string.toast_please_click_the_blue_button_to_select_an_archive_first))
+            toast(getString(R.string.toast_select_save_first))
             return
         }
         worldVM.pendingSidebarTask = task
@@ -2173,11 +2173,11 @@ class MainActivity : ComponentActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_STORAGE_PERMISSION) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                toast(getString(R.string.toast_storage_permission_granted))
+                toast(getString(R.string.toast_storage_granted))
             } else {
                 AlertDialog.Builder(this)
                     .setTitle(getString(R.string.title_permission_denied))
-                    .setMessage(getString(R.string.msg_storage_permission_required))
+                    .setMessage(getString(R.string.msg_need_storage))
                     .setPositiveButton(getString(R.string.btn_go_settings)) { _, _ ->
                         try {
                             startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {

@@ -40,12 +40,12 @@ class PlayerDbManager(dbFolderPath: String) {
                 }
             }
         }
-        throw lastErr ?: Exception(getString(R.string.msg_database_is_not_open))
+        throw lastErr ?: Exception(getString(R.string.label_sub_database_is_not_open))
     }
 
     @Throws(Exception::class)
     fun readLocalPlayer(): ByteArray? {
-        val d = db ?: throw Exception(getString(R.string.msg_database_is_not_open))
+        val d = db ?: throw Exception(getString(R.string.label_sub_database_is_not_open))
 
         val key = "~local_player".toByteArray(StandardCharsets.UTF_8)
         val value = d.get(key)
@@ -69,41 +69,41 @@ class PlayerDbManager(dbFolderPath: String) {
 
     @Throws(Exception::class)
     fun readSpecificKey(keyString: String): ByteArray {
-        val d = db ?: throw Exception(getString(R.string.msg_db_not_open))
+        val d = db ?: throw Exception(getString(R.string.label_sub_db_not_open))
         val keyBytes = keyString.toByteArray(StandardCharsets.UTF_8)
         return d.get(keyBytes) ?: throw Exception(getString(R.string.msg_data_is_empty_colon) + keyString)
     }
 
     @Throws(Exception::class)
     fun readRawKey(keyBytes: ByteArray?): ByteArray {
-        val d = db ?: throw Exception(getString(R.string.msg_db_not_open))
-        return d.get(keyBytes) ?: throw Exception(getString(R.string.msg_the_data_corresponding_to_this_key_was_not_found))
+        val d = db ?: throw Exception(getString(R.string.label_sub_db_not_open))
+        return d.get(keyBytes) ?: throw Exception(getString(R.string.msg_key_not_found))
     }
 
     @Throws(Exception::class)
     fun writeLocalPlayer(nbtData: ByteArray?) {
-        val d = db ?: throw Exception(getString(R.string.msg_database_is_not_open))
+        val d = db ?: throw Exception(getString(R.string.label_sub_database_is_not_open))
         val key = "~local_player".toByteArray(StandardCharsets.UTF_8)
         d.put(key, nbtData)
     }
 
     @Throws(Exception::class)
     fun writeSpecificKey(keyStr: String, data: ByteArray?) {
-        val d = db ?: throw Exception(getString(R.string.msg_database_shutdown))
+        val d = db ?: throw Exception(getString(R.string.label_sub_database_shutdown))
         val k = keyStr.toByteArray(StandardCharsets.UTF_8)
         d.put(k, data)
     }
 
     @Throws(Exception::class)
     fun deleteKey(keyStr: String) {
-        val d = db ?: throw Exception(getString(R.string.msg_database_shutdown))
+        val d = db ?: throw Exception(getString(R.string.label_sub_database_shutdown))
         val k = keyStr.toByteArray(StandardCharsets.UTF_8)
         d.delete(k)
     }
 
     @Throws(Exception::class)
     fun listMapKeys(): MutableList<String> {
-        val d = db ?: throw Exception(getString(R.string.msg_database_shutdown))
+        val d = db ?: throw Exception(getString(R.string.label_sub_database_shutdown))
         val list = mutableListOf<String>()
 
         d.iterator().use { iterator ->
@@ -122,7 +122,7 @@ class PlayerDbManager(dbFolderPath: String) {
 
     @Throws(Exception::class)
     fun listVillageKeys(): MutableList<String> {
-        val d = db ?: throw Exception(getString(R.string.msg_database_shutdown))
+        val d = db ?: throw Exception(getString(R.string.label_sub_database_shutdown))
         val list = mutableListOf<String>()
 
         d.iterator().use { iterator ->
@@ -141,7 +141,7 @@ class PlayerDbManager(dbFolderPath: String) {
 
     @Throws(Exception::class)
     fun listPlayerKeys(): MutableList<String> {
-        val d = db ?: throw Exception(getString(R.string.msg_database_shutdown))
+        val d = db ?: throw Exception(getString(R.string.label_sub_database_shutdown))
         val players = mutableListOf("~local_player")
 
         d.iterator().use { iterator ->
@@ -191,7 +191,7 @@ class PlayerDbManager(dbFolderPath: String) {
             try {
                 DB(folder).also { it.open(); it.close() }
             } catch (e: Exception) {
-                throw Exception("${getString(R.string.msg_the_repair_failed_and_the_data_was_completely_damaged)}${e.message}")
+                throw Exception("${getString(R.string.msg_repair_failed_corrupted)}${e.message}")
             }
         }
     }

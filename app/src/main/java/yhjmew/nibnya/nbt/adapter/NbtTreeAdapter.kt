@@ -339,14 +339,14 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
             val gpKey = node.parent?.parent?.key
             if (pKey == "ench" || pKey == "Enchantments" || gpKey == "ench" || gpKey == "Enchantments") {
                 val name = getEnchantTranslation(valRaw)
-                if (name != null) specialTrans = "${context.getString(R.string.msg_enchant)}$name"
+                if (name != null) specialTrans = "${context.getString(R.string.label_sub_enchant)}$name"
             }
         } else if (key == "Id" && node.type == 1) {
             val pKey = node.parent?.key
             val gpKey = node.parent?.parent?.key
             if (pKey == "ActiveEffects" || gpKey == "ActiveEffects") {
                 val name = getPotionTranslation(valRaw)
-                if (name != null) specialTrans = "${context.getString(R.string.msg_potion)}$name"
+                if (name != null) specialTrans = "${context.getString(R.string.label_sub_potion)}$name"
             }
         }
 

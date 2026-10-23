@@ -59,7 +59,7 @@ fun MainActivity.showLogDialog(
     onCancel: (() -> Unit)? = null,
     cancelable: Boolean = true
 ) {
-    val body = detail.ifBlank { getString(R.string.msg_unknown) }
+    val body = detail.ifBlank { getString(R.string.label_sub_unknown) }
 
     // 等宽字体 + 可选中：日志/堆栈对齐好看，且长按能选中复制
     val tv = TextView(this).apply {

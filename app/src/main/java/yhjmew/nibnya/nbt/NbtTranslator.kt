@@ -230,18 +230,18 @@ object NbtTranslator {
 
                 "rainTime", "lightningTime" -> {
                     val tick = cleanVal.toLong()
-                    String.format(Locale.getDefault(), getString(R.string.key_thunderstorm_rainfall_mtimes), tick / 20, tick / 1200.0f)
+                    String.format(Locale.getDefault(), getString(R.string.key_thunder_rain_time), tick / 20, tick / 1200.0f)
                 }
 
                 "Generator", "GeneratorType" -> {
                     when (val v = toInt(cleanVal)) {
-                        0 -> getString(R.string.key_world_generator_type_limited)
-                        1 -> getString(R.string.key_world_generator_type_unlimited)
+                        0 -> getString(R.string.key_gen_type_limited)
+                        1 -> getString(R.string.key_gen_type_unlimited)
                         2 -> getString(R.string.key_world_generator_type_flat)
-                        3 -> getString(R.string.key_world_generator_type_nether)
+                        3 -> getString(R.string.key_gen_type_nether)
                         4 -> getString(R.string.key_world_generator_type_end)
                         5 -> getString(R.string.key_world_generator_type_void)
-                        else -> "${v}${getString(R.string.key_world_generator_type_unknown)}"
+                        else -> "${v}${getString(R.string.key_gen_type_unknown)}"
                     }
                 }
 

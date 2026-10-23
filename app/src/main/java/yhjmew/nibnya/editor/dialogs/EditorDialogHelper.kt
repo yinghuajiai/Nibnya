@@ -556,7 +556,7 @@ fun MainActivity.showArrayPaginationDialog(key: String, arr: JsonArray) {
 
     if (key == "colors" && arr.size() >= 16384) {
         layout.addView(Button(this).apply {
-            text = getString(R.string.text_import_images_to_generate_map_images)
+            text = getString(R.string.text_import_map_images)
             setOnClickListener {
                 currentTargetMapArray = arr
 
@@ -572,7 +572,7 @@ fun MainActivity.showArrayPaginationDialog(key: String, arr: JsonArray) {
                 if (s < 0) s = 0; if (c > 2000) c = 2000
                 if (s + c > arr.size()) c = arr.size() - s
                 showSubArrayEditDialog(arr, s, c)
-            } catch (_: NumberFormatException) { toast(getString(R.string.toast_please_enter_valid_numbers)) }
+            } catch (_: NumberFormatException) { toast(getString(R.string.toast_invalid_number)) }
         }.setNegativeButton(getString(R.string.btn_close), null).show()
 }
 
@@ -842,7 +842,7 @@ fun MainActivity.showDebugMenu() {
                     // 与全局错误弹窗同一形态；「导出」是内置按钮，不用再传 actionText
                     showLogDialog(
                         title = getString(R.string.title_logs),
-                        detail = AppLogger.getLogs().ifEmpty { getString(R.string.msg_no_logs) },
+                        detail = AppLogger.getLogs().ifEmpty { getString(R.string.label_sub_no_logs) },
                         cancelText = getString(R.string.btn_close)
                     )
                 }

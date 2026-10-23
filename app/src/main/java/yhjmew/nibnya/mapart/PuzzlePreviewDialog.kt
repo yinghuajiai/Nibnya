@@ -67,7 +67,7 @@ internal fun MainActivity.showPuzzlePreview(
 
     val decoded = decodePreviewBitmap(uri, 720)
     if (decoded == null) {
-        toast(getString(R.string.toast_processing_error_maybe_the_image_is_too_large))
+        toast(getString(R.string.toast_image_too_large))
         onCancel()
         return
     }
@@ -266,13 +266,13 @@ internal fun MainActivity.showPuzzlePreview(
         orientation = android.widget.RadioGroup.HORIZONTAL
     }
     val rbBlack = android.widget.RadioButton(this).apply {
-        id = View.generateViewId(); text = getString(R.string.msg_puzzle_pad_black); textSize = 12f
+        id = View.generateViewId(); text = getString(R.string.label_sub_puzzle_pad_black); textSize = 12f
     }
     val rbWhite = android.widget.RadioButton(this).apply {
-        id = View.generateViewId(); text = getString(R.string.msg_puzzle_pad_white); textSize = 12f
+        id = View.generateViewId(); text = getString(R.string.label_sub_puzzle_pad_white); textSize = 12f
     }
     val rbTrans = android.widget.RadioButton(this).apply {
-        id = View.generateViewId(); text = getString(R.string.msg_puzzle_pad_transparent); textSize = 12f
+        id = View.generateViewId(); text = getString(R.string.label_sub_pad_transparent); textSize = 12f
     }
     rgPad.addView(rbBlack); rgPad.addView(rbWhite); rgPad.addView(rbTrans)
     rbBlack.isChecked = true
@@ -455,10 +455,10 @@ private fun MainActivity.cropCoverageNote(
     return if (cur > target) {
         // 太宽：裁左右
         val keepRatio = target / cur              // 保留的宽度占比
-        getString(R.string.msg_puzzle_will_crop_sides, ((1 - keepRatio) * 100).roundToInt())
+        getString(R.string.msg_crop_sides, ((1 - keepRatio) * 100).roundToInt())
     } else {
         val keepRatio = cur / target
-        getString(R.string.msg_puzzle_will_crop_top_bottom, ((1 - keepRatio) * 100).roundToInt())
+        getString(R.string.msg_crop_top_bottom, ((1 - keepRatio) * 100).roundToInt())
     }
 }
 

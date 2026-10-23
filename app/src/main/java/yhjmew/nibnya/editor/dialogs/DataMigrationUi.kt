@@ -67,7 +67,7 @@ internal fun MainActivity.startDataMigration(manual: Boolean) {
             runOnUiThread { toast(getString(R.string.msg_migrate_nothing)) }
             return@Thread
         }
-        runOnUiThread { showProgressDialog(getString(R.string.title_migrate_data), getString(R.string.msg_migrating)) }
+        runOnUiThread { showProgressDialog(getString(R.string.title_migrate_data), getString(R.string.status_migrating)) }
 
         val report = runCatching { DataMigrator.migrate() }.getOrElse {
             DataMigrator.Report(emptyList(), false, error = it.message ?: "unknown")

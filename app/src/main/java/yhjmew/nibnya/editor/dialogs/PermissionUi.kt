@@ -48,7 +48,7 @@ internal fun MainActivity.askAllFilesPermission(reason: String? = null): Boolean
         if (!reason.isNullOrBlank()) {
             append(reason).append("\n\n")
         }
-        append(getString(R.string.msg_all_files_permission_required))
+        append(getString(R.string.msg_need_all_files))
     }
 
     val cb = CheckBox(this).apply {
@@ -61,7 +61,7 @@ internal fun MainActivity.askAllFilesPermission(reason: String? = null): Boolean
     }
 
     AlertDialog.Builder(this)
-        .setTitle(getString(R.string.title_need_all_files_permission))
+        .setTitle(getString(R.string.title_need_all_files))
         .setMessage(msg)
         .setView(container)
         .setPositiveButton(getString(R.string.btn_go_grant)) { _, _ ->

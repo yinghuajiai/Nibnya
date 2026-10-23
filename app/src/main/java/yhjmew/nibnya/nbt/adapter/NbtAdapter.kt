@@ -128,12 +128,12 @@ class NbtAdapter(private val context: Context, val data: JsonObject?) : BaseAdap
         } else if (key == "id" && type == 2) {
             if (currentGrandParentKey == "ench" || currentGrandParentKey == "Enchantments") {
                 val name = NbtTranslator.getEnchantTranslation(rawVal)
-                if (name != null) specialTrans = "${context.getString(R.string.msg_enchant)}$name"
+                if (name != null) specialTrans = "${context.getString(R.string.label_sub_enchant)}$name"
             }
         } else if (key == "Id" && type == 1) {
             if (currentGrandParentKey == "ActiveEffects") {
                 val name = NbtTranslator.getPotionTranslation(rawVal)
-                if (name != null) specialTrans = "${context.getString(R.string.msg_potion)}$name"
+                if (name != null) specialTrans = "${context.getString(R.string.label_sub_potion)}$name"
             }
         }
 
