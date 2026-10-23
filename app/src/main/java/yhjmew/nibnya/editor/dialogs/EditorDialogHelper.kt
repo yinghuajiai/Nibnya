@@ -739,7 +739,8 @@ fun MainActivity.showAppInfoDialog() {
         dialogView, R.id.sp_io_thread_count, R.id.layout_io_thread_count,
         prefKey = "io_thread_count",
         enabled = prefs?.getBoolean("use_multithread", true) ?: true,
-        onChanged = { worldVM.setIoThreadCount(it) }
+        onChanged = { worldVM.setIoThreadCount(it) },
+        customBtnId = R.id.btn_custom_io_thread_count
     )
 
     // ② 拼图生成多线程
@@ -756,7 +757,8 @@ fun MainActivity.showAppInfoDialog() {
         dialogView, R.id.sp_puzzle_thread_count, R.id.layout_puzzle_thread_count,
         prefKey = "puzzle_thread_count",
         enabled = prefs?.getBoolean("puzzle_multithread", true) ?: true,
-        onChanged = { mapVM.setPuzzleThreadCount(it) }
+        onChanged = { mapVM.setPuzzleThreadCount(it) },
+        customBtnId = R.id.btn_custom_puzzle_thread_count
     )
 
     // ③ 裁剪框最小尺寸（太小的框四个角把手会重叠，导致拖不动）
@@ -765,10 +767,12 @@ fun MainActivity.showAppInfoDialog() {
         presetPercent = listOf(8, 15, 25, 40),
         titleRes = R.string.title_crop_min_size,
         invalidMsgRes = R.string.msg_crop_min_invalid,
-        currentPercent = (prefs?.getFloat("puzzle_crop_min", 0.25f) ?: 0.25f) * 100f
-    ) { pct ->
-        prefs?.edit()?.putFloat("puzzle_crop_min", pct / 100f)?.apply()
-    }
+        currentPercent = (prefs?.getFloat("puzzle_crop_min", 0.25f) ?: 0.25f) * 100f,
+        onApply = { pct ->
+            prefs?.edit()?.putFloat("puzzle_crop_min", pct / 100f)?.apply()
+        },
+        customBtn = dialogView.findViewById(R.id.btn_custom_puzzle_crop_min)
+    )
 
     // ⑤ 拼图命名前缀
     dialogView.findViewById<android.widget.EditText?>(R.id.et_puzzle_prefix)?.let { et ->
@@ -984,7 +988,8 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
             interval = n
             if (n > 0) prefs?.edit()?.putInt("draft_interval_last", n)?.apply()
             applyAll()
-        }
+        },
+        customBtn = root.findViewById(R.id.btn_custom_draft_interval)
     )
 
     // ③ 单位
@@ -1016,7 +1021,8 @@ private fun MainActivity.setupDraftSettings(root: android.view.View) {
         titleRes = R.string.title_custom_draft_max,
         invalidMsgRes = R.string.msg_draft_interval_invalid,
         currentValue = { maxDrafts },
-        applyValue = { n -> maxDrafts = n; applyAll() }
+        applyValue = { n -> maxDrafts = n; applyAll() },
+        customBtn = root.findViewById(R.id.btn_custom_draft_max)
     )
 
     cbKeep?.isChecked = prefs?.getBoolean("draft_keep_original", false) ?: false
@@ -1058,64 +1064,46 @@ internal fun MainActivity.bindPresetSpinner(
     titleRes: Int,
     invalidMsgRes: Int,
     currentValue: () -> Int,
-    applyValue: (Int) -> Unit
+    applyValue: (Int) -> Unit,
+    /** 「自定义」按钮：移出下拉，放在 Spinner 旁边独立成一个按钮 */
+    customBtn: android.widget.Button? = null
 ) {
     if (sp == null) return
-    val customIdx = presetValues.size
     val pen = getString(R.string.draft_interval_custom)
-    val tapHint = getString(R.string.custom_tap_to_edit)
 
-    /** 是否已经设过自定义值（值不等于任何预设） */
+    /** 当前值是否不在预设里（即用户设过自定义值） */
     fun hasCustomValue(): Boolean {
         val v = currentValue()
         return v > 0 && presetValues.indexOf(v) < 0
     }
 
     /**
-     * **收起态**那一栏的文案（乙方案）：
-     * - 设过自定义 → `✎ 5`（带笔，一眼看出是自己设的）
-     * - 没设过 → 「自定义」（提示入口在这儿）
+     * 下拉里显示的文案。
+     *
+     * 「自定义」入口已**移出下拉**，改为旁边独立的按钮 —— 这样无论当前
+     * 停在哪个预设上，都能随时点按钮改数值，不再受
+     * 「Spinner 选中位置未变就不回调 onItemSelected」这个 Android 限制。
+     *
+     * 若当前值是自定义值（不在预设里），额外追加一行 `✎ 5` 用于展示。
      */
-    fun collapsedLabel(): String =
-        if (hasCustomValue()) "$pen ${currentValue()}"
-        else getString(R.string.thread_count_custom).removeSuffix("…")
+    fun displayLabels(): MutableList<String> {
+        val list = presetLabels.toMutableList()
+        if (hasCustomValue()) list.add("$pen ${currentValue()}")
+        return list
+    }
 
-    /**
-     * **展开态**那一行的文案：始终带「（点此修改）」提示 ——
-     * 只有在展开时才提示「可点」，收起时就只显示数值，避免被挤成多行。
-     */
-    fun expandedLabel(): String =
-        if (hasCustomValue()) "$pen ${currentValue()}$tapHint"
-        else getString(R.string.thread_count_custom).removeSuffix("…") + tapHint
+    var labels = displayLabels()
 
-    // 收起态与展开态的两套文案（同一个位置可能不一样）
-    val collapsed = (presetLabels + collapsedLabel()).toMutableList()
-    val expanded = (presetLabels + expandedLabel()).toMutableList()
-
-    lateinit var openCustom: () -> Unit
-
-    // 直接用 ArrayAdapter 套系统布局：
-    // - 收起态 getView 由 ArrayAdapter + simple_spinner_item 提供（黑字/默认字号/默认内边距）
-    // - 展开态 getDropDownView 由 simple_spinner_dropdown_item 提供
-    // 只覆盖 getDropDownView 来加「（点此修改）」与点击监听。
     val adapter = object : ArrayAdapter<String>(
-        this, android.R.layout.simple_spinner_item, collapsed
+        this, android.R.layout.simple_spinner_item, labels
     ) {
-        /**
-         * 展开态：自定义那一行显示 `✎ 5（点此修改）` 并挂点击。
-         *
-         * ⚠️ 为什么必须挂点击：AdapterView 在「选中位置没变」时**不会回调 onItemSelected**
-         *    （setSelection 里 `mOldSelectedPosition == position` 就直接 return），
-         *    所以「再展开下拉点同一格」天生收不到事件。挂在行 View 上才能保证一定能再次编辑
-         *    （ListPopupWindow 的 onItemClick 在 ListView 层处理，不会被行点击抢掉）。
-         */
-        override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+        override fun getDropDownView(
+            position: Int, convertView: View?, parent: android.view.ViewGroup
+        ): View {
             val tv = super.getDropDownView(position, convertView, parent) as TextView
-            tv.text = expanded[position]
-            // 复用 View 时必须清掉上一次挂的监听，否则滚动后会串号
-            // ⚠️ 不能给列表行挂 OnClickListener：
-            //    ListView 的行一旦可点击会抢掉 AdapterView.onItemClick，
-            //    结果其它预设行全部点不动（只有自定义能点）。
+            tv.text = labels[position]
+            // ⚠️ 列表行不能挂 OnClickListener：会抢掉 AdapterView.onItemClick，
+            //    导致其它行全部点不动（踩过这个坑）。
             tv.setOnClickListener(null)
             tv.isClickable = false
             return tv
@@ -1124,51 +1112,42 @@ internal fun MainActivity.bindPresetSpinner(
     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
     sp.adapter = adapter
 
-    fun refreshLabels() {
-        collapsed[customIdx] = collapsedLabel()
-        expanded[customIdx] = expandedLabel()
+    /** 值变化后刷新文案与选中项 */
+    fun syncSelection() {
+        labels = displayLabels()
+        adapter.clear()
+        adapter.addAll(labels)
         adapter.notifyDataSetChanged()
+        val hit = presetValues.indexOf(currentValue())
+        sp.setSelection(if (hit >= 0) hit else labels.size - 1, false)
     }
 
-    // 回显：命中预设就选它，否则停在自定义格
-    val idx = presetValues.indexOf(currentValue())
-    sp.setSelection(if (idx >= 0) idx else customIdx)
+    // 初始回显
+    run {
+        val hit = presetValues.indexOf(currentValue())
+        sp.setSelection(if (hit >= 0) hit else labels.size - 1)
+    }
 
     var userPicked = false
-    openCustom = {
+    sp.setOnTouchListener { _, _ -> userPicked = true; false }
+    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
+            if (!userPicked) return              // 程序回显不处理
+            // 末位可能是「✎ 自定义值」，只有真正的预设才写回
+            presetValues.getOrNull(position)?.let { applyValue(it) }
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    // ---- 「自定义」独立按钮：随时可点 ----
+    customBtn?.setOnClickListener {
         showCustomNumberDialog(
             getString(titleRes), 1, CUSTOM_VALUE_MAX, getString(invalidMsgRes),
             currentValue().takeIf { it > 0 } ?: 1
         ) { n ->
             applyValue(n)
-            refreshLabels()
-            // 输入值恰好等于某个预设（如 4）时，直接选中该预设，
-            // 否则会出现「值是预设、文案却写自定义」的矛盾。
-            val hit = presetValues.indexOf(n)
-            sp.setSelection(if (hit >= 0) hit else customIdx, false)
+            syncSelection()
         }
-    }
-
-    // ⚠️ 这里**只负责标记「用户真的操作过」**，不要再加 postDelayed 之类的兜底：
-    //    早期版本在触摸后延迟检查「当前是否停在自定义格」就弹框，结果用户每次
-    //    「单纯展开下拉」都会被弹出输入框（选中项本来就是自定义格）。
-    // 只标记「用户真的操作过」。
-    // ⚠️ 不要在这里补弹自定义框：触摸发生在「展开下拉」的瞬间，
-    //    用户只是想看看选项，却会被输入框糊一脸（之前踩过这个坑）。
-    //    重复点自定义由「选中项已经是自定义时，onItemSelected 不回调」这个
-    //    Android 限制导致 —— 这里接受它：想改名时先选别的再选自定义即可。
-    sp.setOnTouchListener { _, _ -> userPicked = true; false }
-    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
-            if (!userPicked) return                  // 程序回显不处理
-            if (position == customIdx) {
-                // 延后一拍：等下拉收起再弹，否则弹窗会被列表盖住
-                sp.post { openCustom() }
-            } else {
-                applyValue(presetValues[position])
-            }
-        }
-        override fun onNothingSelected(p: AdapterView<*>?) {}
     }
 }
 
@@ -1189,40 +1168,35 @@ private fun MainActivity.bindPercentSpinner(
     titleRes: Int,
     invalidMsgRes: Int,
     currentPercent: Float,
-    onApply: (Int) -> Unit
+    onApply: (Int) -> Unit,
+    /** 「自定义」按钮：移出下拉，放在 Spinner 旁边 */
+    customBtn: android.widget.Button? = null
 ) {
     if (sp == null) return
-    val customIdx = presetPercent.size
     val pen = getString(R.string.draft_interval_custom)
-    val tapHint = getString(R.string.custom_tap_to_edit)
 
     var value = currentPercent.toInt()
 
     fun hasCustomValue(): Boolean = value > 0 && presetPercent.indexOf(value) < 0
 
-    fun collapsedLabel(): String =
-        if (hasCustomValue()) "$pen $value%"
-        else getString(R.string.thread_count_custom).removeSuffix("…")
+    /** 下拉文案：预设档位 + （若当前是自定义值）追加一行 `✎ 37%` 用于展示 */
+    fun displayLabels(): MutableList<String> {
+        val list = presetPercent.map { "$it%" }.toMutableList()
+        if (hasCustomValue()) list.add("$pen $value%")
+        return list
+    }
 
-    fun expandedLabel(): String =
-        if (hasCustomValue()) "$pen $value%$tapHint"
-        else getString(R.string.thread_count_custom).removeSuffix("…") + tapHint
-
-    val labels = presetPercent.map { "$it%" }
-    val collapsed = (labels + collapsedLabel()).toMutableList()
-    val expanded = (labels + expandedLabel()).toMutableList()
-
-    lateinit var openCustom: () -> Unit
+    var labels = displayLabels()
 
     val adapter = object : ArrayAdapter<String>(
-        this, android.R.layout.simple_spinner_item, collapsed
+        this, android.R.layout.simple_spinner_item, labels
     ) {
         override fun getDropDownView(
             position: Int, convertView: View?, parent: android.view.ViewGroup
         ): View {
             val tv = super.getDropDownView(position, convertView, parent) as TextView
-            tv.text = expanded[position]
-            // 同 bindPresetSpinner：不能挂行监听，否则预设行点不动
+            tv.text = labels[position]
+            // 同 bindPresetSpinner：列表行不能挂监听，否则会抢掉其它行的点击
             tv.setOnClickListener(null)
             tv.isClickable = false
             return tv
@@ -1231,42 +1205,42 @@ private fun MainActivity.bindPercentSpinner(
     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
     sp.adapter = adapter
 
-    fun refreshLabels() {
-        collapsed[customIdx] = collapsedLabel()
-        expanded[customIdx] = expandedLabel()
+    fun syncSelection() {
+        labels = displayLabels()
+        adapter.clear()
+        adapter.addAll(labels)
         adapter.notifyDataSetChanged()
+        val hit = presetPercent.indexOf(value)
+        sp.setSelection(if (hit >= 0) hit else labels.size - 1, false)
     }
 
-    val idx = presetPercent.indexOf(value)
-    sp.setSelection(if (idx >= 0) idx else customIdx)
+    run {
+        val hit = presetPercent.indexOf(value)
+        sp.setSelection(if (hit >= 0) hit else labels.size - 1)
+    }
 
     var userPicked = false
-    openCustom = {
+    sp.setOnTouchListener { _, _ -> userPicked = true; false }
+    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
+            if (!userPicked) return          // 程序回显不处理
+            val preset = presetPercent.getOrNull(position) ?: return
+            value = preset
+            onApply(preset)
+        }
+        override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    // ---- 「自定义」独立按钮 ----
+    customBtn?.setOnClickListener {
         showCustomNumberDialog(
             getString(titleRes), 1, 100, getString(invalidMsgRes),
             value.takeIf { it > 0 } ?: 25
         ) { n ->
             value = n
             onApply(n)
-            refreshLabels()
-            // 同上：命中预设档位就直接选中它
-            val hit = presetPercent.indexOf(n)
-            sp.setSelection(if (hit >= 0) hit else customIdx, false)
+            syncSelection()
         }
-    }
-
-    sp.setOnTouchListener { _, _ -> userPicked = true; false }
-    sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-        override fun onItemSelected(p: AdapterView<*>?, v: View?, position: Int, id: Long) {
-            if (!userPicked) return          // 程序回显不处理
-            if (position == customIdx) {
-                sp.post { openCustom() }   // 等下拉收起再弹
-            } else {
-                value = presetPercent[position]
-                onApply(value)
-            }
-        }
-        override fun onNothingSelected(p: AdapterView<*>?) {}
     }
 }
 
@@ -1328,7 +1302,8 @@ private fun MainActivity.setupBackupSettings(root: android.view.View) {
             interval = n
             if (n > 0) prefs?.edit()?.putInt(BackupSettings.PREF_INTERVAL_LAST, n)?.apply()
             writePrefs()
-        }
+        },
+        customBtn = root.findViewById(R.id.btn_custom_backup_interval)
     )
 
     unitSp?.adapter = ArrayAdapter(
@@ -1362,7 +1337,8 @@ private fun MainActivity.setupBackupSettings(root: android.view.View) {
         applyValue = { n ->
             maxKeep = n
             writePrefs()
-        }
+        },
+        customBtn = root.findViewById(R.id.btn_custom_backup_max)
     )
 
     writePrefs()
@@ -1425,9 +1401,12 @@ private fun MainActivity.setupTrashSettings(root: android.view.View) {
         if (days > 0 && TRASH_KEEP_VALUES.indexOf(days) < 0) labelFor(days)
         else getString(R.string.thread_count_custom)
 
+    // 「自定义」入口已移到旁边的独立按钮，下拉里只放预设
+    // （若当前是自定义值，额外追加一项用于展示）
     val labels = mutableListOf(
-        labelFor(0), labelFor(7), labelFor(30), labelFor(90), customLabel()
+        labelFor(0), labelFor(7), labelFor(30), labelFor(90)
     )
+    if (days > 0 && TRASH_KEEP_VALUES.indexOf(days) < 0) labels.add(labelFor(days))
     val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
     sp.adapter = adapter
@@ -1439,7 +1418,7 @@ private fun MainActivity.setupTrashSettings(root: android.view.View) {
     // 回显
     run {
         val idx = TRASH_KEEP_VALUES.indexOf(days)
-        sp.setSelection(if (idx >= 0) idx else TRASH_KEEP_VALUES.size - 1)
+        sp.setSelection(if (idx >= 0) idx else labels.size - 1)
     }
     apply()
 
@@ -1452,24 +1431,27 @@ private fun MainActivity.setupTrashSettings(root: android.view.View) {
         override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, position: Int, id: Long) {
             if (!userPicked) return
             val valAt = TRASH_KEEP_VALUES.getOrNull(position) ?: return
-            if (valAt == -1) {
-                showCustomNumberDialog(
-                    getString(R.string.title_custom_trash_keep), 1, CUSTOM_VALUE_MAX,
-                    getString(R.string.msg_trash_keep_invalid),
-                    if (days > 0) days else 30
-                ) { n ->
-                    days = n
-                    apply()
-                    // 刷新「自定义」项文字（改内容不改长度，用 notifyDataSetChanged）
-                    labels[labels.size - 1] = customLabel()
-                    adapter.notifyDataSetChanged()
-                }
-            } else {
-                days = valAt
-                apply()
-            }
+            days = valAt
+            apply()
         }
         override fun onNothingSelected(p: AdapterView<*>?) {}
+    }
+
+    // ---- 「自定义」独立按钮：随时可点，不受下拉选中位置限制 ----
+    root.findViewById<android.widget.Button?>(R.id.btn_custom_trash_keep)?.setOnClickListener {
+        showCustomNumberDialog(
+            getString(R.string.title_custom_trash_keep), 1, CUSTOM_VALUE_MAX,
+            getString(R.string.msg_trash_keep_invalid),
+            if (days > 0) days else 30
+        ) { n ->
+            days = n
+            apply()
+            // 自定义值不属于任何预设 -> 追加到末尾并选中
+            val lbl = labelFor(n)
+            if (labels.none { it == lbl }) labels.add(lbl)
+            adapter.notifyDataSetChanged()
+            sp.setSelection(labels.size - 1, false)
+        }
     }
 }
 
@@ -1488,7 +1470,8 @@ private fun MainActivity.setupThreadCountSpinner(
     containerId: Int,
     prefKey: String,
     enabled: Boolean,
-    onChanged: (Int) -> Unit
+    onChanged: (Int) -> Unit,
+    customBtnId: Int = 0
 ) {
     val spinner = root.findViewById<Spinner?>(spinnerId) ?: return
     val container = root.findViewById<LinearLayout?>(containerId)
@@ -1508,7 +1491,8 @@ private fun MainActivity.setupThreadCountSpinner(
             saved = n
             prefs?.edit()?.putInt(prefKey, n)?.apply()
             onChanged(n)
-        }
+        },
+        customBtn = if (customBtnId != 0) root.findViewById(customBtnId) else null
     )
 
     spinner.isEnabled = enabled

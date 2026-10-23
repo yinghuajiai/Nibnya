@@ -197,10 +197,32 @@
                     android:text="@string/label_thread_count"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_io_thread_count"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_io_thread_count"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_io_thread_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- 2. 拼图生成多线程 -->
@@ -235,10 +257,32 @@
                     android:text="@string/label_thread_count"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_puzzle_thread_count"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_puzzle_thread_count"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_puzzle_thread_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- 2.5 裁剪框最小尺寸 -->
@@ -257,11 +301,32 @@
                     android:text="@string/label_crop_min_size"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_puzzle_crop_min"
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_puzzle_crop_min"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_puzzle_crop_min"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
             </LinearLayout>
 
             <TextView
@@ -381,11 +446,32 @@
                     android:text="@string/label_backup_interval"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_backup_interval"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_backup_interval"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_backup_interval"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
 
                 <Spinner
                     android:id="@+id/sp_backup_interval_unit"
@@ -410,10 +496,32 @@
                     android:text="@string/label_backup_max"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_backup_max"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_backup_max"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_backup_max"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
             </LinearLayout>
 
             <TextView
@@ -458,11 +566,32 @@
                     android:text="@string/label_draft_interval"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_draft_interval"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_draft_interval"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_draft_interval"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
 
                 <Spinner
                     android:id="@+id/sp_draft_interval_unit"
@@ -487,10 +616,32 @@
                     android:text="@string/label_draft_max"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_draft_max"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_draft_max"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_draft_max"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- 同时保存改动前的原始数据（用于对比） -->
@@ -526,10 +677,32 @@
                     android:text="@string/label_trash_keep"
                     android:textSize="13sp" />
 
-                <Spinner
-                    android:id="@+id/sp_trash_keep"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/sp_trash_keep"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
+
+                    <Button
+                        android:id="@+id/btn_custom_trash_keep"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_custom"
+                        android:textSize="12sp"
+                        android:textAllCaps="false"
+                        android:minWidth="0dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#2196F3"
+                        android:backgroundTint="#00000000" />
+                </LinearLayout>
             </LinearLayout>
 
             <TextView

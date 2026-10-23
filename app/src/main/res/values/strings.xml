@@ -807,4 +807,5 @@ Uses one map ID near map_%3$d</string>
     <string name="default_puzzle_box_title">Puzzle art</string>
     <string name="default_puzzle_map_prefix">Puzzle</string>
     <string name="default_puzzle_box_prefix">Puzzle art</string>
+    <string name="btn_custom">Custom</string>
 </resources>

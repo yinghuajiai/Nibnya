@@ -808,4 +808,5 @@ ID：%3$s
     <string name="default_puzzle_box_title">拼图画</string>
     <string name="default_puzzle_map_prefix">拼图</string>
     <string name="default_puzzle_box_prefix">拼图画</string>
+    <string name="btn_custom">自定义</string>
 </resources>
