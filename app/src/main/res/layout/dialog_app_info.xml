@@ -290,9 +290,9 @@
                 android:id="@+id/layout_puzzle_crop_min"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:orientation="vertical"
                 android:paddingStart="32dp"
+                android:paddingEnd="8dp"
                 android:layout_marginBottom="4dp">
 
                 <TextView
@@ -435,8 +435,7 @@
                 android:id="@+id/layout_backup_interval"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:orientation="vertical"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp">
 
@@ -485,8 +484,7 @@
                 android:id="@+id/layout_backup_max"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:orientation="vertical"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp">
 
@@ -555,8 +553,7 @@
                 android:id="@+id/layout_draft_interval"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:orientation="vertical"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp">
 
@@ -605,8 +602,7 @@
                 android:id="@+id/layout_draft_max"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:orientation="vertical"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp">
 
@@ -666,8 +662,7 @@
                 android:id="@+id/layout_trash_keep"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:orientation="vertical"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp">
 
