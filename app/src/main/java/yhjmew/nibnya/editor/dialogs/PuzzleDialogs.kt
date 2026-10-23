@@ -73,7 +73,10 @@ private fun MainActivity.showPuzzleCustomSizeDialog() {
                 }
                 pickPuzzleImage()
             } catch (e: Exception) { toast(getString(R.string.toast_input_error, e.message)) }
-        }.show()
+        }
+        // 取消 / 点空白：退回上一层（拼图规模选择）
+        .setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> showPuzzleConfigDialog() }
+        .show()
 }
 
 fun MainActivity.pickPuzzleImage() {

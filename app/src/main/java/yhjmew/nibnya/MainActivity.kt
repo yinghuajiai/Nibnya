@@ -657,7 +657,7 @@ class MainActivity : ComponentActivity() {
                     } else {
                         showDraftBoxDialog()
                     }
-                }.show()
+                }.setNegativeButton(getString(R.string.btn_cancel), null).show()
         }
         findViewById<Button?>(R.id.btn_save)?.setOnClickListener {
             // 防狂点：保存期间按钮置灰，结束（成功或失败）后由 isLoading 观察者恢复
@@ -928,7 +928,7 @@ class MainActivity : ComponentActivity() {
                     2 -> showCustomPathDialog()
                     3 -> safPathLauncher.launch(null)
                 }
-            }.show()
+            }.setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     private fun showCustomPathDialog() {
@@ -942,7 +942,10 @@ class MainActivity : ComponentActivity() {
                     applyPath(if (p.endsWith("/")) p else "$p/")
                     showWorldSelector()
                 }
-            }.show()
+            }
+            // 取消 / 点空白：退回上一层（路径选择），而不是什么都不发生
+            .setNegativeButton(getString(R.string.btn_cancel)) { _, _ -> showPathSelector() }
+            .show()
     }
 
     private fun showWorldSelectorDialog(list: List<WorldItem>) {
@@ -990,7 +993,7 @@ class MainActivity : ComponentActivity() {
                     2 -> startDeleteWorldFlow(w)
                 }
             }
-            .show()
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     /**
@@ -1253,7 +1256,7 @@ class MainActivity : ComponentActivity() {
                         .setTitle(getString(R.string.title_trash_detail))
                         .setMessage(detail)
                         .setPositiveButton(getString(R.string.btn_close), null)
-                        .show()
+                        .setNegativeButton(getString(R.string.btn_cancel), null).show()
                     2 -> confirmDeleteForever(item, dlg)
                 }
             }
@@ -1452,7 +1455,7 @@ class MainActivity : ComponentActivity() {
                     3 -> confirmDeleteBackup(item)
                 }
             }
-            .show()
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     /** 重命名备份（复用 WorldViewModel.renameBackup） */
@@ -1708,7 +1711,7 @@ class MainActivity : ComponentActivity() {
                             if (menuItems[w].second != null) menuItems[w].second!!.invoke()
                             else toast(getString(R.string.label_sub_action_unavailable))
                         }
-                        .show()
+                        .setNegativeButton(getString(R.string.btn_cancel), null).show()
                 }
             })
         }
@@ -1878,7 +1881,7 @@ class MainActivity : ComponentActivity() {
                     3 -> confirmDeleteDraft(d)
                 }
             }
-            .show()
+            .setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
 
     /** 草稿详情：类型 / key / 所属存档 / 时间 / 顶层字段数 / 体积 / 是否含原始数据 */

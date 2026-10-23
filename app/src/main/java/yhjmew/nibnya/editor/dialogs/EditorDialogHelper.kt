@@ -161,7 +161,7 @@ fun MainActivity.showRootMenu() {
                             current.add(n, clip.deepCopy())
                             refreshAfterEdit(); toast(getString(R.string.toast_pasted))
                         } else toast(getString(R.string.toast_name_empty_or_exists))
-                    }.show()
+                    }.setNegativeButton(getString(R.string.btn_cancel), null).show()
             }
             2 -> {
                 showCopyExportDialog(current, etWorldName?.text?.toString()?.trim())
@@ -203,7 +203,7 @@ fun MainActivity.showLongPressMenu(key: String?, itemData: JsonObject) {
         } else {
             handleListLongPress(w, key, itemData)
         }
-    }.show()
+    }.setNegativeButton(getString(R.string.btn_cancel), null).show()
 }
 
 /**
@@ -344,7 +344,9 @@ private fun MainActivity.showTreeRenameDialog(
             parent.add(nk, itemData)
             adapter.rebuild()
             toast(getString(R.string.toast_renamed))
-        }.show()
+        }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
 }
 
 // ============================================
@@ -358,7 +360,9 @@ private fun MainActivity.showRenameDialog(oldKey: String?, itemData: JsonObject?
             if (nk.isEmpty() || parent.has(nk)) { toast(getString(R.string.toast_Invalid_name)); return@setPositiveButton }
             parent.remove(oldKey); parent.add(nk, itemData)
             refreshAfterEdit(); toast(getString(R.string.toast_renamed))
-        }.show()
+        }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
 }
 
 // ============================================
@@ -415,7 +419,7 @@ fun MainActivity.showAddChildDialog(parent: JsonObject) {
     val ids = intArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
     AlertDialog.Builder(this).setTitle(getString(R.string.menu_add_child)).setItems(types) { _, w ->
         showNameInputDialog(parent, ids[w])
-    }.show()
+    }.setNegativeButton(getString(R.string.btn_cancel), null).show()
 }
 
 private fun MainActivity.showNameInputDialog(parent: JsonObject, type: Int) {
@@ -447,7 +451,9 @@ private fun MainActivity.showNameInputDialog(parent: JsonObject, type: Int) {
                 AppLogger.warn("ListDebug", "nbtAdapter.data !== parent，不刷新（parent 可能不是当前显示层）")
             }
             toast(getString(R.string.toast_created_item, name))
-        }.show()
+        }
+        .setNegativeButton(getString(R.string.btn_cancel), null)
+        .show()
 }
 
 // ============================================
@@ -895,7 +901,7 @@ fun MainActivity.showDebugMenu() {
                 // 索引 3 =「📄 复制日志到剪贴板」
                 3 -> copyToClipboard(getString(R.string.title_logs), AppLogger.getLogs())
             }
-        }.show()
+        }.setNegativeButton(getString(R.string.btn_cancel), null).show()
 }
 
 // ============================================

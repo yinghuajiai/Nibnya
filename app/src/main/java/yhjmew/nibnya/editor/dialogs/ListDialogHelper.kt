@@ -278,7 +278,7 @@ private fun MainActivity.showListDialogUI(
                         tvTitle.text = "$baseTitle (${adapter.count})"
                     }
                 }
-            }.show()
+            }.setNegativeButton(getString(R.string.btn_cancel), null).show()
         true
     }
     dialog.show()
@@ -459,7 +459,12 @@ fun MainActivity.showPlayerRootMenu(currentList: MutableList<String>, dataType: 
                         }.show()
                 }
             }
-        }.show()
+        }
+        // 取消 / 点空白：只关闭这一层。
+        // 列表弹窗在打开本菜单时并没有被关闭，它仍在下面一层，
+        // 所以关掉本层就自然「退回上一层」了。
+        .setNegativeButton(getString(R.string.btn_cancel), null)
+        .show()
 }
 
 // ============================================
