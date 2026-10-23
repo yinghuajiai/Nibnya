@@ -245,6 +245,14 @@ fun generatePuzzleMap(
 ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
+            // 命名前缀与盒子颜色由设置决定
+            val cfg = context.getSharedPreferences("nbt_config", Context.MODE_PRIVATE)
+            val prefixRaw = cfg.getString("puzzle_prefix", "")?.trim() ?: ""
+            // 留空时分开回退：地图用「拼图」、盒子用「拼图画」（保持原有命名习惯）
+            val mapPrefix = if (prefixRaw.isBlank()) getString(R.string.default_puzzle_map_prefix)
+                            else prefixRaw
+            val boxPrefix = if (prefixRaw.isBlank()) getString(R.string.default_puzzle_box_prefix)
+                            else prefixRaw
             _progressMessage.value = getString(R.string.status_analyzing_backpack)
             var db: PlayerDbManager? = null
             try {
@@ -490,7 +498,7 @@ fun generatePuzzleMap(
                                         add("v", JsonObject().apply {
                                             add("Name", wrapTag(8, getString(
                                                 R.string.msg_puzzle_map_name,
-                                                r + 1, c + 1, rows, cols
+                                                mapPrefix, r + 1, c + 1, rows, cols
                                             )))
                                         })
                                     }
@@ -525,7 +533,10 @@ fun generatePuzzleMap(
                     // 全部使用粉色潜影盒（含嵌套的内层）。
                     // 实测可行：基岩版允许着色潜影盒嵌套，不会丢物品。
                     //   Name 与 Block.name 必须一致，否则图标/颜色会对不上。
-                    val boxId = "minecraft:pink_shulker_box"
+                    // 颜色由设置决定（Name 与 Block.name 必须一致，否则图标/颜色对不上）
+                    val colorId = cfg.getString("shulker_color", "pink_shulker_box")
+                        ?: "pink_shulker_box"
+                    val boxId = "minecraft:$colorId"
 
                     val boxItem = JsonObject()
                     boxItem.add("Name", wrapTag(8, boxId))
@@ -566,11 +577,12 @@ fun generatePuzzleMap(
                             // 每一层都写名字：单层时带行列与数量，多层时额外标出第几层，
                             // 否则外层盒子是空名，玩家分不清哪盒是哪一个。
                             val boxName = if (totalLayers == 1) {
-                                getString(R.string.msg_puzzle_box_name, rows, cols, totalMaps)
+                                getString(R.string.msg_puzzle_box_name,
+                                    boxPrefix, rows, cols, totalMaps)
                             } else {
                                 getString(
                                     R.string.msg_puzzle_box_name_layer,
-                                    rows, cols, totalMaps, layer + 1, totalLayers
+                                    boxPrefix, rows, cols, totalMaps, layer + 1, totalLayers
                                 )
                             }
                             add("v", JsonObject().apply { add("Name", wrapTag(8, boxName)) })

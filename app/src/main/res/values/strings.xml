@@ -738,9 +738,9 @@ Count: %4$d</string>
     <string name="btn_save_now">Save now</string>
     <string name="btn_later">Later</string>
     <!-- Puzzle: map and shulker box names -->
-    <string name="msg_puzzle_map_name">Puzzle %1$d-%2$d · %3$dx%4$d</string>
-    <string name="msg_puzzle_box_name">Puzzle art · %1$dx%2$d · %3$d maps</string>
-    <string name="msg_puzzle_box_name_layer">Puzzle art · %1$dx%2$d · %3$d maps (layer %4$d/%5$d)</string>
+    <string name="msg_puzzle_map_name">%1$s %2$d-%3$d · %4$dx%5$d</string>
+    <string name="msg_puzzle_box_name">%1$s · %2$dx%3$d · %4$d maps</string>
+    <string name="msg_puzzle_box_name_layer">%1$s · %2$dx%3$d · %4$d maps (layer %5$d/%6$d)</string>
     <!-- Puzzle preview -->
     <string name="title_puzzle_preview">Puzzle preview</string>
     <string name="tab_puzzle_grid">Grid split</string>
@@ -782,4 +782,29 @@ Uses one map ID near map_%3$d</string>
     <string name="label_sub_puzzle_pad_black">Black</string>
     <string name="label_sub_puzzle_pad_white">White</string>
     <string name="label_sub_pad_transparent">Transparent</string>
+    <!-- Puzzle: naming prefix & box color -->
+    <string name="label_puzzle_prefix">Name prefix</string>
+    <string name="hint_puzzle_prefix">Puzzle</string>
+    <string name="subtitle_puzzle_prefix">Map/box names start with this; leave empty for the default</string>
+    <string name="label_shulker_color">Shulker box color</string>
+    <string name="color_pink">Pink (default)</string>
+    <string name="color_white">White</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_magenta">Magenta</string>
+    <string name="color_light_blue">Light blue</string>
+    <string name="color_yellow">Yellow</string>
+    <string name="color_lime">Lime</string>
+    <string name="color_gray">Gray</string>
+    <string name="color_light_gray">Light gray</string>
+    <string name="color_cyan">Cyan</string>
+    <string name="color_purple">Purple</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_brown">Brown</string>
+    <string name="color_green">Green</string>
+    <string name="color_red">Red</string>
+    <string name="color_black">Black</string>
+    <string name="color_undyed">Undyed</string>
+    <string name="default_puzzle_box_title">Puzzle art</string>
+    <string name="default_puzzle_map_prefix">Puzzle</string>
+    <string name="default_puzzle_box_prefix">Puzzle art</string>
 </resources>

@@ -770,6 +770,46 @@ fun MainActivity.showAppInfoDialog() {
         prefs?.edit()?.putFloat("puzzle_crop_min", pct / 100f)?.apply()
     }
 
+    // ⑤ 拼图命名前缀
+    dialogView.findViewById<android.widget.EditText?>(R.id.et_puzzle_prefix)?.let { et ->
+        et.setText(prefs?.getString("puzzle_prefix", "") ?: "")
+        et.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                prefs?.edit()?.putString("puzzle_prefix", s?.toString() ?: "")?.apply()
+            }
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+        })
+    }
+
+    // ⑥ 潜影盒颜色（17 色，与游戏一致）
+    dialogView.findViewById<Spinner?>(R.id.sp_shulker_color)?.let { sp ->
+        val ids = SHULKER_COLORS
+        val labels = listOf(
+            getString(R.string.color_pink), getString(R.string.color_white),
+            getString(R.string.color_orange), getString(R.string.color_magenta),
+            getString(R.string.color_light_blue), getString(R.string.color_yellow),
+            getString(R.string.color_lime), getString(R.string.color_gray),
+            getString(R.string.color_light_gray), getString(R.string.color_cyan),
+            getString(R.string.color_purple), getString(R.string.color_blue),
+            getString(R.string.color_brown), getString(R.string.color_green),
+            getString(R.string.color_red), getString(R.string.color_black),
+            getString(R.string.color_undyed)
+        )
+        sp.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels).also {
+            it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        val saved = prefs?.getString("shulker_color", "pink_shulker_box") ?: "pink_shulker_box"
+        val idx = ids.indexOfFirst { it == saved }
+        sp.setSelection(if (idx >= 0) idx else 0, false)
+        sp.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: android.view.View?, pos: Int, id: Long) {
+                prefs?.edit()?.putString("shulker_color", ids[pos])?.apply()
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+    }
+
     // ④ 每次生成前是否询问是否调整裁剪
     dialogView.findViewById<CheckBox?>(R.id.cb_puzzle_ask_crop)?.let { cb ->
         cb.isChecked = prefs?.getBoolean("puzzle_ask_crop", true) ?: true
@@ -1229,6 +1269,15 @@ private fun MainActivity.bindPercentSpinner(
         override fun onNothingSelected(p: AdapterView<*>?) {}
     }
 }
+
+/** 潜影盒颜色 ID（顺序与设置里的下拉一致） */
+private val SHULKER_COLORS = listOf(
+    "pink_shulker_box", "white_shulker_box", "orange_shulker_box", "magenta_shulker_box",
+    "light_blue_shulker_box", "yellow_shulker_box", "lime_shulker_box", "gray_shulker_box",
+    "light_gray_shulker_box", "cyan_shulker_box", "purple_shulker_box", "blue_shulker_box",
+    "brown_shulker_box", "green_shulker_box", "red_shulker_box", "black_shulker_box",
+    "undyed_shulker_box"
+)
 
 private fun MainActivity.setupBackupSettings(root: android.view.View) {
     val cbAuto = root.findViewById<CheckBox?>(R.id.cb_backup_auto) ?: return

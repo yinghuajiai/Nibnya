@@ -739,9 +739,9 @@ ID：%3$s
     <string name="btn_save_now">立即保存</string>
     <string name="btn_later">稍后</string>
     <!-- 拼图：地图与潜影盒命名 -->
-    <string name="msg_puzzle_map_name">拼图 %1$d-%2$d · %3$dx%4$d</string>
-    <string name="msg_puzzle_box_name">拼图画 · %1$dx%2$d · %3$d 张</string>
-    <string name="msg_puzzle_box_name_layer">拼图画 · %1$dx%2$d · %3$d 张（第 %4$d/%5$d 层）</string>
+    <string name="msg_puzzle_map_name">%1$s %2$d-%3$d · %4$dx%5$d</string>
+    <string name="msg_puzzle_box_name">%1$s · %2$dx%3$d · %4$d 张</string>
+    <string name="msg_puzzle_box_name_layer">%1$s · %2$dx%3$d · %4$d 张（第 %5$d/%6$d 层）</string>
     <!-- 拼图预览 -->
     <string name="title_puzzle_preview">拼图预览</string>
     <string name="tab_puzzle_grid">按行列切</string>
@@ -783,4 +783,29 @@ ID：%3$s
     <string name="label_sub_puzzle_pad_black">黑</string>
     <string name="label_sub_puzzle_pad_white">白</string>
     <string name="label_sub_pad_transparent">透明</string>
+    <!-- 拼图：命名前缀与盒子颜色 -->
+    <string name="label_puzzle_prefix">命名前缀</string>
+    <string name="hint_puzzle_prefix">拼图</string>
+    <string name="subtitle_puzzle_prefix">地图/盒子名以此开头，留空则用默认</string>
+    <string name="label_shulker_color">潜影盒颜色</string>
+    <string name="color_pink">粉红（默认）</string>
+    <string name="color_white">白色</string>
+    <string name="color_orange">橙色</string>
+    <string name="color_magenta">品红</string>
+    <string name="color_light_blue">淡蓝</string>
+    <string name="color_yellow">黄色</string>
+    <string name="color_lime">黄绿</string>
+    <string name="color_gray">灰色</string>
+    <string name="color_light_gray">淡灰</string>
+    <string name="color_cyan">青色</string>
+    <string name="color_purple">紫色</string>
+    <string name="color_blue">蓝色</string>
+    <string name="color_brown">棕色</string>
+    <string name="color_green">绿色</string>
+    <string name="color_red">红色</string>
+    <string name="color_black">黑色</string>
+    <string name="color_undyed">原色（未染色）</string>
+    <string name="default_puzzle_box_title">拼图画</string>
+    <string name="default_puzzle_map_prefix">拼图</string>
+    <string name="default_puzzle_box_prefix">拼图画</string>
 </resources>
