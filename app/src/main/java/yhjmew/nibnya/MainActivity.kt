@@ -473,7 +473,15 @@ class MainActivity : ComponentActivity() {
     private fun initViews() {
         viewMainContent = findViewById(R.id.main_content)
         viewSidebar = findViewById(R.id.sidebar_content)
-        etWorldName = findViewById(R.id.et_world_name)
+        etWorldName = findViewById<EditText>(R.id.et_world_name)?.also { et ->
+            // 这个控件只是「点击打开存档选择器」的触发器，不参与文本编辑。
+            // 保持 EditText 类型（代码里大量用 .text 读写），但禁掉一切文本交互：
+            // 否则长按会弹出系统的「粘贴 / 全选」菜单，粘贴后内容被当成存档名。
+            et.isLongClickable = false
+            et.isCursorVisible = false
+            et.setTextIsSelectable(false)
+            et.setOnLongClickListener { true }   // 消费长按，不弹菜单
+        }
         nbtListView = findViewById(R.id.lv_nbt_list)
         tvCurrentPath = findViewById(R.id.tv_current_path)
         layoutNormalUi = findViewById(R.id.layout_normal_ui)
