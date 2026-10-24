@@ -63,7 +63,13 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         val folderName: String,
         val displayName: String,
         /** level.dat 的最后修改时间（毫秒）；0 = 未知 */
-        val lastModified: Long = 0L
+        val lastModified: Long = 0L,
+        /**
+         * 存档缩略图（世界目录下的 world_icon.jpeg）的绝对路径。
+         * 这是游戏退出时保存的「最后一刻」画面，用来帮用户分辨同名存档。
+         * null / 文件不存在时列表显示占位图标。
+         */
+        val iconPath: String? = null
     )
 
     data class CacheItem(
@@ -324,7 +330,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 if (checkLevel.exists() && checkDb.exists()) {
                     // 当前路径本身就是世界文件夹，直接加载
                     val realName = getWorldRealNameByDir(dir) ?: "Unknown"
-                    val item = WorldItem(dir.name, realName, levelDatTime(dir))
+                    val item = WorldItem(dir.name, realName, levelDatTime(dir), worldIconPath(dir))
                     _worldList.value = listOf(item)
                     _scanResultChannel.trySend(ScanResult(listOf(item)))
                     _isLoading.value = false
@@ -365,7 +371,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
                     if (isValid) {
                         val realName = getWorldRealName(context, name) ?: "Unknown"
-                        result.add(WorldItem(name, realName, levelDatTime(File(fullPath))))
+                        result.add(WorldItem(name, realName, levelDatTime(File(fullPath)), worldIconPath(File(fullPath))))
                     }
                 }
 
@@ -1974,6 +1980,16 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
      * 原生读不到时（Android/data 无权限）退回 Shizuku 的 stat 命令。
      * @return 0 表示未知
      */
+    /**
+     * 世界缩略图路径：`<world>/world_icon.jpeg`。
+     * 这是基岩版退出存档时自动写的「最后一帧」截图，用作存档列表的预览图。
+     * 返回 null 表示不存在。
+     */
+    private fun worldIconPath(dir: File): String? {
+        val f = File(dir, "world_icon.jpeg")
+        return if (f.exists() && f.length() > 0) f.absolutePath else null
+    }
+
     private fun levelDatTime(worldDir: File): Long {
         val lf = File(worldDir, "level.dat")
         try {

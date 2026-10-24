@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  存档列表单项：左侧 world_icon.jpeg 缩略图，右侧两行文字。
+  缩略图来自游戏退出时保存的「最后一刻」画面，用来区分同名存档。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <!--
+      缩略图：必须是正方形（1:1），不加圆角、不加裁剪变形。
+      world_icon.jpeg 本身就是正方形（游戏保存的 1:1 预览），
+      用 centerCrop 只在极端比例下裁掉边缘，保证不会拉变形。
+      无图时用灰底占位（bg_world_icon 是一块纯灰方片，无圆角）。
+    -->
+    <ImageView
+        android:id="@+id/iv_world_icon"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginEnd="12dp"
+        android:scaleType="centerCrop"
+        android:adjustViewBounds="false"
+        android:background="@drawable/bg_world_icon"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_world_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textColor="#222222"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/tv_world_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="#888888"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+</LinearLayout>

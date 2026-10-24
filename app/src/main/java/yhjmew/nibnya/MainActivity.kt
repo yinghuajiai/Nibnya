@@ -969,9 +969,61 @@ class MainActivity : ComponentActivity() {
             onLongClick = { showWorldManageMenu(it) },
             menuItems = listOf(
                 getString(R.string.title_trash, trashCount) to { showTrashDialog() }
-            )
+            ),
+            // 每项左侧显示 world_icon.jpeg（游戏退出时的最后一帧），
+            // 同名存档也能一眼分辨。
+            customItemView = { _, w, convertView ->
+                val v = convertView ?: layoutInflater.inflate(R.layout.item_world_list, null)
+                val iv = v.findViewById<android.widget.ImageView?>(R.id.iv_world_icon)
+                val tvTitle = v.findViewById<android.widget.TextView?>(R.id.tv_world_title)
+                val tvSub = v.findViewById<android.widget.TextView?>(R.id.tv_world_subtitle)
+
+                tvTitle?.text = listTitleLine(w.displayName, w.folderName)
+                tvSub?.text = if (w.lastModified > 0) fullTimeOf(w.lastModified)
+                               else getString(R.string.time_unknown)
+
+                // 缩略图：后台解码 + 内存缓存，避免滑动卡顿
+                val path = w.iconPath
+                iv?.tag = path
+                if (path == null) {
+                    iv?.setImageDrawable(null)
+                } else {
+                    val cached = worldIconCache[path]
+                    if (cached != null) {
+                        iv?.setImageBitmap(cached)
+                    } else {
+                        iv?.setImageDrawable(null)
+                        Thread {
+                            val bmp = decodeWorldIcon(path)
+                            if (bmp != null) {
+                                worldIconCache[path] = bmp
+                                runOnUiThread {
+                                    // 视图可能已被复用，确认 tag 仍是同一路径再贴图
+                                    if (iv?.tag == path) iv.setImageBitmap(bmp)
+                                }
+                            }
+                        }.start()
+                    }
+                }
+                v
+            }
         )
     }
+
+    /** 存档缩略图内存缓存（路径 -> 位图），避免滚动时反复解码 */
+    private val worldIconCache = HashMap<String, android.graphics.Bitmap>()
+
+    /** 解码 world_icon.jpeg 并按列表项尺寸降采样，防止大图 OOM */
+    private fun decodeWorldIcon(path: String): android.graphics.Bitmap? = try {
+        val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(path, opts)
+        val target = 112  // 56dp @2x
+        var scale = 1
+        while (opts.outWidth / scale > target * 2 || opts.outHeight / scale > target * 2) scale *= 2
+        android.graphics.BitmapFactory.decodeFile(
+            path, android.graphics.BitmapFactory.Options().apply { inSampleSize = scale }
+        )
+    } catch (_: Throwable) { null }
 
     // ============================================
     // 存档管理（长按）
@@ -1595,7 +1647,12 @@ class MainActivity : ComponentActivity() {
         onShortClick: (T) -> Unit,
         onLongClick: (T) -> Unit,
         /** 右上角 ⋮ 菜单项（空 = 不显示 ⋮）；lambda 为 null 表示不可用 */
-        menuItems: List<Pair<String, (() -> Unit)?>> = emptyList()
+        menuItems: List<Pair<String, (() -> Unit)?>> = emptyList(),
+        /**
+         * 可选的自定义列表项视图（返回 null 则用默认纯文本行）。
+         * 世界列表用它显示 world_icon.jpeg 缩略图。
+         */
+        customItemView: ((position: Int, item: T, convertView: android.view.View?) -> android.view.View?)? = null
     ) {
         fun tabOfItem(item: T): ListTab = tabOf(item) ?: ListTab.OTHER
 
@@ -1619,9 +1676,30 @@ class MainActivity : ComponentActivity() {
         fun render() {
             shown = if (selected == ListTab.ALL) items
                     else items.filter { tabOfItem(it) == selected }
-            lv.adapter = ArrayAdapter(
-                this, android.R.layout.simple_list_item_1, shown.map(linesOf)
-            )
+            lv.adapter = if (customItemView == null) {
+                ArrayAdapter(
+                    this, android.R.layout.simple_list_item_1, shown.map(linesOf)
+                )
+            } else {
+                object : android.widget.BaseAdapter() {
+                    override fun getCount() = shown.size
+                    override fun getItem(position: Int) = shown[position]
+                    override fun getItemId(position: Int) = position.toLong()
+                    override fun getView(
+                        position: Int, convertView: android.view.View?, parent: android.view.ViewGroup?
+                    ): android.view.View {
+                        val item = shown[position]
+                        customItemView(position, item, convertView)
+                            ?.let { return it }
+                        // 兜底：自定义视图返回 null 时用纯文本
+                        return android.widget.TextView(this@MainActivity).apply {
+                            text = linesOf(item)
+                            setPadding(32, 32, 32, 32)
+                            textSize = 15f
+                        }
+                    }
+                }
+            }
             buildTabBar(tabBar, tabs, selected, menuItems) { sel ->
                 selected = sel
                 render()

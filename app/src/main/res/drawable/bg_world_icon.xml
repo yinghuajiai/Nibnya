@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  存档缩略图的占位背景：无图时显示一块纯灰方片。
+  ⚠️ 不要加 corners —— 用户明确要求缩略图保持「正方形」原样，
+     圆角会让它看起来像被裁过的图标，而不是一张截图。
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#EEEEEE" />
+</shape>
