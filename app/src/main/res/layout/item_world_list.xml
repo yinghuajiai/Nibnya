@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  存档列表单项：左侧 world_icon.jpeg 正方形缩略图，右侧文字。
+  存档列表单项：左侧 world_icon.jpeg 正方形缩略图，右侧三行文字。
 
-  缩略图区域是一个固定 56x56 的方块（FrameLayout）：
+  缩略图区域是固定 56x56 的方块（FrameLayout）：
     · 有图  -> 显示截图，隐藏占位文字
-    · 没图  -> 隐藏截图，显示「无预览图」提示文字（不能只留一块灰底，
-               玩家会以为是加载失败，得明确告诉他没有这张图）
+    · 没图  -> 隐藏截图，显示「无预览图」提示文字
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -17,11 +16,6 @@
     android:paddingTop="8dp"
     android:paddingBottom="8dp">
 
-    <!--
-      缩略图：必须是正方形（1:1），不加圆角、不拉伸变形。
-      world_icon.jpeg 本身就是 1:1（游戏保存的方形预览），
-      用 centerCrop 只在极端比例下裁掉边缘。
-    -->
     <FrameLayout
         android:layout_width="56dp"
         android:layout_height="56dp"
@@ -37,7 +31,6 @@
             android:adjustViewBounds="false"
             android:contentDescription="@null" />
 
-        <!-- 没有 world_icon.jpeg 时显示这句话 -->
         <TextView
             android:id="@+id/tv_world_icon_none"
             android:layout_width="match_parent"
@@ -56,7 +49,7 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <!-- 世界名 + 文件夹名：过长时换行（最多 3 行），不再省略号截断 -->
+        <!-- ① 世界名：长了就换行（最多 3 行），不再被省略号吃掉 -->
         <TextView
             android:id="@+id/tv_world_title"
             android:layout_width="match_parent"
@@ -66,8 +59,20 @@
             android:maxLines="3"
             android:ellipsize="end" />
 
+        <!-- ② 文件夹 ID：一行，超出时中间省略（尾部 = 号要能看到） -->
         <TextView
-            android:id="@+id/tv_world_subtitle"
+            android:id="@+id/tv_world_folder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="#999999"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="middle" />
+
+        <!-- ③ 最后游玩时间：单独一行，绝不被上面两行挤掉 -->
+        <TextView
+            android:id="@+id/tv_world_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="12sp"

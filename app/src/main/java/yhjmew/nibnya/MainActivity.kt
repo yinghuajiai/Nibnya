@@ -977,25 +977,24 @@ class MainActivity : ComponentActivity() {
                 val iv = v.findViewById<android.widget.ImageView?>(R.id.iv_world_icon)
                 val tvNone = v.findViewById<android.widget.TextView?>(R.id.tv_world_icon_none)
                 val tvTitle = v.findViewById<android.widget.TextView?>(R.id.tv_world_title)
-                val tvSub = v.findViewById<android.widget.TextView?>(R.id.tv_world_subtitle)
+                val tvFolder = v.findViewById<android.widget.TextView?>(R.id.tv_world_folder)
+                val tvTime = v.findViewById<android.widget.TextView?>(R.id.tv_world_time)
 
-                // 世界名与文件夹 ID 分两行：名字可能很长，挤在一行会被截断成
-                // 「我的世界的拷贝 (1) npyOcW…」，反而看不清到底是哪一个。
+                // 三行分开显示，各占一行、互不挤压：
+                //   ① 世界名（长了换行，最多 3 行）
+                //   ② 文件夹 ID（一行，中间省略）
+                //   ③ 最后游玩时间（一行）—— 之前被挤掉的就是它
                 tvTitle?.text = w.displayName?.takeIf { it.isNotBlank() } ?: w.folderName
-                tvSub?.text = buildString {
-                    if (!w.displayName.isNullOrBlank() && w.displayName != w.folderName) {
-                        append(w.folderName)
-                        append("\n")
-                    }
-                    append(if (w.lastModified > 0) fullTimeOf(w.lastModified)
-                           else getString(R.string.time_unknown))
-                }
+                tvFolder?.text = w.folderName
+                tvFolder?.visibility = if (w.displayName.isNullOrBlank() || w.displayName == w.folderName)
+                    android.view.View.GONE else android.view.View.VISIBLE
+                tvTime?.text = if (w.lastModified > 0) fullTimeOf(w.lastModified)
+                               else getString(R.string.time_unknown)
 
-                // 缩略图：后台解码 + 内存缓存，避免滑动卡顿
+                // 缩略图：后台解码 + 内存缓存
                 val path = w.iconPath
                 iv?.tag = path
                 if (path == null) {
-                    // 没有最后一刻截图：显示占位文字，明确告诉玩家原因
                     iv?.setImageDrawable(null)
                     iv?.visibility = android.view.View.GONE
                     tvNone?.visibility = android.view.View.VISIBLE
@@ -1010,12 +1009,13 @@ class MainActivity : ComponentActivity() {
                         Thread {
                             val bmp = decodeWorldIcon(path)
                             runOnUiThread {
-                                if (iv?.tag != path) return@runOnUiThread
+                                // ⚠️ 这里不能用 iv?.tag，视图已确认存在；
+                                //    用可空比较会让条件恒成立，导致永远不贴图。
+                                if (iv == null || iv.tag != path) return@runOnUiThread
                                 if (bmp != null) {
                                     worldIconCache[path] = bmp
                                     iv.setImageBitmap(bmp)
                                 } else {
-                                    // 解码失败（权限/文件损坏）：同样提示没有预览图
                                     iv.visibility = android.view.View.GONE
                                     tvNone?.visibility = android.view.View.VISIBLE
                                 }
@@ -1039,25 +1039,45 @@ class MainActivity : ComponentActivity() {
      * 直接 BitmapFactory.decodeFile 会返回 null（这就是「图片加载不出来」的原因）。
      * 所以：先试直读，失败再用 Shizuku 把文件 cp 到私有缓存目录后解码。
      */
+    /**
+     * 解码 world_icon.jpeg。
+     *
+     * ⚠️ 三个坑都踩过：
+     *  1. 标准路径在 Android/data 下，Android 11+ 的分区存储让
+     *     File.exists() / BitmapFactory.decodeFile() 直接失败（图片一直空白）
+     *  2. 用 Shizuku `cp` 到应用私有 cache **也不行** —— shell(uid 2000)
+     *     没有写 /data/user/0/<pkg>/ 的权限，cp 必然失败
+     *  3. 所以正确做法是让 Shizuku 直接 `cat` 出字节流，在内存里解码，
+     *     全程不落盘、不依赖任何写权限。
+     */
     private fun decodeWorldIcon(path: String): android.graphics.Bitmap? {
+        // ① 能直读（旧版路径 / 已授予所有文件访问权限）
         decodeBitmapFromFile(path)?.let { return it }
 
-        // 直读失败 -> Shizuku 拷一份到 cache 再解
+        // ② 直读失败 -> 用 Shizuku cat 到内存
         if (!worldVM.checkShizukuAvailable()) return null
         return try {
-            val tmp = java.io.File(cacheDir, "icon_${path.hashCode()}.jpeg")
-            if (!tmp.exists() || tmp.length() == 0L) {
-                val p = worldVM.runShizukuCmd(
-                    arrayOf("sh", "-c", "cp '${path}' '${tmp.absolutePath}'")
-                )
-                if (p.waitFor() != 0) return null
-            }
-            if (!tmp.exists() || tmp.length() == 0L) return null
-            val bmp = decodeBitmapFromFile(tmp.absolutePath)
-            tmp.delete()
-            bmp
+            val p = worldVM.runShizukuCmd(arrayOf("sh", "-c", "cat '${path}'"))
+            val bytes = p.inputStream.use { it.readBytes() }
+            p.waitFor()
+            if (bytes.isEmpty()) return null
+            decodeBitmapFromBytes(bytes)
         } catch (_: Throwable) { null }
     }
+
+    /** 内存里解码并降采样（不落盘） */
+    private fun decodeBitmapFromBytes(bytes: ByteArray): android.graphics.Bitmap? = try {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val target = 112  // 56dp @2x
+        var scale = 1
+        while (bounds.outWidth / scale > target * 2 || bounds.outHeight / scale > target * 2) scale *= 2
+        android.graphics.BitmapFactory.decodeByteArray(
+            bytes, 0, bytes.size,
+            android.graphics.BitmapFactory.Options().apply { inSampleSize = scale }
+        )
+    } catch (_: Throwable) { null }
 
     /** 从本地可读文件解码并降采样 */
     private fun decodeBitmapFromFile(path: String): android.graphics.Bitmap? = try {
