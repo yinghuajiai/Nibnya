@@ -845,8 +845,15 @@ class MainActivity : ComponentActivity() {
     /** 边缘触发区宽度：只认屏幕最左侧这一窄条，避免误触 */
     private val edgeTriggerWidthDp = 18f
 
-    /** 侧边栏占屏宽比例 */
-    private val sidebarWidthPercent = 0.78f
+    /**
+     * 侧边栏宽度比例。
+     *
+     * ⚠️ 历史上（dd5dc2e 及更早）侧边栏本体是 layout_width="match_parent"，
+     *    LinearLayout(horizontal) 里会先占满父宽、遮罩实际宽度为 0，
+     *    所以**视觉上就是占满整屏**。
+     *    用户明确要求「像以前一样」，因此这里恢复为 1.0（全宽）。
+     */
+    private val sidebarWidthPercent = 1.0f
 
     private var drawerOpen = false
 
@@ -874,17 +881,18 @@ class MainActivity : ComponentActivity() {
         return -w.toFloat().coerceAtLeast(1f)
     }
 
-    /** 侧边栏宽度 = 屏宽 × 78%；遮罩宽度 = 屏宽 × 22% */
+    /**
+     * 尺寸处理。
+     *
+     * 侧边栏全宽时不需要改 layoutParams（match_parent 本来就对）；
+     * 遮罩宽度设为「屏宽 - 侧边栏宽」，全宽时自然是 0，不遮挡任何内容。
+     */
     private fun applySidebarSize() {
         val w = resources.displayMetrics.widthPixels
-        val sbW = (w * sidebarWidthPercent).toInt()
-        sidebarView()?.let { v ->
-            val lp = v.layoutParams ?: return@let
-            if (lp.width != sbW) { lp.width = sbW; v.layoutParams = lp }
-        }
+        val sbW = (w * sidebarWidthPercent).toInt().coerceAtMost(w)
         maskView()?.let { m ->
             val lp = m.layoutParams ?: return@let
-            val mw = w - sbW
+            val mw = (w - sbW).coerceAtLeast(0)
             if (lp.width != mw) { lp.width = mw; m.layoutParams = lp }
         }
     }
