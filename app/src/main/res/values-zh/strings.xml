@@ -428,7 +428,7 @@
     <!-- Map/Village Module -->
     <!-- ============================================ -->
     <string name="btn_edit_map_data">编辑地图数据 (map_...)</string>
-    <string name="btn_edit_village_data">编辑村庄数据 (Village_...)</string>
+    <string name="btn_edit_village_data">编辑村庄数据 (village_...)</string>
     <string name="msg_for_example_map">例如: map_123</string>
     <string name="msg_for_example_village">例如: VILLAGE_Overworld_xxx</string>
     <string name="label_sub_map">地图</string>

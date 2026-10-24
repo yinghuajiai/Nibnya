@@ -428,7 +428,7 @@ Delete them as well?</string>
     <!-- Map/Village Module -->
     <!-- ============================================ -->
     <string name="btn_edit_map_data">Edit map data (map_...)</string>
-    <string name="btn_edit_village_data">Edit village data (Village_...)</string>
+    <string name="btn_edit_village_data">Edit village data (village_...)</string>
     <string name="msg_for_example_map">For example: map_123</string>
     <string name="msg_for_example_village">For example: VILLAGE_Overworld_xxx</string>
     <string name="label_sub_map">Map</string>
@@ -571,7 +571,7 @@ Delete them as well?</string>
     <string name="thread_count_custom">Custom…</string>
     <string name="title_custom_thread_count">Custom thread count</string>
     <string name="msg_thread_count_invalid">Please enter a number between 1 and 10000</string>
-    <string name="msg_about_content_full"><![CDATA[Feedback questions / Submit new features? :<br><a href=https://github.com/yinghuajimew/Nibnya>Click to visit the GitHub repository to submit Issues</a><br>QQ communication group: <a href=https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003>Click to join the Nibnya exchange</a><br>Thank you! ! <br><a href=https://space.bilibili.com/628906424>Yejdhi</a> and <a href=https://github.com/LiteLDev>LeviMC members</a><br>Thanks to them, we have the current ideas and better modification methods]]>.</string>
+    <string name="msg_about_content_full"><![CDATA[Feedback questions / Submit new features? :<br><a href=https://github.com/yinghuajimew/Nibnya>Click to visit the GitHub repository to submit Issues</a><br>QQ communication group: <a href=https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&group_code=1077349003>Click to join the Nibnya exchange</a><br>Telegram channel: <a href=https://t.me/Nibnya>https://t.me/Nibnya</a><br>Thank you! ! <br><a href=https://space.bilibili.com/628906424>Yejdhi</a> and <a href=https://github.com/LiteLDev>LeviMC members</a><br>Thanks to them, we have the current ideas and better modification methods]]>.</string>
     <string name="msg_replace_all_data">Replace all data?</string>
     <string name="msg_delete_items_confirm">Delete %d item(s)? This cannot be undone.</string>
     <string name="msg_full_overwrite_confirm">Full overwrite %s? This is irreversible.</string>
