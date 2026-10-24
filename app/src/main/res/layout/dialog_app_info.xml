@@ -105,35 +105,6 @@
             android:paddingTop="0dp"
             android:visibility="gone">
 
-            <!-- 0. 权限检查：点击立即检测当前是否已获得所需权限 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingBottom="10dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/label_permission_status"
-                    android:textSize="14sp" />
-
-                <Button
-                    android:id="@+id/btn_check_permission_in_settings"
-                    android:layout_width="wrap_content"
-                    android:layout_height="32dp"
-                    android:text="@string/btn_check_perm"
-                    android:textAllCaps="false"
-                    android:textSize="12sp"
-                    android:minWidth="0dp"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:textColor="#FFFFFF"
-                    android:backgroundTint="#607D8B" />
-            </LinearLayout>
-
             <!-- 1. 文件操作多线程 -->
             <CheckBox
                 android:id="@+id/cb_dialog_multithread"
@@ -686,6 +657,20 @@
     android:text="@string/box_skip_shizuku"
     android:textSize="14sp"
     android:layout_marginBottom="12dp" />
+
+            <!-- 4. 权限检查：与下面三条同款长按钮，点击立即检测并告知结果 -->
+            <Button
+                android:id="@+id/btn_check_permission_in_settings"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="@string/btn_check_perm"
+                android:textAllCaps="false"
+                android:textColor="@color/app_text_primary"
+                android:textSize="14sp"
+                android:gravity="start|center_vertical"
+                android:paddingStart="4dp"
+                android:layout_marginBottom="8dp" />
 
             <!-- 5. 迁移旧数据（NbtEditor_Data → Nibnya） -->
             <!-- 必须关掉 textAllCaps：Android 的 Button 默认会把文案转成全大写，

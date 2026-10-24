@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      应用主题（夜间）。
+      ⚠️ 用 Material（深色）而不是 Material.Light ——
+      这样所有系统 AlertDialog（标题、列表项、按钮、边框）
+      由系统自己用深色绘制，不需要逐个控件刷色。
+    -->
+    <style name="AppTheme" parent="@android:style/Theme.Material">
+        <item name="android:colorAccent">@color/app_accent</item>
+        <item name="android:windowBackground">@color/app_bg</item>
+        <item name="android:alertDialogTheme">@style/AppAlertDialog</item>
+    </style>
+
+    <style name="AppAlertDialog" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">@color/app_accent</item>
+    </style>
+</resources>

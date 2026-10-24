@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="@android:style/Theme.Holo.Light">
-	</style>
+    <!--
+      应用主题（日间）。
+      ⚠️ 继承系统 Material.Light —— 这样所有系统 AlertDialog 自动是浅色。
+      夜间版见 values-night/styles.xml（Material 深色）。
+    -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light">
+        <item name="android:colorAccent">@color/app_accent</item>
+        <item name="android:windowBackground">@color/app_bg</item>
+        <item name="android:alertDialogTheme">@style/AppAlertDialog</item>
+    </style>
+
+    <style name="AppAlertDialog" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">@color/app_accent</item>
+    </style>
 </resources>

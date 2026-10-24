@@ -422,21 +422,20 @@
     </LinearLayout>
 
 
-<!-- 侧边栏容器 -->
-<LinearLayout
+<!-- 侧边栏容器：整屏铺满，内部叠放「侧边栏 + 遮罩」。
+     ⚠️ 早期把侧边栏和遮罩当成横向并排的两个子 View，
+        结果侧边栏被压成 78% 宽的一条、右边还多出一条灰边。 -->
+<FrameLayout
     android:id="@+id/custom_sidebar_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
     android:visibility="gone">
 
-    <!-- 侧边栏本体：宽度 78%，右侧留给遮罩。
-         从边缘滑出时靠 translationX 平移，不改宽度。 -->
+    <!-- 侧边栏本体：宽度由代码设为屏幕的 78% -->
     <LinearLayout
         android:id="@+id/sidebar_content"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="78"
         android:background="@color/app_surface"
         android:orientation="vertical"
         android:elevation="16dp">
@@ -557,15 +556,16 @@
 
     </LinearLayout>
 
-    <!-- 遮罩 -->
+    <!-- 遮罩：叠在侧边栏之上（FrameLayout 里后写的绘制在上层）。
+         宽度由代码设为「屏幕宽 - 侧边栏宽」，只让右侧露出的区域变暗。 -->
     <View
         android:id="@+id/view_mask"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="22"
+        android:layout_gravity="end"
         android:background="#80000000"
         android:clickable="true" />
 
-</LinearLayout>
+</FrameLayout>
 
 </FrameLayout>
