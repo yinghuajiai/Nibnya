@@ -529,9 +529,25 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             worldVM.worldSeedForDisplay.collect { seed ->
-                findViewById<TextView?>(R.id.tv_info_seed)?.let {
-                    if (seed != null) { it.text = getString(R.string.key_seed_display, seed); it.isVisible = true }
-                    else it.isVisible = false
+                findViewById<TextView?>(R.id.tv_info_seed)?.let { tv ->
+                    if (seed != null) {
+                        tv.text = getString(R.string.key_seed_display, seed)
+                        tv.isVisible = true
+                        // 点一下就直接复制纯数字种子。
+                        // 不用长按选中再复制：长按会弹系统菜单，还容易把
+                        // 前面的 🌱 图标一起选进去。
+                        tv.setOnClickListener {
+                            val cm = getSystemService(android.content.Context.CLIPBOARD_SERVICE)
+                                as android.content.ClipboardManager
+                            cm.setPrimaryClip(
+                                android.content.ClipData.newPlainText("seed", seed.toString())
+                            )
+                            toast(getString(R.string.toast_seed_copied))
+                        }
+                    } else {
+                        tv.isVisible = false
+                        tv.setOnClickListener(null)
+                    }
                 }
             }
         }

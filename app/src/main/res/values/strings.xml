@@ -348,7 +348,7 @@ Delete them as well?</string>
     <!-- ============================================ -->
     <string name="key_coordinate">Coordinates</string>
     <string name="key_game_time">Game time</string>
-    <string name="key_seed_display">🌱 %1$s</string>
+    <string name="key_seed_display">%1$s</string>
     <string name="key_seed_placeholder">Seed: -</string>
     <!-- Difficulty -->
     <string name="key_difficulty_peace">0: Peaceful</string>
@@ -809,4 +809,5 @@ Uses one map ID near map_%3$d</string>
     <string name="default_puzzle_box_prefix">Puzzle art</string>
     <string name="btn_custom">Custom</string>
     <string name="msg_no_world_icon">No preview\n(no last-frame image)</string>
+    <string name="toast_seed_copied">Seed copied</string>
 </resources>

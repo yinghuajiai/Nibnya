@@ -173,7 +173,7 @@
                         android:maxLines="3"
                         android:ellipsize="end" />
 
-                    <!-- 小标题：显示种子 (默认隐藏) -->
+                    <!-- 种子：点一下直接复制纯数字（不靠长按选中，免得把 emoji 复制进去） -->
                     <TextView
                         android:id="@+id/tv_info_seed"
                         android:layout_width="wrap_content"
@@ -182,7 +182,10 @@
                         android:textSize="10sp"
                         android:textColor="#757575"
                         android:visibility="gone"
-                        android:textIsSelectable="true" />
+                        android:clickable="true"
+                        android:focusable="false"
+                        android:paddingStart="2dp"
+                        android:paddingEnd="2dp" />
                 </LinearLayout>
 
                 <!-- 右侧按钮组 (更紧凑) -->

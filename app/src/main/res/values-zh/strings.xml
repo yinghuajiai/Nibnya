@@ -348,7 +348,7 @@
     <!-- ============================================ -->
     <string name="key_coordinate">坐标</string>
     <string name="key_game_time">游戏时间</string>
-    <string name="key_seed_display">🌱 %1$s</string>
+    <string name="key_seed_display">%1$s</string>
     <string name="key_seed_placeholder">种子: -</string>
     <!-- Difficulty -->
     <string name="key_difficulty_peace">0: 和平</string>
@@ -811,4 +811,5 @@ ID：%3$s
     <string name="btn_custom">自定义</string>
     <string name="msg_no_world_icon">无预览图
 （未保存最后一刻画面）</string>
+    <string name="toast_seed_copied">种子已复制</string>
 </resources>
