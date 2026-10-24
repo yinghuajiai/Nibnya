@@ -817,4 +817,5 @@ ID：%3$s
     <string name="toast_perm_shizuku_only">权限检查：Shizuku 正常，但缺少「所有文件访问」</string>
     <string name="toast_perm_files_only">权限检查：所有文件访问已授予，但 Shizuku 未运行</string>
     <string name="toast_perm_none">权限检查：尚未获得任何权限</string>
+    <string name="btn_check_perm_long">🔍 检查权限</string>
 </resources>

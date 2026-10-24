@@ -815,4 +815,5 @@ Uses one map ID near map_%3$d</string>
     <string name="toast_perm_shizuku_only">Permissions: Shizuku OK, but All files access is missing</string>
     <string name="toast_perm_files_only">Permissions: All files access granted, but Shizuku is not running</string>
     <string name="toast_perm_none">Permissions: none granted yet</string>
+    <string name="btn_check_perm_long">🔍 Check permissions</string>
 </resources>

@@ -658,15 +658,16 @@
     android:textSize="14sp"
     android:layout_marginBottom="12dp" />
 
-            <!-- 4. 权限检查：与下面三条同款长按钮，点击立即检测并告知结果 -->
+            <!-- 4. 权限检查：和「迁移旧数据 / 切换日夜 / 切换语言」完全同款
+                 —— 带图标 + 彩色文字，一眼看得出是可点的操作，不会误认成小标题 -->
             <Button
                 android:id="@+id/btn_check_permission_in_settings"
                 style="?android:attr/borderlessButtonStyle"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:text="@string/btn_check_perm"
+                android:text="@string/btn_check_perm_long"
                 android:textAllCaps="false"
-                android:textColor="@color/app_text_primary"
+                android:textColor="#4CAF50"
                 android:textSize="14sp"
                 android:gravity="start|center_vertical"
                 android:paddingStart="4dp"

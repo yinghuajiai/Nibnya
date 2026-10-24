@@ -850,39 +850,56 @@ class MainActivity : ComponentActivity() {
 
     private var drawerOpen = false
 
+    private var edgeTracking = false
+    private var edgeDragging = false
+    private var edgeDownX = 0f
+    private var edgeStartTx = 0f
+
     private fun sidebarView(): View? = findViewById(R.id.sidebar_content)
     private fun sidebarContainer(): View? = findViewById(R.id.custom_sidebar_container)
     private fun maskView(): View? = findViewById(R.id.view_mask)
 
-    /** 侧边栏收起时应处的位移（= -自身宽度） */
+    /**
+     * 侧边栏收起时的位移 = -自身宽度。
+     *
+     * ⚠️ 必须用**已布局的**宽度。若在 setVisibility(VISIBLE) 之后立刻读，
+     *    width 还是 0，会算出 -1 之类的错误值 —— 这就是
+     *    「第一次滑不出来、只有遮罩先出来」的原因。
+     *    这里兜底：宽度未知时按屏幕宽 × 78% 估算。
+     */
     private fun sidebarClosedX(): Float {
         val v = sidebarView() ?: return 0f
-        return -v.width.toFloat().coerceAtLeast(1f)
+        val w = if (v.width > 0) v.width
+                else (resources.displayMetrics.widthPixels * sidebarWidthPercent).toInt()
+        return -w.toFloat().coerceAtLeast(1f)
     }
 
-    /** 侧边栏宽度 = 屏宽 * 78%；遮罩宽度 = 屏宽 * 22% */
+    /** 侧边栏宽度 = 屏宽 × 78%；遮罩宽度 = 屏宽 × 22% */
     private fun applySidebarSize() {
         val w = resources.displayMetrics.widthPixels
-        sidebarView()?.layoutParams?.let { lp ->
-            lp.width = (w * sidebarWidthPercent).toInt()
-            sidebarView()?.layoutParams = lp
+        val sbW = (w * sidebarWidthPercent).toInt()
+        sidebarView()?.let { v ->
+            val lp = v.layoutParams ?: return@let
+            if (lp.width != sbW) { lp.width = sbW; v.layoutParams = lp }
         }
-        maskView()?.layoutParams?.let { lp ->
-            lp.width = (w * (1f - sidebarWidthPercent)).toInt()
-            maskView()?.layoutParams = lp
+        maskView()?.let { m ->
+            val lp = m.layoutParams ?: return@let
+            val mw = w - sbW
+            if (lp.width != mw) { lp.width = mw; m.layoutParams = lp }
         }
     }
 
     internal fun openSidebarWithAnimation() {
         val sc = sidebarContainer() ?: return
         val v = sidebarView() ?: return
-        if (!sc.isVisible) {
-            sc.visibility = View.VISIBLE
-            sc.bringToFront()
-            applySidebarSize()
-            v.post { v.translationX = sidebarClosedX() }
+        sc.visibility = View.VISIBLE
+        sc.bringToFront()
+        applySidebarSize()
+        // 等布局完成后再算位移与动画，避免拿到 width=0
+        v.post {
+            if (!drawerOpen && v.translationX == 0f) v.translationX = sidebarClosedX()
+            v.animate().translationX(0f).setDuration(200L).start()
         }
-        v.animate().translationX(0f).setDuration(200L).start()
         drawerOpen = true
     }
 
@@ -898,12 +915,10 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 从左边缘右滑呼出侧边栏，手指全程跟手。
+     * 左边缘右滑呼出侧边栏，手指全程跟手。
      *
-     * ⚠️ 早期挂载在 root_layout_container 上，但那个根布局被 main_content
-     *    整块覆盖住，触摸事件根本到不了它 —— 所以「滑不动」。
-     *    现在直接用 dispatchTouchEvent 在 Activity 层拦截，
-     *    只有手指落在最左侧 [edgeTriggerWidthDp] 时才接管，其余一律放行。
+     * ⚠️ 挂载点必须是 Activity.dispatchTouchEvent —— 之前挂 root 布局上，
+     *    被 main_content 整块盖住，事件根本到不了，所以「滑不动」。
      */
     private fun handleEdgeSwipe(ev: android.view.MotionEvent): Boolean {
         val v = sidebarView() ?: return false
@@ -917,7 +932,6 @@ class MainActivity : ComponentActivity() {
                 if (edgeTracking) {
                     edgeDownX = ev.rawX
                     edgeDragging = false
-                    edgeStartTx = sidebarClosedX()
                 }
                 return false
             }
@@ -929,10 +943,13 @@ class MainActivity : ComponentActivity() {
                     sc.visibility = View.VISIBLE
                     sc.bringToFront()
                     applySidebarSize()
+                    // 先摆到「收起」位置，再开始跟手
+                    edgeStartTx = sidebarClosedX()
                     v.translationX = edgeStartTx
                 }
                 if (edgeDragging) {
-                    v.translationX = (edgeStartTx + dx).coerceIn(edgeStartTx, 0f)
+                    val target = (edgeStartTx + dx).coerceIn(edgeStartTx, 0f)
+                    v.translationX = target
                 }
                 return edgeDragging
             }
@@ -944,8 +961,12 @@ class MainActivity : ComponentActivity() {
                 edgeDragging = false
                 if (was) {
                     val width = v.width.toFloat().coerceAtLeast(1f)
-                    if (-v.translationX > width / 3f) openSidebarWithAnimation()
-                    else closeSidebarWithAnimation()
+                    if (-v.translationX > width / 3f) {
+                        drawerOpen = true
+                        v.animate().translationX(0f).setDuration(160L).start()
+                    } else {
+                        closeSidebarWithAnimation()
+                    }
                 }
                 return was
             }
@@ -953,10 +974,6 @@ class MainActivity : ComponentActivity() {
         return false
     }
 
-    private var edgeTracking = false
-    private var edgeDragging = false
-    private var edgeDownX = 0f
-    private var edgeStartTx = 0f
 
     /**
      * ⚠️ 必须在这一层拦截：边缘手势要能抢在列表/滚动视图之前拿到 ACTION_DOWN，
