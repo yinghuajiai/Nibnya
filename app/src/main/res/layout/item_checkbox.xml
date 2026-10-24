@@ -15,7 +15,7 @@
         android:layout_weight="1"
         android:text="map_0"
         android:textSize="16sp"
-        android:textColor="#333333" />
+        android:textColor="@color/app_text_primary" />
 
     <!-- 复选框 (设置 focusable=false 只要为了防止抢占点击事件) -->
     <CheckBox

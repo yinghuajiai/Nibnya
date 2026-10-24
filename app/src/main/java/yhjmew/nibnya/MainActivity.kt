@@ -294,8 +294,20 @@ class MainActivity : ComponentActivity() {
         val p = newBase.getSharedPreferences("nbt_config", MODE_PRIVATE)
         val lang = p.getString("app_language",
             if (Locale.getDefault().language.contains("zh")) "zh" else "en")!!
-        val config = Configuration()
+        val config = Configuration(newBase.resources.configuration)
         config.setLocale(if ("en" == lang) Locale.ENGLISH else Locale.CHINESE)
+
+        // 夜间模式：在这里覆盖 uiMode，values-night 才会生效。
+        // ⚠️ 这是「不换基类」的做法 —— 直接把 Configuration.uiMode 改成
+        //    UI_MODE_NIGHT_YES/NO，系统在解析资源时就会去 values-night 找。
+        //    比起把 MainActivity 改成 AppCompatActivity（会连带影响 12 个文件里的
+        //    系统 AlertDialog 主题），这个代价几乎为零。
+        val night = p.getBoolean("night_mode", false)
+        config.uiMode = (config.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                (if (night) android.content.res.Configuration.UI_MODE_NIGHT_YES
+                 else android.content.res.Configuration.UI_MODE_NIGHT_NO)
+
         super.attachBaseContext(newBase.createConfigurationContext(config))
     }
 
@@ -639,11 +651,6 @@ class MainActivity : ComponentActivity() {
             if (checkFolder(f)) worldVM.openPlayerData(this, f)
         }
         findViewById<Button?>(R.id.btn_parse)?.setOnClickListener { reparseLevelDat() }
-        findViewById<Button?>(R.id.btn_check_permission)?.setOnClickListener {
-            if (worldVM.checkShizukuReady()) toast(getString(R.string.toast_shizuku_normal))
-            // 说明弹窗（而不是直接跳系统设置）
-            askAllFilesPermission(reason = null)
-        }
         findViewById<Button?>(R.id.btn_switch_path)?.setOnClickListener {
             // 换路径往往就是换到需要权限的位置，先说明再申请
             if (askAllFilesPermission(getString(R.string.msg_perm_needed_for_path))) showPathSelector()
@@ -689,9 +696,14 @@ class MainActivity : ComponentActivity() {
         findViewById<View?>(R.id.btn_fullscreen_view)?.setOnClickListener { showViewOptionsDialog() }
 
         findViewById<View?>(R.id.btn_open_drawer)?.setOnClickListener {
-            sc?.let { it.isVisible = true; it.bringToFront() }
+            openSidebarWithAnimation()
         }
-        findViewById<View?>(R.id.view_mask)?.setOnClickListener { sc?.isVisible = false }
+        findViewById<View?>(R.id.view_mask)?.setOnClickListener {
+            closeSidebarWithAnimation()
+        }
+
+        // 从屏幕左边缘右滑呼出侧边栏（见 setupEdgeSwipeDrawer）
+        findViewById<View?>(R.id.root_layout_container)?.let { setupEdgeSwipeDrawer(it) }
 
         // 侧边栏按钮
         findViewById<View?>(R.id.btn_online_players)?.setOnClickListener {
@@ -827,10 +839,126 @@ class MainActivity : ComponentActivity() {
         editorVM.updatePathTitle()
     }
 
+    // ============================================
+    // 侧边栏：边缘滑出 + 跟手拖动
+    // ============================================
+
+    /** 边缘触发区宽度：只认屏幕最左侧这一窄条，避免误触 */
+    private val edgeTriggerWidthDp = 18f
+
+    /** 当前侧边栏是否处于打开状态 */
+    private var drawerOpen = false
+
+    private fun sidebarView(): View? = findViewById(R.id.sidebar_content)
+    private fun sidebarContainer(): View? = findViewById(R.id.custom_sidebar_container)
+
+    /** 侧边栏完全展开时，本体应该处在的位置（0 = 贴左） */
+    private fun sidebarClosedX(): Float {
+        val v = sidebarView() ?: return 0f
+        return -v.width.toFloat().coerceAtLeast(1f)
+    }
+
+    internal fun openSidebarWithAnimation() {
+        val sc = sidebarContainer() ?: return
+        val v = sidebarView() ?: return
+        if (!sc.isVisible) {
+            sc.visibility = View.VISIBLE
+            sc.bringToFront()
+            v.translationX = sidebarClosedX()
+        }
+        v.animate().translationX(0f).setDuration(200L).start()
+        drawerOpen = true
+    }
+
+    internal fun closeSidebarWithAnimation(after: (() -> Unit)? = null) {
+        val v = sidebarView() ?: return
+        v.animate().translationX(sidebarClosedX()).setDuration(180L)
+            .withEndAction {
+                sidebarContainer()?.visibility = View.GONE
+                after?.invoke()
+            }
+            .start()
+        drawerOpen = false
+    }
+
+    /**
+     * 从屏幕左边缘向右滑：拉出侧边栏，并且**手指全程可拖动**。
+     *
+     * 触发范围只有最左侧 [edgeTriggerWidthDp]（18dp）那么窄一条 ——
+     * 用户在列表里正常左右滑不会误触。
+     *
+     * 松手时按「拖过 1/3 宽度」决定展开还是收回；
+     * 拖到一半松手也会平滑地归位，不会突然跳。
+     */
+    private fun setupEdgeSwipeDrawer(root: View) {
+        val density = resources.displayMetrics.density
+        val edgePx = edgeTriggerWidthDp * density
+
+        var tracking = false
+        var downX = 0f
+        var dragging = false
+        var startTranslation = 0f
+
+        root.setOnTouchListener { _, ev ->
+            val v = sidebarView()
+            val sc = sidebarContainer()
+            if (v == null || sc == null) return@setOnTouchListener false
+
+            when (ev.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    // 只在「未打开 + 手指落在最左边一条」时接管
+                    if (!drawerOpen && !sc.isVisible && ev.rawX <= edgePx) {
+                        tracking = true
+                        dragging = false
+                        downX = ev.rawX
+                        startTranslation = sidebarClosedX()
+                    } else {
+                        tracking = false
+                    }
+                    false
+                }
+
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    if (!tracking) return@setOnTouchListener false
+                    val dx = ev.rawX - downX
+                    // 滑过阈值才真正开始拖（防止手指轻微抖动就闪一下）
+                    if (!dragging && dx > 8f * density) {
+                        dragging = true
+                        sc.visibility = View.VISIBLE
+                        sc.bringToFront()
+                        v.translationX = startTranslation
+                    }
+                    if (dragging) {
+                        // 跟手：把负位移换算成 0..0 之间的位置
+                        val target = (startTranslation + dx).coerceIn(startTranslation, 0f)
+                        v.translationX = target
+                    }
+                    dragging
+                }
+
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (!tracking) return@setOnTouchListener false
+                    val wasDragging = dragging
+                    tracking = false
+                    dragging = false
+                    if (wasDragging) {
+                        // 超过三分之一宽度 -> 展开，否则回弹收起
+                        val width = v.width.toFloat().coerceAtLeast(1f)
+                        if (-v.translationX > width / 3f) openSidebarWithAnimation()
+                        else closeSidebarWithAnimation()
+                    }
+                    wasDragging
+                }
+                else -> false
+            }
+        }
+    }
+
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         val sc = findViewById<View?>(R.id.custom_sidebar_container)
-        if (sc != null && sc.isVisible) { sc.isVisible = false; return }
+        if (sc != null && sc.isVisible) { closeSidebarWithAnimation(); return }
         if (editorVM.goBack()) {
             refreshAdapter(editorVM.nbtData.value)
             editorVM.goBackScrollPosition()?.let { nbtListView?.post { nbtListView?.setSelection(it) } }
@@ -2227,18 +2355,38 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * 应用主题。
+     *
+     * 以前是「手动刷 4 个控件的颜色」，所以只有主界面那几块变暗，
+     * 对话框、列表项、设置面板全都还是白底 —— 这就是夜间模式看着
+     * 一半亮一半暗的原因。
+     *
+     * 现在交给 AppCompatDelegate：它会切换到 values-night 资源，
+     * 所有用 @color/app_* 的地方（背景/文字/分隔线）自动跟着变。
+     * 布局里已经不再硬编码颜色，因此不需要再逐个 setBackgroundColor。
+     */
+    /**
+     * 应用夜间 / 日间主题。
+     *
+     * 以前是「手动刷 4 个控件的颜色」，所以只有主界面那几块变暗，
+     * 对话框、列表项、设置面板全都还是白底 —— 这就是夜间模式看着一半亮
+     * 一半暗的原因。
+     *
+     * 现在：
+     *   · 所有布局改用 @color/app_*（values / values-night 各一套）
+     *   · 这里用系统 UiModeManager 切换 UI_MODE_NIGHT_YES/NO
+     *   · 切换后 recreate() 让 Activity 重新取资源，values-night 生效
+     *
+     * 注意：本项目没有引入 appcompat（AppCompatDelegate 用不了），
+     * 所以走系统 API —— targetSdk 28 允许这样做。
+     */
     @Suppress("DEPRECATION")
     @SuppressLint("DiscouragedApi")
     internal fun applyTheme() {
-        val main = viewMainContent ?: return
-        val tvT = findViewById<TextView?>(R.id.tv_app_title)
-        if (isNightMode) {
-            main.setBackgroundColor(-0xededee); viewSidebar?.setBackgroundColor(-0xe1e1e2)
-            tvT?.setTextColor(-0x1); nbtListView?.setBackgroundColor(-0xe1e1e2)
-        } else {
-            main.setBackgroundColor(-0xa0a0b); viewSidebar?.setBackgroundColor(-0x1)
-            tvT?.setTextColor(-0xcccccd); nbtListView?.setBackgroundColor(-0x1)
-        }
+        // 配色由 values / values-night 两套 @color 提供；
+        // 具体用哪套由 attachBaseContext 里的 Configuration.uiMode 决定。
+        // 这里不需要手动刷控件颜色 —— 切换后 recreate() 就会重新取资源。
     }
 
     // ============================================

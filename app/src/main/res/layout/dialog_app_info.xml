@@ -83,7 +83,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/settings_header"
-                android:textColor="#333333"
+                android:textColor="@color/app_text_primary"
                 android:textSize="16sp" />
 
             <TextView
@@ -91,7 +91,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="▼"
-                android:textColor="#999999"
+                android:textColor="@color/app_text_tertiary"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -104,6 +104,35 @@
             android:padding="16dp"
             android:paddingTop="0dp"
             android:visibility="gone">
+
+            <!-- 0. 权限检查：点击立即检测当前是否已获得所需权限 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="10dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/label_permission_status"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/btn_check_permission_in_settings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:text="@string/btn_check_perm"
+                    android:textAllCaps="false"
+                    android:textSize="12sp"
+                    android:minWidth="0dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#607D8B" />
+            </LinearLayout>
 
             <!-- 1. 文件操作多线程 -->
             <CheckBox
@@ -118,7 +147,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_io_multithread"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp" />
 
@@ -178,7 +207,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_puzzle_multithread"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp" />
 
@@ -274,7 +303,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_crop_min_size"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="12dp" />
 
@@ -309,7 +338,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_puzzle_prefix"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="12dp" />
 
@@ -348,7 +377,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_puzzle_ask_crop"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="14dp" />
 
@@ -366,7 +395,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_backup_auto"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp" />
 
@@ -467,7 +496,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_backup_max"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="14dp" />
 
@@ -484,7 +513,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_draft_autosave"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="6dp" />
 
@@ -593,7 +622,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_draft_keep_original"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="14dp" />
 
@@ -645,7 +674,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/subtitle_trash_keep"
                 android:textSize="12sp"
-                android:textColor="#888888"
+                android:textColor="@color/app_text_secondary"
                 android:paddingStart="32dp"
                 android:layout_marginBottom="14dp" />
 
@@ -734,7 +763,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/about_header"
-                android:textColor="#333333"
+                android:textColor="@color/app_text_primary"
                 android:textSize="16sp" />
 
             <TextView
@@ -742,7 +771,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="▼"
-                android:textColor="#999999"
+                android:textColor="@color/app_text_tertiary"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -752,14 +781,14 @@
             android:layout_height="wrap_content"
             android:padding="16dp"
             android:paddingTop="0dp"
-            android:textColor="#666666"
+            android:textColor="@color/app_text_secondary"
             android:textSize="14sp"
             android:visibility="gone" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#EEEEEE"
+            android:background="@color/app_bg"
             android:layout_marginStart="56dp" />
     </LinearLayout>
 

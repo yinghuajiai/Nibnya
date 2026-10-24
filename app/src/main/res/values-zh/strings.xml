@@ -812,4 +812,9 @@ ID：%3$s
     <string name="msg_no_world_icon">无预览图
 （未保存最后一刻画面）</string>
     <string name="toast_seed_copied">种子已复制</string>
+    <string name="label_permission_status">权限状态</string>
+    <string name="toast_perm_all_granted">权限检查：Shizuku 正常，所有文件访问已授予 ✓</string>
+    <string name="toast_perm_shizuku_only">权限检查：Shizuku 正常，但缺少「所有文件访问」</string>
+    <string name="toast_perm_files_only">权限检查：所有文件访问已授予，但 Shizuku 未运行</string>
+    <string name="toast_perm_none">权限检查：尚未获得任何权限</string>
 </resources>

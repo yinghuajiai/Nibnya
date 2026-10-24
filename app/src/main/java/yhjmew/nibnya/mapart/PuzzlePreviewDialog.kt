@@ -188,7 +188,7 @@ internal fun MainActivity.showPuzzlePreview(
     })
 
     val tvInfo = TextView(this).apply {
-        textSize = 13f; setTextColor("#333333".toColorInt())
+        textSize = 13f; setTextColor(getColor(R.color.nbt_label))
         setLineSpacing(px(2).toFloat(), 1f)
         setPadding(px(4), px(10), px(4), 0)
     }
@@ -498,14 +498,14 @@ private fun MainActivity.makeTab(text: String, selected: Boolean, density: Float
         this.text = text
         textSize = 13f
         setPadding((12 * density).toInt(), (6 * density).toInt(), (12 * density).toInt(), (6 * density).toInt())
-        setTextColor(if (selected) "#2196F3".toColorInt() else "#666666".toColorInt())
-        setBackgroundColor(if (selected) "#E3F2FD".toColorInt() else Color.TRANSPARENT)
+        setTextColor(if (selected) getColor(R.color.select_text) else getColor(R.color.hint_text))
+        setBackgroundColor(if (selected) getColor(R.color.select_bg) else Color.TRANSPARENT)
         typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
     }
 
 private fun MainActivity.setTabStyle(tv: TextView, selected: Boolean, density: Float) {
-    tv.setTextColor(if (selected) "#2196F3".toColorInt() else "#666666".toColorInt())
-    tv.setBackgroundColor(if (selected) "#E3F2FD".toColorInt() else Color.TRANSPARENT)
+    tv.setTextColor(if (selected) getColor(R.color.select_text) else getColor(R.color.hint_text))
+    tv.setBackgroundColor(if (selected) getColor(R.color.select_bg) else Color.TRANSPARENT)
     tv.typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
     tv.isClickable = true
 }
@@ -529,7 +529,7 @@ private fun MainActivity.makeTextButton(text: String, density: Float, onClick: (
         minWidth = 0
         minimumWidth = 0
         setPadding((10 * density).toInt(), 0, (10 * density).toInt(), 0)
-        setTextColor("#2196F3".toColorInt())
+        setTextColor(getColor(R.color.select_text))
         setOnClickListener { onClick() }
     }
 
@@ -935,3 +935,4 @@ private fun MainActivity.decodePreviewBitmap(uri: Uri, maxSize: Int): Bitmap? {
         null
     }
 }
+

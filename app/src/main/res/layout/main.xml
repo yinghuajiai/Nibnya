@@ -3,7 +3,7 @@
     android:id="@+id/root_layout_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="@color/app_bg">
 
     <!-- ========================================= -->
     <!-- [层级 1] 主界面内容 (原 LinearLayout) -->
@@ -142,7 +142,7 @@
                     android:textAllCaps="false"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="#333333"
+                    android:textColor="@color/app_text_primary"
                     android:background="#00000000"
                     android:gravity="center"
                     android:padding="0dp"
@@ -159,17 +159,18 @@
                     android:layout_weight="1"
                     android:orientation="vertical"
                     android:gravity="center_vertical"
-                    android:paddingStart="4dp">
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp">
 
                     <!-- 大标题：显示 APP名 或 存档名 -->
                     <TextView
                         android:id="@+id/tv_app_title"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/app_name"
-                        android:textSize="18sp"
+                        android:textSize="15sp"
                         android:textStyle="bold"
-                        android:textColor="#333333"
+                        android:textColor="@color/app_text_primary"
                         android:maxLines="3"
                         android:ellipsize="end" />
 
@@ -180,7 +181,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/key_seed_placeholder"
                         android:textSize="10sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/app_text_secondary"
                         android:visibility="gone"
                         android:clickable="true"
                         android:focusable="false"
@@ -212,17 +213,6 @@
                             android:paddingTop="0dp"
                             android:paddingBottom="0dp"
                             android:layout_marginEnd="4dp" />
-                        <Button
-                            android:id="@+id/btn_check_permission"
-                            android:layout_width="wrap_content"
-                            android:layout_height="28dp"
-                            android:text="@string/btn_check_perm"
-                            android:textAllCaps="false"
-                            android:textSize="11sp"
-                            android:textColor="#FFFFFF"
-                            android:backgroundTint="#607D8B"
-                            android:paddingTop="0dp"
-                            android:paddingBottom="0dp" />
                     </LinearLayout>
 
                     <!-- 第二行 -->
@@ -253,7 +243,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
                 android:hint="@string/hint_select_world"
-                android:background="#FFFFFF"
+                android:background="@color/app_surface"
                 android:padding="5dp"
                 android:gravity="center"
                 android:layout_marginBottom="6dp"
@@ -365,7 +355,7 @@
                 android:layout_weight="1"
                 android:text="@string/label_editor"
                 android:textSize="12sp"
-                android:textColor="#757575" />
+                android:textColor="@color/app_text_secondary" />
 
             <!-- [新增] 树状图模式 -->
             <Button
@@ -423,7 +413,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="#FFFFFF"
+            android:background="@color/app_surface"
             android:divider="#EEEEEE"
             android:dividerHeight="1dp"
             android:padding="5dp"
@@ -440,12 +430,14 @@
     android:orientation="horizontal"
     android:visibility="gone">
 
-    <!-- 侧边栏本体 -->
+    <!-- 侧边栏本体：宽度 78%，右侧留给遮罩。
+         从边缘滑出时靠 translationX 平移，不改宽度。 -->
     <LinearLayout
         android:id="@+id/sidebar_content"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:background="#FFFFFF"
+        android:layout_weight="78"
+        android:background="@color/app_surface"
         android:orientation="vertical"
         android:elevation="16dp">
 
@@ -570,7 +562,7 @@
         android:id="@+id/view_mask"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_weight="1"
+        android:layout_weight="22"
         android:background="#80000000"
         android:clickable="true" />
 

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 应用主题色（日间）。夜间会把值换成 values-night/colors.xml -->
+    <color name="app_bg">#F2F2F2</color>
+    <color name="app_surface">#FFFFFF</color>
+    <color name="app_text_primary">#222222</color>
+    <color name="app_text_secondary">#888888</color>
+    <color name="app_text_tertiary">#999999</color>
+    <color name="app_accent">#2196F3</color>
+    <color name="app_divider">#DDDDDD</color>
+    <!-- NBT 列表/树：键名与值 -->
+    <color name="nbt_key">#009688</color>
+    <color name="nbt_value_string">#E91E63</color>
+    <color name="nbt_value_other">#757575</color>
+    <color name="nbt_label">#333333</color>
+    <!-- 选中态 -->
+    <color name="select_bg">#E3F2FD</color>
+    <color name="select_text">#2196F3</color>
+    <!-- 提示 / 次要说明 -->
+    <color name="hint_text">#666666</color>
+    <color name="muted_text">#888888</color>
+    <!-- 槽位网格 -->
+    <color name="slot_empty_bg">#E8F5E9</color>
+    <color name="slot_empty_stroke">#A5D6A7</color>
+    <color name="slot_used_bg">#ECECEC</color>
+    <color name="slot_used_stroke">#BDBDBD</color>
+</resources>

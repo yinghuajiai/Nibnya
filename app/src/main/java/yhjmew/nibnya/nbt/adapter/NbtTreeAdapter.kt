@@ -362,18 +362,18 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
 
         if (currentMode == MODE_SIMPLE && trans != null) {
             tvKey.text = trans
-            tvKey.setTextColor(Color.parseColor("#009688"))
+            tvKey.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_key))
         } else {
             tvKey.text = key
-            tvKey.setTextColor(Color.parseColor("#333333"))
+            tvKey.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_label))
         }
 
         if (smartVal != null) {
             tvValue.text = smartVal
-            tvValue.setTextColor(Color.parseColor("#E91E63"))
+            tvValue.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_value_string))
         } else {
             tvValue.text = valRaw
-            tvValue.setTextColor(Color.parseColor("#666666"))
+            tvValue.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_value_other))
         }
 
         val sbDesc = StringBuilder()
@@ -404,7 +404,7 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
             2 -> { icon.text = "S"; icon.setBackgroundColor(Color.parseColor("#90A4AE")) }
             3 -> { icon.text = "I"; icon.setBackgroundColor(Color.parseColor("#03A9F4")) }
             4 -> { icon.text = "L"; icon.setBackgroundColor(Color.parseColor("#3F51B5")) }
-            5 -> { icon.text = "F"; icon.setBackgroundColor(Color.parseColor("#E91E63")) }
+            5 -> { icon.text = "F"; icon.setBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_value_string)) }
             6 -> { icon.text = "D"; icon.setBackgroundColor(Color.parseColor("#9C27B0")) }
             7 -> { icon.text = "[B]"; icon.setBackgroundColor(Color.parseColor("#607D8B")) }
             8 -> { icon.text = "T"; icon.setBackgroundColor(Color.parseColor("#4CAF50")) }
@@ -531,3 +531,4 @@ class NbtTreeAdapter(private val context: Context, private val rootData: JsonObj
         const val MODE_SIMPLE = 3
     }
 }
+

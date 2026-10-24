@@ -151,21 +151,21 @@ class NbtAdapter(private val context: Context, val data: JsonObject?) : BaseAdap
         @Suppress("DEPRECATION")
         if (currentMode == MODE_SIMPLE && translation != null) {
             tvKey.text = translation
-            tvKey.setTextColor(Color.parseColor("#009688"))
+            tvKey.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_key))
         } else {
             tvKey.text = key
             @Suppress("DEPRECATION")
-            tvKey.setTextColor(Color.parseColor("#212121"))
+            tvKey.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_label))
         }
 
         @Suppress("DEPRECATION")
         if (parsedVal != null) {
             tvValue.text = parsedVal
-            tvValue.setTextColor(Color.parseColor("#E91E63"))
+            tvValue.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_value_string))
         } else {
             tvValue.text = rawVal
             @Suppress("DEPRECATION")
-            tvValue.setTextColor(Color.parseColor("#757575"))
+            tvValue.setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_value_other))
         }
 
         val sbDesc = StringBuilder()
@@ -207,7 +207,7 @@ class NbtAdapter(private val context: Context, val data: JsonObject?) : BaseAdap
             }
             5 -> {
                 icon.text = "F"
-                icon.setBackgroundColor(Color.parseColor("#E91E63"))
+                icon.setBackgroundColor(androidx.core.content.ContextCompat.getColor(context, R.color.nbt_value_string))
             }
             6 -> {
                 icon.text = "D"
@@ -251,3 +251,4 @@ class NbtAdapter(private val context: Context, val data: JsonObject?) : BaseAdap
         const val MODE_SIMPLE = 3
     }
 }
+

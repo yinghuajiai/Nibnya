@@ -780,6 +780,27 @@ fun MainActivity.showAppInfoDialog() {
         customBtn = dialogView.findViewById(R.id.btn_custom_puzzle_crop_min)
     )
 
+    // ⓪ 权限检查：点击立即检测，并把结果直接告诉用户
+    dialogView.findViewById<Button?>(R.id.btn_check_permission_in_settings)?.setOnClickListener {
+        val shizukuOk = try { worldVM.checkShizukuReady() } catch (_: Throwable) { false }
+        // Android 11+ 才有「所有文件访问」；低版本按已授权处理
+        val allFilesOk = android.os.Build.VERSION.SDK_INT < 30 ||
+            try { android.os.Environment.isExternalStorageManager() } catch (_: Throwable) { false }
+        when {
+            shizukuOk && allFilesOk ->
+                toast(getString(R.string.toast_perm_all_granted))
+            shizukuOk ->
+                toast(getString(R.string.toast_perm_shizuku_only))
+            allFilesOk ->
+                toast(getString(R.string.toast_perm_files_only))
+            else -> {
+                toast(getString(R.string.toast_perm_none))
+                // 没权限就顺手引导去授予，省得用户再找入口
+                askAllFilesPermission(reason = null)
+            }
+        }
+    }
+
     // ⑤ 拼图命名前缀
     dialogView.findViewById<android.widget.EditText?>(R.id.et_puzzle_prefix)?.let { et ->
         et.setText(prefs?.getString("puzzle_prefix", "") ?: "")

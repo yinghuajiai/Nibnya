@@ -230,7 +230,7 @@ fun MainActivity.showAutocompleteDialog(targetInput: EditText, dataType: String)
         text = getString(R.string.btn_clear)
         isAllCaps = false
         textSize = 13f
-        setTextColor("#2196F3".toColorInt())
+        setTextColor(getColor(R.color.select_text))
     }
     searchRow.addView(btnClear)
     root.addView(searchRow)
@@ -240,9 +240,9 @@ fun MainActivity.showAutocompleteDialog(targetInput: EditText, dataType: String)
     val tabs = HashMap<String, TextView>()
 
     fun styleTab(tv: TextView, selected: Boolean) {
-        tv.setTextColor(if (selected) "#2196F3".toColorInt() else "#666666".toColorInt())
+        tv.setTextColor(if (selected) getColor(R.color.select_text) else getColor(R.color.hint_text))
         tv.typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-        tv.setBackgroundColor(if (selected) "#E3F2FD".toColorInt() else Color.TRANSPARENT)
+        tv.setBackgroundColor(if (selected) getColor(R.color.select_bg) else Color.TRANSPARENT)
     }
 
     for (cat in CATEGORIES) {
@@ -271,7 +271,7 @@ fun MainActivity.showAutocompleteDialog(targetInput: EditText, dataType: String)
     val tvSubLabel = TextView(this).apply {
         text = getString(R.string.label_sub_category)
         textSize = 13f
-        setTextColor("#666666".toColorInt())
+        setTextColor(getColor(R.color.hint_text))
     }
     val spSub = Spinner(this)
     subRow.addView(tvSubLabel)
@@ -290,7 +290,7 @@ fun MainActivity.showAutocompleteDialog(targetInput: EditText, dataType: String)
     // ---- 底部计数 ----
     val tvCount = TextView(this).apply {
         textSize = 12f
-        setTextColor("#888888".toColorInt())
+        setTextColor(getColor(R.color.muted_text))
         setPadding(pad, pad / 3, pad, pad / 3)
     }
     root.addView(tvCount)
@@ -343,7 +343,7 @@ fun MainActivity.showAutocompleteDialog(targetInput: EditText, dataType: String)
                 val tv2 = view.findViewById<TextView>(android.R.id.text2)
                 if (item.category == SUB_CUSTOM) {
                     tv1.text = getString(R.string.btn_use_custom_id, item.namespace)
-                    tv1.setTextColor("#2196F3".toColorInt())
+                    tv1.setTextColor(getColor(R.color.select_text))
                     tv2.text = getString(R.string.msg_use_custom_id_hint)
                 } else {
                     val prefix = when (item.category) {
@@ -351,12 +351,12 @@ fun MainActivity.showAutocompleteDialog(targetInput: EditText, dataType: String)
                         "effect" -> "[Effect] "; "enchant" -> "[Enchant] "; else -> ""
                     }
                     tv1.text = "$prefix${item.name}"
-                    tv1.setTextColor("#333333".toColorInt())
+                    tv1.setTextColor(getColor(R.color.nbt_label))
                     tv2.text = if (item.id != null) "ID:${item.id} | ${item.namespace}"
                     else item.namespace
                 }
                 tv1.textSize = 15f
-                tv2.setTextColor("#666666".toColorInt())
+                tv2.setTextColor(getColor(R.color.hint_text))
                 tv2.textSize = 12f
                 return view
             }
@@ -461,3 +461,4 @@ fun detectAutocompleteType(parent: String?, grandParent: String?): String {
     ) return "enchant"
     return "all"
 }
+

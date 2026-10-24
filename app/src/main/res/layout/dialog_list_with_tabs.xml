@@ -21,7 +21,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#E0E0E0" />
+        android:background="@color/app_divider" />
 
     <!-- 底部标签栏（代码动态填充） -->
     <LinearLayout

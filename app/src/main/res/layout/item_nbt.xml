@@ -38,7 +38,7 @@
             android:text="Key"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="#212121" />
+            android:textColor="@color/app_text_primary" />
 
         <!-- [新增] 翻译说明 (中文Key)，默认隐藏，由 Adapter 控制显示 -->
         <TextView
@@ -58,7 +58,7 @@
             android:layout_height="wrap_content"
             android:text="Value"
             android:textSize="14sp"
-            android:textColor="#666666"
+            android:textColor="@color/app_text_secondary"
             android:maxLines="2"
             android:ellipsize="end"
             android:layout_marginTop="2dp" />

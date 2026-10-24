@@ -65,7 +65,7 @@ internal fun MainActivity.showSlotGrid(
     root.addView(TextView(this).apply {
         text = getString(R.string.msg_puzzle_slots_summary, emptyCount, info.mainSlots.size, 1)
         textSize = 12f
-        setTextColor("#666666".toColorInt())
+        setTextColor(getColor(R.color.hint_text))
         setPadding((4 * density).toInt(), 0, (4 * density).toInt(), (8 * density).toInt())
     })
 
@@ -94,7 +94,7 @@ internal fun MainActivity.showSlotGrid(
     root.addView(TextView(this).apply {
         text = getString(R.string.msg_puzzle_slot_legend)
         textSize = 11f
-        setTextColor("#999999".toColorInt())
+        setTextColor(getColor(R.color.muted_text))
         setPadding((4 * density).toInt(), (6 * density).toInt(), (4 * density).toInt(), (6 * density).toInt())
     }, LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -137,7 +137,7 @@ private fun MainActivity.addSlotSection(
     parent.addView(TextView(this).apply {
         text = getString(R.string.msg_slot_section_header, getString(titleRes), from, to, emptyInSection)
         textSize = 12f
-        setTextColor("#444444".toColorInt())
+        setTextColor(getColor(R.color.nbt_label))
         setPadding((4 * density).toInt(), (8 * density).toInt(), (4 * density).toInt(), (6 * density).toInt())
     })
 
@@ -182,8 +182,8 @@ private fun MainActivity.buildCell(
         setPadding((4 * density).toInt(), (6 * density).toInt(), (4 * density).toInt(), (6 * density).toInt())
         background = GradientDrawable().apply {
             cornerRadius = (6 * density).toInt().toFloat()
-            setColor(if (occupied) "#ECECEC".toColorInt() else "#E8F5E9".toColorInt())
-            setStroke((1 * density).toInt(), if (occupied) "#BDBDBD".toColorInt() else "#A5D6A7".toColorInt())
+            setColor(if (occupied) getColor(R.color.slot_used_bg) else getColor(R.color.slot_empty_bg))
+            setStroke((1 * density).toInt(), if (occupied) getColor(R.color.slot_used_stroke) else getColor(R.color.slot_empty_stroke))
         }
         isClickable = true
     }
@@ -191,7 +191,7 @@ private fun MainActivity.buildCell(
     cell.addView(TextView(this).apply {
         text = s.slot.toString()
         textSize = 10f
-        setTextColor("#999999".toColorInt())
+        setTextColor(getColor(R.color.muted_text))
     })
 
     if (occupied) {
@@ -201,7 +201,7 @@ private fun MainActivity.buildCell(
             textSize = 11f
             maxLines = 2
             gravity = Gravity.CENTER
-            setTextColor("#333333".toColorInt())
+            setTextColor(getColor(R.color.nbt_label))
             ellipsize = android.text.TextUtils.TruncateAt.END
         })
         cell.addView(TextView(this).apply {
@@ -247,3 +247,4 @@ internal fun localizedItemName(raw: String): String {
     NbtTranslator.getItemTranslation(raw)?.takeIf { it.isNotBlank() }?.let { return it }
     return raw.substringAfter(':')
 }
+

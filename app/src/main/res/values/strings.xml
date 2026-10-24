@@ -810,4 +810,9 @@ Uses one map ID near map_%3$d</string>
     <string name="btn_custom">Custom</string>
     <string name="msg_no_world_icon">No preview\n(no last-frame image)</string>
     <string name="toast_seed_copied">Seed copied</string>
+    <string name="label_permission_status">Permissions</string>
+    <string name="toast_perm_all_granted">Permissions: Shizuku OK, All files access granted ✓</string>
+    <string name="toast_perm_shizuku_only">Permissions: Shizuku OK, but All files access is missing</string>
+    <string name="toast_perm_files_only">Permissions: All files access granted, but Shizuku is not running</string>
+    <string name="toast_perm_none">Permissions: none granted yet</string>
 </resources>

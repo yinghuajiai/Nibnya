@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 夜间：深色底 + 高对比浅色字，避免白底刺眼、灰字看不清 -->
+    <color name="app_bg">#121212</color>
+    <color name="app_surface">#1E1E1E</color>
+    <color name="app_text_primary">#EAEAEA</color>
+    <color name="app_text_secondary">#B0B0B0</color>
+    <color name="app_text_tertiary">#9A9A9A</color>
+    <color name="app_accent">#64B5F6</color>
+    <color name="app_divider">#333333</color>
+    <!-- NBT 列表/树：夜间用更亮的键名/值，避免深色在深底上看不清 -->
+    <color name="nbt_key">#4DD0E1</color>
+    <color name="nbt_value_string">#FF80AB</color>
+    <color name="nbt_value_other">#B0B0B0</color>
+    <color name="nbt_label">#EAEAEA</color>
+    <color name="select_bg">#1B3A4B</color>
+    <color name="select_text">#64B5F6</color>
+    <color name="hint_text">#B0B0B0</color>
+    <color name="muted_text">#9A9A9A</color>
+    <color name="slot_empty_bg">#1B3320</color>
+    <color name="slot_empty_stroke">#2E7D32</color>
+    <color name="slot_used_bg">#2A2A2A</color>
+    <color name="slot_used_stroke">#444444</color>
+</resources>
