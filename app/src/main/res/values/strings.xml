@@ -808,4 +808,5 @@ Uses one map ID near map_%3$d</string>
     <string name="default_puzzle_map_prefix">Puzzle</string>
     <string name="default_puzzle_box_prefix">Puzzle art</string>
     <string name="btn_custom">Custom</string>
+    <string name="msg_no_world_icon">No preview\n(no last-frame image)</string>
 </resources>

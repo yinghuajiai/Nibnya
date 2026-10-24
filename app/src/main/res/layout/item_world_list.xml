@@ -1,33 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  存档列表单项：左侧 world_icon.jpeg 缩略图，右侧两行文字。
-  缩略图来自游戏退出时保存的「最后一刻」画面，用来区分同名存档。
+  存档列表单项：左侧 world_icon.jpeg 正方形缩略图，右侧文字。
+
+  缩略图区域是一个固定 56x56 的方块（FrameLayout）：
+    · 有图  -> 显示截图，隐藏占位文字
+    · 没图  -> 隐藏截图，显示「无预览图」提示文字（不能只留一块灰底，
+               玩家会以为是加载失败，得明确告诉他没有这张图）
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:gravity="center_vertical"
+    android:gravity="top"
     android:paddingStart="12dp"
     android:paddingEnd="12dp"
     android:paddingTop="8dp"
     android:paddingBottom="8dp">
 
     <!--
-      缩略图：必须是正方形（1:1），不加圆角、不加裁剪变形。
-      world_icon.jpeg 本身就是正方形（游戏保存的 1:1 预览），
-      用 centerCrop 只在极端比例下裁掉边缘，保证不会拉变形。
-      无图时用灰底占位（bg_world_icon 是一块纯灰方片，无圆角）。
+      缩略图：必须是正方形（1:1），不加圆角、不拉伸变形。
+      world_icon.jpeg 本身就是 1:1（游戏保存的方形预览），
+      用 centerCrop 只在极端比例下裁掉边缘。
     -->
-    <ImageView
-        android:id="@+id/iv_world_icon"
+    <FrameLayout
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:layout_marginEnd="12dp"
-        android:scaleType="centerCrop"
-        android:adjustViewBounds="false"
-        android:background="@drawable/bg_world_icon"
-        android:contentDescription="@null" />
+        android:layout_marginTop="2dp"
+        android:background="@drawable/bg_world_icon">
+
+        <ImageView
+            android:id="@+id/iv_world_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:adjustViewBounds="false"
+            android:contentDescription="@null" />
+
+        <!-- 没有 world_icon.jpeg 时显示这句话 -->
+        <TextView
+            android:id="@+id/tv_world_icon_none"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="@string/msg_no_world_icon"
+            android:textSize="8sp"
+            android:textColor="#9E9E9E"
+            android:gravity="center"
+            android:padding="3dp"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="0dp"
@@ -35,13 +56,14 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
+        <!-- 世界名 + 文件夹名：过长时换行（最多 3 行），不再省略号截断 -->
         <TextView
             android:id="@+id/tv_world_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="15sp"
             android:textColor="#222222"
-            android:maxLines="1"
+            android:maxLines="3"
             android:ellipsize="end" />
 
         <TextView

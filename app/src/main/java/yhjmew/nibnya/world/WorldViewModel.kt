@@ -1983,11 +1983,28 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     /**
      * 世界缩略图路径：`<world>/world_icon.jpeg`。
      * 这是基岩版退出存档时自动写的「最后一帧」截图，用作存档列表的预览图。
-     * 返回 null 表示不存在。
+     *
+     * ⚠️ 标准路径在 `Android/data` 下，Android 11+ 直读会因分区存储而失败
+     * （exists() 恒为 false），但 level.dat 却能靠 Shizuku 判定有效 ——
+     * 早期版本就是因此「图片一直加载不出来」。这里同样用 Shizuku 兜底探测。
+     *
+     * @return 文件绝对路径；不存在（或读不到）返回 null
      */
     private fun worldIconPath(dir: File): String? {
         val f = File(dir, "world_icon.jpeg")
-        return if (f.exists() && f.length() > 0) f.absolutePath else null
+        // ① 能直读（旧版路径 / 已授权所有文件访问）
+        try {
+            if (f.exists() && f.length() > 0) return f.absolutePath
+        } catch (_: Exception) {}
+
+        // ② 直读失败：用 Shizuku 探测（有权限就能读到，UI 层同样走 Shizuku 解码）
+        if (checkShizukuAvailable()) {
+            try {
+                val p = runShizukuCmd(arrayOf("sh", "-c", "test -s '${f.absolutePath}'"))
+                if (p.waitFor() == 0) return f.absolutePath
+            } catch (_: Exception) {}
+        }
+        return null
     }
 
     private fun levelDatTime(worldDir: File): Long {

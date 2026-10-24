@@ -975,19 +975,33 @@ class MainActivity : ComponentActivity() {
             customItemView = { _, w, convertView ->
                 val v = convertView ?: layoutInflater.inflate(R.layout.item_world_list, null)
                 val iv = v.findViewById<android.widget.ImageView?>(R.id.iv_world_icon)
+                val tvNone = v.findViewById<android.widget.TextView?>(R.id.tv_world_icon_none)
                 val tvTitle = v.findViewById<android.widget.TextView?>(R.id.tv_world_title)
                 val tvSub = v.findViewById<android.widget.TextView?>(R.id.tv_world_subtitle)
 
-                tvTitle?.text = listTitleLine(w.displayName, w.folderName)
-                tvSub?.text = if (w.lastModified > 0) fullTimeOf(w.lastModified)
-                               else getString(R.string.time_unknown)
+                // 世界名与文件夹 ID 分两行：名字可能很长，挤在一行会被截断成
+                // 「我的世界的拷贝 (1) npyOcW…」，反而看不清到底是哪一个。
+                tvTitle?.text = w.displayName?.takeIf { it.isNotBlank() } ?: w.folderName
+                tvSub?.text = buildString {
+                    if (!w.displayName.isNullOrBlank() && w.displayName != w.folderName) {
+                        append(w.folderName)
+                        append("\n")
+                    }
+                    append(if (w.lastModified > 0) fullTimeOf(w.lastModified)
+                           else getString(R.string.time_unknown))
+                }
 
                 // 缩略图：后台解码 + 内存缓存，避免滑动卡顿
                 val path = w.iconPath
                 iv?.tag = path
                 if (path == null) {
+                    // 没有最后一刻截图：显示占位文字，明确告诉玩家原因
                     iv?.setImageDrawable(null)
+                    iv?.visibility = android.view.View.GONE
+                    tvNone?.visibility = android.view.View.VISIBLE
                 } else {
+                    iv?.visibility = android.view.View.VISIBLE
+                    tvNone?.visibility = android.view.View.GONE
                     val cached = worldIconCache[path]
                     if (cached != null) {
                         iv?.setImageBitmap(cached)
@@ -995,11 +1009,15 @@ class MainActivity : ComponentActivity() {
                         iv?.setImageDrawable(null)
                         Thread {
                             val bmp = decodeWorldIcon(path)
-                            if (bmp != null) {
-                                worldIconCache[path] = bmp
-                                runOnUiThread {
-                                    // 视图可能已被复用，确认 tag 仍是同一路径再贴图
-                                    if (iv?.tag == path) iv.setImageBitmap(bmp)
+                            runOnUiThread {
+                                if (iv?.tag != path) return@runOnUiThread
+                                if (bmp != null) {
+                                    worldIconCache[path] = bmp
+                                    iv.setImageBitmap(bmp)
+                                } else {
+                                    // 解码失败（权限/文件损坏）：同样提示没有预览图
+                                    iv.visibility = android.view.View.GONE
+                                    tvNone?.visibility = android.view.View.VISIBLE
                                 }
                             }
                         }.start()
@@ -1014,9 +1032,38 @@ class MainActivity : ComponentActivity() {
     private val worldIconCache = HashMap<String, android.graphics.Bitmap>()
 
     /** 解码 world_icon.jpeg 并按列表项尺寸降采样，防止大图 OOM */
-    private fun decodeWorldIcon(path: String): android.graphics.Bitmap? = try {
+    /**
+     * 解码 world_icon.jpeg。
+     *
+     * 标准路径在 Android/data 下，Android 11+ 直读会被分区存储挡住，
+     * 直接 BitmapFactory.decodeFile 会返回 null（这就是「图片加载不出来」的原因）。
+     * 所以：先试直读，失败再用 Shizuku 把文件 cp 到私有缓存目录后解码。
+     */
+    private fun decodeWorldIcon(path: String): android.graphics.Bitmap? {
+        decodeBitmapFromFile(path)?.let { return it }
+
+        // 直读失败 -> Shizuku 拷一份到 cache 再解
+        if (!worldVM.checkShizukuAvailable()) return null
+        return try {
+            val tmp = java.io.File(cacheDir, "icon_${path.hashCode()}.jpeg")
+            if (!tmp.exists() || tmp.length() == 0L) {
+                val p = worldVM.runShizukuCmd(
+                    arrayOf("sh", "-c", "cp '${path}' '${tmp.absolutePath}'")
+                )
+                if (p.waitFor() != 0) return null
+            }
+            if (!tmp.exists() || tmp.length() == 0L) return null
+            val bmp = decodeBitmapFromFile(tmp.absolutePath)
+            tmp.delete()
+            bmp
+        } catch (_: Throwable) { null }
+    }
+
+    /** 从本地可读文件解码并降采样 */
+    private fun decodeBitmapFromFile(path: String): android.graphics.Bitmap? = try {
         val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeFile(path, opts)
+        if (opts.outWidth <= 0 || opts.outHeight <= 0) return null
         val target = 112  // 56dp @2x
         var scale = 1
         while (opts.outWidth / scale > target * 2 || opts.outHeight / scale > target * 2) scale *= 2

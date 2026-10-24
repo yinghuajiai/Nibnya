@@ -809,4 +809,6 @@ ID：%3$s
     <string name="default_puzzle_map_prefix">拼图</string>
     <string name="default_puzzle_box_prefix">拼图画</string>
     <string name="btn_custom">自定义</string>
+    <string name="msg_no_world_icon">无预览图
+（未保存最后一刻画面）</string>
 </resources>
