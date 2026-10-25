@@ -564,7 +564,8 @@
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:background="#80000000"
-        android:clickable="true" />
+        android:clickable="true"
+        android:focusable="true" />
 
 </FrameLayout>
 
