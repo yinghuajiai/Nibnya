@@ -849,7 +849,7 @@ class MainActivity : ComponentActivity() {
      * 侧边栏宽度 = 屏宽 × 0.78，与「以前」的观感一致（约占 3/4 屏）。
      * 右侧留出的部分放遮罩，点它可关闭。
      */
-    private val sidebarWidthPercent = 0.78f
+    private val sidebarWidthPercent = 0.66f
 
     private var drawerOpen = false
 

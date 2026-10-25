@@ -556,14 +556,18 @@
 
     </LinearLayout>
 
-    <!-- 遮罩：叠在侧边栏之上（FrameLayout 里后写的绘制在上层）。
-         宽度由代码设为「屏幕宽 - 侧边栏宽」，只让右侧露出的区域变暗。 -->
+    <!--
+      遮罩：叠在侧边栏之上（FrameLayout 里后写的绘制在上层）。
+      宽度由代码设为「屏幕宽 - 侧边栏宽」。
+      ⚠️ 背景是全透明 —— 它只负责接收「点空白处关闭」的点击，
+         不改变画面明暗（用户明确要求不要灰色蒙层）。
+    -->
     <View
         android:id="@+id/view_mask"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="end"
-        android:background="#80000000"
+        android:background="#00000000"
         android:clickable="true"
         android:focusable="true" />
 
