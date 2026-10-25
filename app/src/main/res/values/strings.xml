@@ -816,4 +816,7 @@ Uses one map ID near map_%3$d</string>
     <string name="toast_perm_files_only">Permissions: All files access granted, but Shizuku is not running</string>
     <string name="toast_perm_none">Permissions: none granted yet</string>
     <string name="btn_check_perm_long">🔍 Check permissions</string>
+    <string name="msg_shizuku_cannot_write">Cannot write to:\n%1$s\n\nShizuku is connected, but the system is restricting its shell write access.\n\nXiaomi / HyperOS users: check whether "USB debugging (Security settings)" is enabled in Developer options (it is a separate toggle from "USB debugging").\n\nAlternatively use "Switch path" to pick a writable folder.</string>
+    <string name="btn_use_saf">🔓 Use SAF authorization (recommended)</string>
+    <string name="toast_shizuku_no_write">Shizuku is connected but cannot write to the target folder.\n\nXiaomi / HyperOS users: check Developer options → \"USB debugging (Security settings)\"\n(it is a separate toggle from \"USB debugging\")</string>
 </resources>

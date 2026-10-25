@@ -786,7 +786,18 @@ fun MainActivity.showAppInfoDialog() {
         // Android 11+ 才有「所有文件访问」；低版本按已授权处理
         val allFilesOk = android.os.Build.VERSION.SDK_INT < 30 ||
             try { android.os.Environment.isExternalStorageManager() } catch (_: Throwable) { false }
+
+        // 只看「Shizuku 是否连接」不够：小米 / HyperOS 上它会显示已连接，
+        // 但 shell 被降权，cp 依然失败。所以真的往目标目录写一次试试。
+        val targetDir = worldVM.currentWorkingDbPath?.let { java.io.File(it) }
+            ?: java.io.File(worldVM.currentPath.value)
+        val shizukuCanWrite = shizukuOk &&
+            try { worldVM.canShizukuWrite(targetDir) } catch (_: Throwable) { false }
+
         when {
+            shizukuOk && !shizukuCanWrite ->
+                // 连上了但写不了 —— 最常见是 HyperOS 的「USB 调试（安全设置）」没开
+                toast(getString(R.string.toast_shizuku_no_write))
             shizukuOk && allFilesOk ->
                 toast(getString(R.string.toast_perm_all_granted))
             shizukuOk ->

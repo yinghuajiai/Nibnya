@@ -818,4 +818,7 @@ ID：%3$s
     <string name="toast_perm_files_only">权限检查：所有文件访问已授予，但 Shizuku 未运行</string>
     <string name="toast_perm_none">权限检查：尚未获得任何权限</string>
     <string name="btn_check_perm_long">🔍 检查权限</string>
+    <string name="msg_shizuku_cannot_write">无法写入：\n%1$s\n\nShizuku 已连接，但它的 shell 命令被系统限制了写入权限。\n\n小米 / HyperOS 用户请检查：\n开发者选项 →「USB 调试（安全设置）」是否已开启（与普通「USB 调试」是两个开关）。\n\n或改用「切换路径」选择一个可写目录。</string>
+    <string name="btn_use_saf">🔓 改用 SAF 授权（推荐）</string>
+    <string name="toast_shizuku_no_write">Shizuku 已连接，但无法写入目标目录。\n\n小米 / HyperOS 用户请检查：\n开发者选项 →「USB 调试（安全设置）」是否开启\n（它和普通「USB 调试」是两个独立开关）</string>
 </resources>

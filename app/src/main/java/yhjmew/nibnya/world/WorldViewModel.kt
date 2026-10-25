@@ -300,6 +300,34 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     }
 
     /**
+     * 用 Shizuku 真实探测「能否往这个目录写」。
+     *
+     * 为什么要实测而不是只看 checkShizukuAvailable()：
+     *  · 小米 HyperOS / MIUI 上，「USB 调试（安全设置）」没开时，
+     *    Shizuku 会显示「已连接」，但 shell 命令实际被降权 ——
+     *    表现就是 cp 一直失败、却看不出原因。
+     *  · MediaProvider 是 Mainline 模块，策略可能随 Play 系统更新变化。
+     *
+     * @return true = 可写；false = 不可写（调用方应改用 SAF 或提示用户）
+     */
+    fun canShizukuWrite(targetDir: File): Boolean {
+        if (!checkShizukuAvailable()) return false
+        return try {
+            if (!targetDir.exists()) {
+                val mk = runShizukuCmd(arrayOf("sh", "-c", "mkdir -p '${targetDir.absolutePath}'"))
+                if (mk.waitFor() != 0) return false
+            }
+            val probe = File(targetDir, ".nibnya_write_probe")
+            val p = runShizukuCmd(
+                arrayOf("sh", "-c", "echo ok > '${probe.absolutePath}' && rm -f '${probe.absolutePath}'")
+            )
+            p.waitFor() == 0
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    /**
      * 判断保存目标是否需要 Shizuku（受限路径 且 无法直接写）
      */
     fun needsShizukuFor(targetPath: String): Boolean {
@@ -1096,9 +1124,23 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             smartCopy(newWorkDir, File(bridgeSave))
                             val cp = runShizukuCmd(arrayOf("sh", "-c", "cp -rf \"$bridgeSave/.\" \"$mcDbPath\""))
                             val exit = cp.waitFor()
+                            // 把 shell 的报错原样记下来，否则只看到「无法写入」根本不知道卡在哪
+                            val cpErr = cp.errorStream.bufferedReader().readText().trim()
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
                             // 必须检查退出码：非 0 时数据其实没写进去，绝不能提示成功
-                            if (exit != 0) throw Exception(getString(R.string.msg_write_denied, mcDbPath))
+                            if (exit != 0) {
+                                AppLogger.warn("Save", "shizuku cp failed exit=$exit err=$cpErr")
+                                // 区分「Shizuku 压根写不了」和「这条命令本身失败」，
+                                // 因为前者在小米/HyperOS 上很常见（USB 调试安全设置没开），
+                                // 提示要能直接指到解决办法。
+                                val shizukuCanWrite = canShizukuWrite(mcDbDir)
+                                throw Exception(
+                                    if (!shizukuCanWrite)
+                                        getString(R.string.msg_shizuku_cannot_write, mcDbPath)
+                                    else
+                                        getString(R.string.msg_write_denied, mcDbPath)
+                                )
+                            }
                             AppLogger.info("Save", R.string.log_save_player_shizuku_ok, mcDbPath)
                         } else {
                             // 4) 都不行 -> 明确报错，提示用户处理权限/换路径
