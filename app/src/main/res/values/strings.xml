@@ -834,4 +834,5 @@ Uses one map ID near map_%3$d</string>
     <string name="status_shizuku_ok">Shizuku detected</string>
     <string name="status_no_privilege">No privilege (normal mode only)</string>
     <string name="btn_su_reset">Reset to default</string>
+    <string name="path_internal">App internal (requires root)</string>
 </resources>

@@ -231,7 +231,12 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     var safTreeUri: android.net.Uri? = null
 
     private fun baseDir(context: Context): File {
-        return if (_currentPath.value.contains("Android/data")) {
+        val p = _currentPath.value
+        // 受限路径（外部 Android/data）与「软件内部」（/data/user/0/常驻私有目录）
+        // 都不适合把工作副本放在公共 Download —— 前者是权限问题，
+        // 后者是路径本身就在 /data，放公共目录会跨分区，rename 不再原子。
+        val restricted = p.contains("Android/data") || p.startsWith("/data/")
+        return if (restricted) {
             context.getExternalFilesDir(null)!!
         } else {
             val publicDir = AppDirs.publicRoot()
@@ -239,6 +244,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
             publicDir
         }
     }
+
 
     fun worksDir(context: Context): File {
         val w = File(baseDir(context), "Works")
@@ -277,8 +283,11 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
      * 该路径是否走 Android/data 受限目录（Android 11+ 需要 Shizuku 或 MANAGE_EXTERNAL_STORAGE）
      */
     fun isRestrictedPath(path: String = _currentPath.value): Boolean {
-        return path.contains("Android/data") || path.contains("Android/obb")
+        // /data/... 是应用私有目录，连 shell 都进不去，唯一出路是 root
+        return path.contains("Android/data") || path.contains("Android/obb") ||
+            path.startsWith("/data/")
     }
+
 
     /**
      * 实际探测目标目录是否可直接写入（不靠猜测）。

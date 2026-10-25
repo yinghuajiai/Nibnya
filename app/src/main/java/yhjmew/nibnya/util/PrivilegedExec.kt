@@ -261,9 +261,16 @@ object PrivilegedExec {
         val forbidden = setOf(
             "/", "/storage", "/storage/emulated", "/storage/emulated/0",
             "/storage/emulated/0/Download", "/storage/emulated/0/Download/Nibnya",
-            "/storage/emulated/0/Download/Nibnya/Bridge"
+            "/storage/emulated/0/Download/Nibnya/Bridge",
+            // /data 侧的「上一级」——root 下删掉就是系统级事故
+            "/data", "/data/user", "/data/user/0",
+            "/data/user/0/com.mojang.minecraftpe",
+            "/data/user/0/com.mojang.minecraftpe/games",
+            "/data/user/0/com.mojang.minecraftpe/games/com.mojang",
+            "/data/user/0/com.mojang.minecraftpe/games/com.mojang/minecraftWorlds"
         )
         if (p.trimEnd('/') in forbidden) return false
+
 
         if (strictBridgeOnly) {
             // rm -rf 只允许两种目标：

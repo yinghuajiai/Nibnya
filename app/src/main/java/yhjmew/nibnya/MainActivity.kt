@@ -1129,9 +1129,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun showPathSelector() {
+        // 「软件内部」是 Minecraft 自己的 /data/user/0/... 私有目录，
+        // 只有真实 root 才进得去 —— Shizuku 的 shell 用户没有 /data 权限。
+        // 所以按实测结果决定是否展示这一项，而不是按用户选的模式。
+        val rootAvailable = PrivilegedExec.detectRoot(this)
+
+        val labels = mutableListOf(
+            getString(R.string.path_standard),
+            getString(R.string.path_legacy),
+            getString(R.string.path_custom),
+            getString(R.string.path_saf)
+        )
+        if (rootAvailable) labels.add(getString(R.string.path_internal))
+
         AlertDialog.Builder(this).setTitle(getString(R.string.dialog_path_title))
-            .setItems(arrayOf(getString(R.string.path_standard), getString(R.string.path_legacy),
-                getString(R.string.path_custom), getString(R.string.path_saf))) { _, w ->
+            .setItems(labels.toTypedArray()) { _, w ->
                 when (w) {
                     0 -> {
                     worldVM.safTreeUri = null
@@ -1147,9 +1159,20 @@ class MainActivity : ComponentActivity() {
                 }
                     2 -> showCustomPathDialog()
                     3 -> safPathLauncher.launch(null)
+                    4 -> {
+                    worldVM.safTreeUri = null
+                    prefs?.edit()?.remove("saf_tree_uri")?.apply()
+                    // 软件内部只能用 root 读写；顺手把运行模式切到 ROOT，
+                    // 否则保存时又会去找 Shizuku，白白失败一次。
+                    PrivilegedExec.setMode(PrivilegedExec.Mode.ROOT)
+                    worldVM.setUseShizuku(true)
+                    applyPath(PATH_INTERNAL)
+                    showWorldSelector()
+                }
                 }
             }.setNegativeButton(getString(R.string.btn_cancel), null).show()
     }
+
 
     private fun showCustomPathDialog() {
         val input = EditText(this).apply { setText(worldVM.currentPath.value) }
@@ -2605,6 +2628,17 @@ class MainActivity : ComponentActivity() {
         const val PATH_STANDARD =
             "/storage/emulated/0/Android/data/com.mojang.minecraftpe/files/games/com.mojang/minecraftWorlds/"
         const val PATH_LEGACY = "/storage/emulated/0/games/com.mojang/minecraftWorlds/"
+
+        /**
+         * 软件内部路径：Minecraft **自己的私有目录**。
+         *
+         * ⚠️ 这是 /data/user/0/... —— 应用私有存储，
+         *    除了 root，任何应用（含 Shizuku 的 shell 用户）都进不去。
+         *    所以这个选项只在「真实 root 可用」时才允许展示。
+         */
+        const val PATH_INTERNAL =
+            "/data/user/0/com.mojang.minecraftpe/games/com.mojang/minecraftWorlds/"
+
         const val BRIDGE_ROOT = AppDirs.PUBLIC_ROOT + AppDirs.BRIDGE + "/"
         const val LEVEL_DAT_NAME = "level.dat"
         const val REQUEST_STORAGE_PERMISSION = 100

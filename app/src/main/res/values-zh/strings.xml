@@ -836,4 +836,5 @@ ID：%3$s
     <string name="status_shizuku_ok">已检测到 Shizuku</string>
     <string name="status_no_privilege">无提权（仅正常模式）</string>
     <string name="btn_su_reset">恢复默认</string>
+    <string name="path_internal">软件内部 (需要 root)</string>
 </resources>
