@@ -41,6 +41,7 @@ import yhjmew.nibnya.nbt.BedrockParser
 import yhjmew.nibnya.nbt.NbtTranslator
 import yhjmew.nibnya.nbt.NbtTranslator.getString
 import yhjmew.nibnya.util.AppDirs
+import yhjmew.nibnya.util.PrivilegedExec
 import yhjmew.nibnya.util.AppLogger
 import yhjmew.nibnya.util.BackupSettings
 import yhjmew.nibnya.util.DraftAutoSaver
@@ -1122,11 +1123,58 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             createNoMedia()
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
                             smartCopy(newWorkDir, File(bridgeSave))
-                            val cp = runShizukuCmd(arrayOf("sh", "-c", "cp -rf \"$bridgeSave/.\" \"$mcDbPath\""))
-                            val exit = cp.waitFor()
-                            // 把 shell 的报错原样记下来，否则只看到「无法写入」根本不知道卡在哪
-                            val cpErr = cp.errorStream.bufferedReader().readText().trim()
+
+                            // ── 原子替换写回 ────────────────────────────────
+                            // 旧写法 `cp -rf "$bridgeSave/." "$dbPath"` 有两个问题：
+                            //   1. 只覆盖不清理：新数据比旧数据少文件时旧文件会残留，
+                            //      LevelDB 对残留文件敏感，可能导致存档读不出来；
+                            //   2. 中途失败时原存档处于「半新半旧」状态，且没有退路。
+                            // 现在：写新目录 -> 原目录改名让位 -> 新目录顶上 ->
+                            //       成功删旧，失败回滚。任何时刻原存档都在。
+                            val dbParent = File(mcDbPath).parentFile!!.absolutePath
+                            val tmpNew = "$dbParent/${PrivilegedExec.TMP_PREFIX}db_new_$uniqueId"
+                            val tmpOld = "$dbParent/${PrivilegedExec.TMP_PREFIX}db_old_$uniqueId"
+
+                            // ① 新数据先完整落到同一分区（rename 才能保持原子性）
+                            runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$tmpNew\"")).waitFor()
+                            val cpNew = runShizukuCmd(
+                                arrayOf("sh", "-c", "cp -rf \"$bridgeSave\" \"$tmpNew\"")
+                            )
+                            var exit = cpNew.waitFor()
+                            var cpErr = cpNew.errorStream.bufferedReader().readText().trim()
+
+                            if (exit == 0) {
+                                // ② 原目录让位（改名而不是删除，随时可回滚）
+                                runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$tmpOld\"")).waitFor()
+                                val mvOld = runShizukuCmd(
+                                    arrayOf("sh", "-c", "mv \"$mcDbPath\" \"$tmpOld\"")
+                                )
+                                if (mvOld.waitFor() != 0) {
+                                    exit = 1
+                                    cpErr = "mv old failed"
+                                } else {
+                                    // ③ 新目录顶上
+                                    val mvNew = runShizukuCmd(
+                                        arrayOf("sh", "-c", "mv \"$tmpNew\" \"$mcDbPath\"")
+                                    )
+                                    if (mvNew.waitFor() != 0) {
+                                        // 回滚：把原目录改回来
+                                        runShizukuCmd(
+                                            arrayOf("sh", "-c", "mv \"$tmpOld\" \"$mcDbPath\"")
+                                        ).waitFor()
+                                        exit = 1
+                                        cpErr = "mv new failed (rolled back)"
+                                    } else {
+                                        // ④ 确实成功了才清理旧副本
+                                        runShizukuCmd(
+                                            arrayOf("sh", "-c", "rm -rf \"$tmpOld\"")
+                                        ).waitFor()
+                                    }
+                                }
+                            }
+                            if (exit != 0) AppLogger.warn("Save", "atomic write failed: $cpErr")
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
+
                             // 必须检查退出码：非 0 时数据其实没写进去，绝不能提示成功
                             if (exit != 0) {
                                 AppLogger.warn("Save", "shizuku cp failed exit=$exit err=$cpErr")
@@ -1823,6 +1871,8 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
     fun checkShizukuStatus(context: Context? = null): ShizukuStatus {
         if (!useShizuku) return ShizukuStatus.NotInstalled
+        // 用户选了「正常模式」，或设备上 root/Shizuku 都不可用 -> 不提权
+        if (!PrivilegedExec.canAttemptPrivileged()) return ShizukuStatus.NotInstalled
         try {
             val c = Class.forName("rikka.shizuku.Shizuku")
             val ping = c.getMethod("pingBinder").invoke(null) as? Boolean ?: return ShizukuStatus.NotRunning
@@ -1849,8 +1899,14 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     }
 
     // 保留旧的 checkShizukuAvailable() 但改为调用新方法保持兼容
+    /**
+     * 当前是否有提权能力（root 或 Shizuku 任一可用）。
+     *
+     * 名字保留 checkShizukuAvailable 是因为有 50 处调用；语义已经泛化。
+     */
     fun checkShizukuAvailable(): Boolean {
-        return checkShizukuStatus() is ShizukuStatus.Available
+        return PrivilegedExec.canAttemptPrivileged() &&
+            checkShizukuStatus() is ShizukuStatus.Available
     }
 
     fun checkShizukuReady(): Boolean {
@@ -1873,25 +1929,35 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         }
     }
 
+    /**
+     * 执行一条提权命令（Shizuku 或 root，取决于当前模式）。
+     *
+     * ⚠️ 这里不自己实现，全部转给 PrivilegedExec —— 因为：
+     *  · 加 root 之后命令有两个来源，安全校验必须只有一处
+     *  · PrivilegedExec 会对 rm/mv 的目标路径做白名单校验，
+     *    防止 root 下一条拼错的命令把用户存档删掉
+     *
+     * 调用方仍然传 arrayOf("sh", "-c", "…")，签名保持不变。
+     */
     fun runShizukuCmd(cmd: Array<String?>): Process {
-        if (!checkShizukuAvailable()) throw Exception(getString(R.string.err_shizuku_not_running))
-        val shizukuClass = Class.forName("rikka.shizuku.Shizuku")
-        var m: Method? = null
-        for (mm in shizukuClass.declaredMethods) {
-            if (mm.name == "newProcess" && mm.parameterTypes.size == 3) { m = mm; break }
-        }
-        if (m == null) for (mm in shizukuClass.methods) {
-            if (mm.name == "newProcess" && mm.parameterTypes.size == 3) { m = mm; break }
-        }
-        if (m == null) throw Exception(getString(R.string.msg_shizuku_api_error))
-        m.isAccessible = true
-        try { return m.invoke(null, cmd, null, null) as Process }
-        catch (e: Exception) {
+        val shell = cmd.getOrNull(2) ?: ""
+        val ctx = appContext ?: throw Exception(getString(R.string.err_shizuku_not_running))
+        try {
+            return PrivilegedExec.exec(ctx, shell)
+                ?: throw Exception(getString(R.string.err_privileged_unavailable))
+        } catch (e: SecurityException) {
+            // 命令被安全校验拦下：这是代码 bug，必须显式失败，不能静默跳过
+            AppLogger.warn("PrivilegedExec", "命令被拒绝: ${e.message}")
+            throw Exception(getString(R.string.err_command_refused, e.message ?: ""))
+        } catch (e: Exception) {
             if (e.message?.contains(getString(R.string.msg_binder_missing)) == true)
                 throw Exception(getString(R.string.err_shizuku_binder_not_ready))
             throw e
         }
     }
+
+    /** 由 MainActivity 在 onCreate 里注入，供 PrivilegedExec 读取偏好/模板 */
+    var appContext: Context? = null
 
     // ============================================
     // 文件操作

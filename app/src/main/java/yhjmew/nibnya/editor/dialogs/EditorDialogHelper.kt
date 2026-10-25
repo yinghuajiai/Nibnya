@@ -33,6 +33,7 @@ import yhjmew.nibnya.util.DraftStore
 import yhjmew.nibnya.util.TrashStore
 import yhjmew.nibnya.util.NbtClipboard
 import yhjmew.nibnya.util.NbtExporter
+import yhjmew.nibnya.util.PrivilegedExec
 
 // ============================================
 // 剪贴板（复制 / 粘贴）
@@ -780,6 +781,81 @@ fun MainActivity.showAppInfoDialog() {
         customBtn = dialogView.findViewById(R.id.btn_custom_puzzle_crop_min)
     )
 
+    // ⓪-1 运行模式选择器（行内展开，不弹窗）
+    dialogView.findViewById<View?>(R.id.layout_exec_mode_row)?.let { row ->
+        val valueTv = dialogView.findViewById<TextView?>(R.id.tv_exec_mode_value)
+        val arrowTv = dialogView.findViewById<TextView?>(R.id.tv_exec_mode_arrow)
+        val options = dialogView.findViewById<View?>(R.id.layout_exec_mode_options)
+        val suBox = dialogView.findViewById<View?>(R.id.layout_su_template)
+
+        fun modeLabel(key: String): String = when (key) {
+            "root" -> getString(R.string.exec_mode_root)
+            "shizuku" -> getString(R.string.exec_mode_shizuku)
+            "normal" -> getString(R.string.exec_mode_normal)
+            else -> getString(R.string.exec_mode_auto)
+        }
+
+        fun syncUi() {
+            val selected = PrivilegedExec.selectedModePref(this)
+            valueTv?.text = modeLabel(selected)
+            // su 模板只在 ROOT 相关时显示（选了 root，或自动且真的检测到 root）
+            val showSu = selected == "root" ||
+                (selected == "auto" && PrivilegedExec.detectRoot(this))
+            suBox?.isVisible = showSu
+        }
+
+        row.setOnClickListener {
+            options?.let {
+                it.isVisible = !it.isVisible
+                arrowTv?.text = if (it.isVisible) "▲" else "▼"
+                remeasure()
+            }
+        }
+
+        fun pick(key: String) {
+            prefs?.edit()?.putString(PrivilegedExec.PREF_EXEC_MODE, key)?.apply()
+            // 立刻按新选择重新解析一次实际模式（可能降级）
+            val resolved = PrivilegedExec.resolveMode(this, key)
+            PrivilegedExec.setMode(resolved)
+            worldVM.setUseShizuku(resolved != PrivilegedExec.Mode.NORMAL)
+            options?.isVisible = false
+            arrowTv?.text = "▼"
+            syncUi()
+            remeasure()
+            toast(getString(R.string.status_root_ok).takeIf { resolved == PrivilegedExec.Mode.ROOT }
+                ?: getString(R.string.status_shizuku_ok).takeIf { resolved == PrivilegedExec.Mode.SHIZUKU }
+                ?: getString(R.string.status_no_privilege))
+        }
+
+        dialogView.findViewById<View?>(R.id.opt_exec_auto)?.setOnClickListener { pick("auto") }
+        dialogView.findViewById<View?>(R.id.opt_exec_root)?.setOnClickListener { pick("root") }
+        dialogView.findViewById<View?>(R.id.opt_exec_shizuku)?.setOnClickListener { pick("shizuku") }
+        dialogView.findViewById<View?>(R.id.opt_exec_normal)?.setOnClickListener { pick("normal") }
+
+        // su 模板输入
+        dialogView.findViewById<android.widget.EditText?>(R.id.et_su_template)?.let { et ->
+            et.setText(PrivilegedExec.suTemplate(this))
+            et.setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus) {
+                    val v = et.text.toString().trim()
+                    if (PrivilegedExec.isTemplateValid(v)) {
+                        prefs?.edit()?.putString(PrivilegedExec.PREF_SU_TEMPLATE, v)?.apply()
+                    } else if (v.isNotEmpty()) {
+                        toast(getString(R.string.msg_su_template_invalid))
+                        et.setText(PrivilegedExec.suTemplate(this))
+                    }
+                }
+            }
+        }
+        dialogView.findViewById<Button?>(R.id.btn_su_reset)?.setOnClickListener {
+            prefs?.edit()?.putString(PrivilegedExec.PREF_SU_TEMPLATE, PrivilegedExec.DEFAULT_SU_TEMPLATE)?.apply()
+            dialogView.findViewById<android.widget.EditText?>(R.id.et_su_template)
+                ?.setText(PrivilegedExec.DEFAULT_SU_TEMPLATE)
+        }
+
+        syncUi()
+    }
+
     // ⓪ 权限检查：点击立即检测，并把结果直接告诉用户
     dialogView.findViewById<Button?>(R.id.btn_check_permission_in_settings)?.setOnClickListener {
         val shizukuOk = try { worldVM.checkShizukuReady() } catch (_: Throwable) { false }
@@ -869,13 +945,9 @@ fun MainActivity.showAppInfoDialog() {
     // ---- 回收站自动清理 ----
     setupTrashSettings(dialogView)
 
-    dialogView.findViewById<CheckBox?>(R.id.cb_skip_shizuku)?.let {
-        it.isChecked = prefs?.getBoolean("skip_shizuku", false) ?: false
-        it.setOnCheckedChangeListener { _, c ->
-            worldVM.setUseShizuku(!c)
-            prefs?.edit()?.putBoolean("skip_shizuku", c)?.apply()
-        }
-    }
+    // 「跳过 Shizuku」复选框已移除，改由上面的「运行模式」统一控制。
+    // 旧配置（skip_shizuku = true）在 MainActivity 启动时已迁移为 exec_mode = normal。
+
     dialogView.findViewById<Button?>(R.id.btn_migrate_data)?.setOnClickListener {
         dialog.dismiss()
         startDataMigration(manual = true)

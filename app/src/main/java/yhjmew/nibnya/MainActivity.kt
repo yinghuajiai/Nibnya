@@ -42,6 +42,7 @@ import yhjmew.nibnya.nbt.NbtTranslator
 import yhjmew.nibnya.nbt.adapter.NbtAdapter
 import yhjmew.nibnya.nbt.adapter.NbtTreeAdapter
 import yhjmew.nibnya.util.AppDirs
+import yhjmew.nibnya.util.PrivilegedExec
 import yhjmew.nibnya.util.AppLogger
 import yhjmew.nibnya.util.CrashHandler
 import yhjmew.nibnya.util.DraftAutoSaver
@@ -337,15 +338,29 @@ class MainActivity : ComponentActivity() {
 
         val isChinese = Locale.getDefault().language.contains("zh")
         editorVM.setViewMode(prefs!!.getInt("view_mode", if (isChinese) 2 else 0))
-        val skipShizuku = if (prefs!!.contains("skip_shizuku")) {
-            prefs!!.getBoolean("skip_shizuku", false)
-        } else {
-            // 首次安装，根据系统版本决定默认值
-            val defaultSkip = Build.VERSION.SDK_INT < 30
-            prefs!!.edit()?.putBoolean("skip_shizuku", defaultSkip)?.apply()
-            defaultSkip
+        // ── 运行模式：旧配置迁移 + 启动检测 ──────────────────────────
+        // 老的「跳过 Shizuku」复选框已移除，改由 PrivilegedExec 的三种模式统一控制。
+        // 迁移规则：
+        //   · 用户之前勾了「跳过」  -> 运行模式 = normal
+        //   · 否则按「自动」处理（启动时实测 root / Shizuku 再决定）
+        if (!prefs!!.contains(PrivilegedExec.PREF_EXEC_MODE)) {
+            val legacySkip = prefs!!.contains("skip_shizuku") &&
+                prefs!!.getBoolean("skip_shizuku", false)
+            prefs!!.edit()?.putString(
+                PrivilegedExec.PREF_EXEC_MODE,
+                if (legacySkip) "normal" else "auto"
+            )?.apply()
         }
-        worldVM.setUseShizuku(!skipShizuku)
+        // 清理旧键，避免以后又和新模式互相矛盾
+        prefs!!.edit()?.remove("skip_shizuku")?.apply()
+
+        // 启动时实测一次（毫秒级）：root > Shizuku > 正常
+        val selectedMode = PrivilegedExec.selectedModePref(this)
+        val resolvedMode = PrivilegedExec.resolveMode(this, selectedMode)
+        PrivilegedExec.setMode(resolvedMode)
+        worldVM.setUseShizuku(resolvedMode != PrivilegedExec.Mode.NORMAL)
+        worldVM.appContext = applicationContext
+        AppLogger.info("ExecMode", "selected=$selectedMode resolved=$resolvedMode")
 
         // 多线程设置：启动时从 prefs 恢复（修复「设置不生效、重启失效」）
         worldVM.setUseMultiThread(prefs!!.getBoolean("use_multithread", true))
@@ -1059,7 +1074,8 @@ class MainActivity : ComponentActivity() {
         // 公共目录（Download、games/...）用 File API 即可，不打扰用户。
         val path = worldVM.currentPath.value
         val needsShizuku = worldVM.isRestrictedPath(path)
-        if (!prefs!!.getBoolean("skip_shizuku", false) && needsShizuku) {
+        // 只有「确实需要提权」且「当前不是正常模式」时才提示
+        if (needsShizuku && PrivilegedExec.canAttemptPrivileged()) {
             when (val status = worldVM.checkShizukuStatus(applicationContext)) {
                 is WorldViewModel.ShizukuStatus.NotInstalled -> {
                     showShizukuNotInstalledDialog()

@@ -819,4 +819,19 @@ Uses one map ID near map_%3$d</string>
     <string name="msg_shizuku_cannot_write">Cannot write to:\n%1$s\n\nShizuku is connected, but the system is restricting its shell write access.\n\nXiaomi / HyperOS users: check whether "USB debugging (Security settings)" is enabled in Developer options (it is a separate toggle from "USB debugging").\n\nAlternatively use "Switch path" to pick a writable folder.</string>
     <string name="btn_use_saf">🔓 Use SAF authorization (recommended)</string>
     <string name="toast_shizuku_no_write">Shizuku is connected but cannot write to the target folder.\n\nXiaomi / HyperOS users: check Developer options → \"USB debugging (Security settings)\"\n(it is a separate toggle from \"USB debugging\")</string>
+    <string name="err_privileged_unavailable">No privilege method available (neither root nor Shizuku)</string>
+    <string name="err_command_refused">Command refused by safety policy: %1$s</string>
+    <string name="title_exec_mode">Execution mode</string>
+    <string name="exec_mode_auto">Auto (recommended)</string>
+    <string name="exec_mode_root">ROOT</string>
+    <string name="exec_mode_shizuku">Shizuku</string>
+    <string name="exec_mode_normal">Normal</string>
+    <string name="label_exec_mode">Execution mode</string>
+    <string name="label_su_template">su command template</string>
+    <string name="hint_su_template">Must contain {cmd}, e.g. su -c {cmd}</string>
+    <string name="msg_su_template_invalid">Template must contain the {cmd} placeholder, otherwise the actual command will never run</string>
+    <string name="status_root_ok">ROOT detected</string>
+    <string name="status_shizuku_ok">Shizuku detected</string>
+    <string name="status_no_privilege">No privilege (normal mode only)</string>
+    <string name="btn_su_reset">Reset to default</string>
 </resources>

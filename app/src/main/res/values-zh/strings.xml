@@ -821,4 +821,19 @@ ID：%3$s
     <string name="msg_shizuku_cannot_write">无法写入：\n%1$s\n\nShizuku 已连接，但它的 shell 命令被系统限制了写入权限。\n\n小米 / HyperOS 用户请检查：\n开发者选项 →「USB 调试（安全设置）」是否已开启（与普通「USB 调试」是两个开关）。\n\n或改用「切换路径」选择一个可写目录。</string>
     <string name="btn_use_saf">🔓 改用 SAF 授权（推荐）</string>
     <string name="toast_shizuku_no_write">Shizuku 已连接，但无法写入目标目录。\n\n小米 / HyperOS 用户请检查：\n开发者选项 →「USB 调试（安全设置）」是否开启\n（它和普通「USB 调试」是两个独立开关）</string>
+    <string name="err_privileged_unavailable">当前没有可用的提权方式（root / Shizuku 都不可用）</string>
+    <string name="err_command_refused">命令被安全策略拒绝：%1$s</string>
+    <string name="title_exec_mode">运行模式</string>
+    <string name="exec_mode_auto">自动（推荐）</string>
+    <string name="exec_mode_root">ROOT</string>
+    <string name="exec_mode_shizuku">Shizuku</string>
+    <string name="exec_mode_normal">正常模式</string>
+    <string name="label_exec_mode">运行模式</string>
+    <string name="label_su_template">su 命令模板</string>
+    <string name="hint_su_template">必须包含 {cmd}，例如 su -c {cmd}</string>
+    <string name="msg_su_template_invalid">模板必须包含 {cmd} 占位符，否则实际命令不会被执行</string>
+    <string name="status_root_ok">已检测到 ROOT</string>
+    <string name="status_shizuku_ok">已检测到 Shizuku</string>
+    <string name="status_no_privilege">无提权（仅正常模式）</string>
+    <string name="btn_su_reset">恢复默认</string>
 </resources>
