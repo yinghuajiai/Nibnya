@@ -310,6 +310,50 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     }
 
     /**
+     * 从路径里推断「这个目录属于哪个应用包名」。
+     *
+     * 支持两种形式：
+     *   /data/user/0/<pkg>/...                        （应用私有目录）
+     *   /storage/emulated/0/Android/data/<pkg>/...    （外部私有目录）
+     *
+     * 找不到就返回 null —— 比如 Download 下的普通目录，不属于任何 app。
+     *
+     * ⚠️ 不能写死 com.mojang.minecraftpe：
+     *    用户可能装共存版（不同包名），也可能自定义路径指向别的 app。
+     */
+    private fun packageNameFromPath(path: String): String? {
+        val p = path.trim()
+        val markerA = "/data/user/"
+        val markerB = "/Android/data/"
+        for ((marker, skip) in listOf(markerA to 1, markerB to 1)) {
+            val idx = p.indexOf(marker)
+            if (idx < 0) continue
+            val rest = p.substring(idx + marker.length)
+            val parts = rest.split("/")
+            // /data/user/0/<pkg>/...  -> 第一段是 user id，第二段才是包名
+            val pkg = if (marker == markerA) parts.getOrNull(skip)
+                      else parts.getOrNull(0)
+            if (!pkg.isNullOrBlank()) return pkg
+        }
+        return null
+    }
+
+    /** 用提权方式读取路径的 owner:group（形如 "10460:10460"）；失败返回空串 */
+    private fun statOwner(path: String): String = try {
+        if (!checkShizukuAvailable()) ""
+        else {
+            val p = runShizukuCmd(
+                arrayOf("sh", "-c", "stat -c %u:%g \"$path\" 2>/dev/null")
+            )
+            val s = p.inputStream.bufferedReader().readText().trim()
+            p.waitFor()
+            s
+        }
+    } catch (_: Exception) {
+        ""
+    }
+
+    /**
      * 用提权方式判断「这个路径存在吗」。
      *
      * 为什么需要：/data/user/0/... 只有 root 看得见，
@@ -1165,17 +1209,90 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             //   2. 中途失败时原存档处于「半新半旧」状态，且没有退路。
                             // 现在：写新目录 -> 原目录改名让位 -> 新目录顶上 ->
                             //       成功删旧，失败回滚。任何时刻原存档都在。
+                            // 临时目录与 db 同级（同一分区，rename 才保持原子性）
                             val dbParent = File(mcDbPath).parentFile!!.absolutePath
                             val tmpNew = "$dbParent/${PrivilegedExec.TMP_PREFIX}db_new_$uniqueId"
                             val tmpOld = "$dbParent/${PrivilegedExec.TMP_PREFIX}db_old_$uniqueId"
 
-                            // ① 新数据先完整落到同一分区（rename 才能保持原子性）
-                            runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$tmpNew\"")).waitFor()
-                            val cpNew = runShizukuCmd(
-                                arrayOf("sh", "-c", "cp -rf \"$bridgeSave\" \"$tmpNew\"")
+
+
+                            // ── 记录原目录的 owner / group ──────────────────
+                            // ⚠️ root 用 cp/mv 写出来的文件属于 root:root。
+                            //    而 Minecraft 以**它自己的 uid** 运行（实测 10460:10460），
+                            //    文件归到 root 之后它连读都读不了 ——
+                            //    表现就是「文件都在、大小正常，但进不去」，
+                            //    有时还会显示成 4167549952 这种荒谬体积。
+                            //
+                            //    所以写回后必须把归属还给「该存档原本的拥有者」。
+                            //    注意不能写死包名：用户可能装共存版 / 换包名，
+                            //    也可能是自定义路径指向别的 app 的私有目录。
+                            //    这里统一从路径本身推断。
+                            val ownerPkg = packageNameFromPath(mcDbPath)
+                            val ownerInfo = statOwner(mcDbPath)
+                            var targetUid = ""
+                            var targetGid = ""
+                            if (ownerInfo.contains(":")) {
+                                targetUid = ownerInfo.substringBefore(":")
+                                targetGid = ownerInfo.substringAfter(":")
+                            }
+                            // 兜底 1：读不到原目录归属 -> 用该包名自己的 uid/gid
+                            if ((targetUid.isEmpty() || targetGid.isEmpty()) && ownerPkg != null) {
+                                val fallback = statOwner("/data/user/0/$ownerPkg")
+                                if (fallback.contains(":")) {
+                                    targetUid = fallback.substringBefore(":")
+                                    targetGid = fallback.substringAfter(":")
+                                    AppLogger.warn("Save", "原 db 归属未知，回退到应用目录 $fallback")
+                                }
+                            }
+                            // 兜底 2：路径里根本没有包名（例如 Download 下的导出目录）
+                            //         -> 不属于任何 app，保持不动即可，不需要 chown
+                            AppLogger.info(
+                                "Save",
+                                "原 db 归属: $ownerInfo  pkg=$ownerPkg  使用: $targetUid:$targetGid"
                             )
+
+
+                            // ① 新数据先完整落到同一分区（rename 才能保持原子性）
+                            // 用「源/.」+「目标/」的形式：内容直接落进目标，不会多套一层
+                            runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$tmpNew\""))
+                                .waitFor()
+                            val cpNew = runShizukuCmd(
+                                arrayOf("sh", "-c",
+                                    "mkdir -p \"$tmpNew\" && cp -rf \"$bridgeSave/.\" \"$tmpNew/\"")
+                            )
+
                             var exit = cpNew.waitFor()
                             var cpErr = cpNew.errorStream.bufferedReader().readText().trim()
+
+                            // ①.5 先把归属修好，再顶上。
+                            //     在 tmpNew 上 chown 比在最终目录上安全：
+                            //     万一失败，归档动作还没发生，原目录完好无损。
+                            //     权限位沿用游戏自己的写法（文件 660 / 目录 770）。
+                            if (exit == 0 && targetUid.isNotEmpty() && targetGid.isNotEmpty()) {
+                                runShizukuCmd(arrayOf("sh", "-c",
+                                    "chown -R \"$targetUid:$targetGid\" \"$tmpNew\"")).waitFor()
+                                runShizukuCmd(arrayOf("sh", "-c",
+                                    "find \"$tmpNew\" -type d -exec chmod 770 {} +")).waitFor()
+                                runShizukuCmd(arrayOf("sh", "-c",
+                                    "find \"$tmpNew\" -type f -exec chmod 660 {} +")).waitFor()
+                                AppLogger.info(
+                                    "Save",
+                                    "tmp 已归还归属: $targetUid:$targetGid"
+                                )
+                            } else if (exit == 0) {
+                                // 读不到归属但路径确实属于某个 app：
+                                // 这时候写下去会得到 root:root 的文件，
+                                // 游戏一定读不了 —— 与其写坏，不如明确失败。
+                                AppLogger.warn(
+                                    "Save",
+                                    "读不到归属信息（pkg=$ownerPkg），中止写回"
+                                )
+                                runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$tmpNew\"")).waitFor()
+                                throw Exception(getString(R.string.msg_cannot_restore_owner, ownerPkg ?: mcDbPath))
+                            }
+
+
+
 
                             if (exit == 0) {
                                 // ② 原目录让位（改名而不是删除，随时可回滚）
@@ -1199,11 +1316,39 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                                         exit = 1
                                         cpErr = "mv new failed (rolled back)"
                                     } else {
-                                        // ④ 确实成功了才清理旧副本
-                                        runShizukuCmd(
-                                            arrayOf("sh", "-c", "rm -rf \"$tmpOld\"")
-                                        ).waitFor()
+                                        // ③.5 自检：db/ 里必须直接有 CURRENT，
+                                        //      否则说明结构错了（例如 db/db/），
+                                        //      Minecraft 会读不出来 —— 立刻回滚。
+                                        //      LevelDB 每个库都必须有 CURRENT。
+                                        val hasCurrent = runShizukuCmd(
+                                            arrayOf("sh", "-c", "test -f \"${mcDbPath}CURRENT\"")
+                                        ).waitFor() == 0
+                                        val hasNested = runShizukuCmd(
+                                            arrayOf("sh", "-c", "test -d \"${mcDbPath}db\"")
+                                        ).waitFor() == 0
+                                        if (!hasCurrent || hasNested) {
+                                            AppLogger.warn(
+                                                "Save",
+                                                "写回结构异常 current=$hasCurrent nested=$hasNested，" +
+                                                "回滚到原目录"
+                                            )
+                                            // 把坏的新目录丢掉，原目录放回去
+                                            runShizukuCmd(
+                                                arrayOf("sh", "-c", "rm -rf \"$mcDbPath\"")
+                                            ).waitFor()
+                                            runShizukuCmd(
+                                                arrayOf("sh", "-c", "mv \"$tmpOld\" \"$mcDbPath\"")
+                                            ).waitFor()
+                                            exit = 1
+                                            cpErr = "bad db structure (rolled back)"
+                                        } else {
+                                            // ④ 确实成功了才清理旧副本
+                                            runShizukuCmd(
+                                                arrayOf("sh", "-c", "rm -rf \"$tmpOld\"")
+                                            ).waitFor()
+                                        }
                                     }
+
                                 }
                             }
                             if (exit != 0) AppLogger.warn("Save", "atomic write failed: $cpErr")

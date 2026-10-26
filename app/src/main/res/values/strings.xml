@@ -844,4 +844,9 @@ Uses one map ID near map_%3$d</string>
     <string name="label_su_custom">Custom (edit the field below)</string>
     <string name="toast_su_preset_ok">Template saved — ROOT works ✓</string>
     <string name="toast_su_preset_fail">Template saved, but it cannot get ROOT. Try another preset.</string>
+    <string name="msg_tmp_dir_stuck">Cannot clean temp dir: %1$s
+
+Please delete it manually and retry.</string>
+    <string name="msg_cannot_restore_owner">Cannot determine the owner of the world folder (%1$s). Aborted to avoid corrupting the save.
+Make sure the path belongs to an installed app.</string>
 </resources>
