@@ -338,6 +338,43 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         return null
     }
 
+    /**
+     * 自动修复存档归属。
+     *
+     * 为什么需要：历史版本用 root 写回时留下了 root:root 的 db 目录，
+     * 那些存档游戏打不开（owner 不对 + 权限 750 让 other 进不去目录）。
+     * 用户手上已经有这种坏档，光修「以后不再写坏」是不够的。
+     *
+     * 判定标准：目录/文件的 uid 必须是该 app 的 uid；不是就改回来。
+     * 只在 root 模式下做，且失败不阻断（只是打日志）。
+     */
+    fun repairWorldOwnership(path: String) {
+        if (PrivilegedExec.mode() != PrivilegedExec.Mode.ROOT) return
+        if (!checkShizukuAvailable()) return
+        try {
+            val pkg = packageNameFromPath(path) ?: return
+            val appOwner = statOwner("/data/user/0/$pkg")
+            if (!appOwner.contains(":")) return
+            val uid = appOwner.substringBefore(":")
+            val gid = appOwner.substringAfter(":")
+            if (uid == "0") return          // 拿不到真实 uid，别乱改
+
+            // 只看最外层：正常时它已经是 app 的 uid，不用遍历整个目录
+            val cur = statOwner(path)
+            if (cur == "$uid:$gid") return
+
+            AppLogger.warn("Repair", "存档归属异常 $cur -> $uid:$gid  path=$path")
+            runShizukuCmd(arrayOf("sh", "-c",
+                "chown -R \"$uid:$gid\" \"$path\"")).waitFor()
+            runShizukuCmd(arrayOf("sh", "-c",
+                "find \"$path\" -type d -exec chmod 770 {} +")).waitFor()
+            runShizukuCmd(arrayOf("sh", "-c",
+                "find \"$path\" -type f -exec chmod 660 {} +")).waitFor()
+            AppLogger.info("Repair", "存档归属已修复: $path")
+        } catch (_: Throwable) {
+        }
+    }
+
     /** 用提权方式读取路径的 owner:group（形如 "10460:10460"）；失败返回空串 */
     private fun statOwner(path: String): String = try {
         if (!checkShizukuAvailable()) ""
@@ -397,9 +434,12 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 if (mk.waitFor() != 0) return false
             }
             val probe = File(targetDir, ".nibnya_write_probe")
+            // ⚠️ 重定向符号后必须是完整的「带引号路径」，
+            //    写成 > '路径' 会被 shell 当成字面文件名的一部分。
             val p = runShizukuCmd(
-                arrayOf("sh", "-c", "echo ok > '${probe.absolutePath}' && rm -f '${probe.absolutePath}'")
+                arrayOf("sh", "-c", "echo ok > \"${probe.absolutePath}\" && rm -f \"${probe.absolutePath}\"")
             )
+
             p.waitFor() == 0
         } catch (_: Throwable) {
             false
@@ -935,6 +975,14 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 val srcPath = File(worldDir, "db").absolutePath
                 val srcDirFile = File(srcPath)
 
+                // 打开前先修一次归属：老版本留下的 root:root 坏档靠这个救回来
+                repairWorldOwnership(srcPath)
+
+
+                // 打开前先修一次归属：老版本留下的 root:root 坏档靠这个救回来
+                repairWorldOwnership(srcPath)
+
+
                 val canUseShizuku = checkShizukuAvailable()
                 var useNative = false
                 if (srcDirFile.exists() && srcDirFile.canRead() && srcDirFile.listFiles() != null) {
@@ -1227,14 +1275,33 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             //    注意不能写死包名：用户可能装共存版 / 换包名，
                             //    也可能是自定义路径指向别的 app 的私有目录。
                             //    这里统一从路径本身推断。
+                            // ⚠️ 顺序很重要，别搞反：
+                            //    不能优先读「当前 db 目录」的归属 —— 一旦它已经被
+                            //    写坏成 root:root，读回来的就是 0:0，于是每次保存都
+                            //    继续 chown 成 0:0，形成自我循环、永远修不好。
+                            //    权威来源是「该 app 自己的目录归属」。
                             val ownerPkg = packageNameFromPath(mcDbPath)
-                            val ownerInfo = statOwner(mcDbPath)
                             var targetUid = ""
                             var targetGid = ""
-                            if (ownerInfo.contains(":")) {
-                                targetUid = ownerInfo.substringBefore(":")
-                                targetGid = ownerInfo.substringAfter(":")
+
+                            // ① 首选：应用自己的 uid/gid（最可靠，且不会被写坏）
+                            if (ownerPkg != null) {
+                                val appOwner = statOwner("/data/user/0/$ownerPkg")
+                                if (appOwner.contains(":")) {
+                                    targetUid = appOwner.substringBefore(":")
+                                    targetGid = appOwner.substringAfter(":")
+                                }
                             }
+
+                            // ② 兜底：识别不出包名时，才参考原 db 目录的归属
+                            val ownerInfo = statOwner(mcDbPath)
+                            if (targetUid.isEmpty() || targetGid.isEmpty()) {
+                                if (ownerInfo.contains(":")) {
+                                    targetUid = ownerInfo.substringBefore(":")
+                                    targetGid = ownerInfo.substringAfter(":")
+                                }
+                            }
+
                             // 兜底 1：读不到原目录归属 -> 用该包名自己的 uid/gid
                             if ((targetUid.isEmpty() || targetGid.isEmpty()) && ownerPkg != null) {
                                 val fallback = statOwner("/data/user/0/$ownerPkg")
@@ -1248,7 +1315,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                             //         -> 不属于任何 app，保持不动即可，不需要 chown
                             AppLogger.info(
                                 "Save",
-                                "原 db 归属: $ownerInfo  pkg=$ownerPkg  使用: $targetUid:$targetGid"
+                                "归属来源 pkg=$ownerPkg  db=$ownerInfo  使用=$targetUid:$targetGid"
                             )
 
 
@@ -1316,7 +1383,19 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                                         exit = 1
                                         cpErr = "mv new failed (rolled back)"
                                     } else {
+                                        // ③.45 mv 之后目录名已经变了，
+                                        //       再对最终目录本体补一次归属，
+                                        //       确保 db/ 自己是 app 的 uid/gid，
+                                        //       而不是从 tmpNew 继承来的 root。
+                                        if (targetUid.isNotEmpty() && targetGid.isNotEmpty()) {
+                                            runShizukuCmd(arrayOf("sh", "-c",
+                                                "chown \"$targetUid:$targetGid\" \"${mcDbPath.trimEnd('/')}\"")).waitFor()
+                                            runShizukuCmd(arrayOf("sh", "-c",
+                                                "chmod 770 \"${mcDbPath.trimEnd('/')}\"")).waitFor()
+                                        }
+
                                         // ③.5 自检：db/ 里必须直接有 CURRENT，
+
                                         //      否则说明结构错了（例如 db/db/），
                                         //      Minecraft 会读不出来 —— 立刻回滚。
                                         //      LevelDB 每个库都必须有 CURRENT。
@@ -1351,7 +1430,35 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
 
                                 }
                             }
-                            if (exit != 0) AppLogger.warn("Save", "atomic write failed: $cpErr")
+                            if (exit != 0) {
+                                val tmpNewLeft = runShizukuCmd(
+                                    arrayOf("sh", "-c", "test -d \"$tmpNew\"")
+                                ).waitFor() == 0
+                                val tmpOldLeft = runShizukuCmd(
+                                    arrayOf("sh", "-c", "test -d \"$tmpOld\"")
+                                ).waitFor() == 0
+                                val dbExists = runShizukuCmd(
+                                    arrayOf("sh", "-c", "test -d \"$mcDbPath\"")
+                                ).waitFor() == 0
+                                AppLogger.warn(
+                                    "Save",
+                                    "atomic write failed: $cpErr | uid=$targetUid gid=$targetGid" +
+                                    " tmpNewLeft=$tmpNewLeft tmpOldLeft=$tmpOldLeft" +
+                                    " dbExists=$dbExists path=$mcDbPath"
+                                )
+                                // 失败时把中间态清干净，避免下次被残留影响
+                                runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$tmpNew\"")).waitFor()
+                                // 若 db 不存在但 tmpOld 还在，说明在 mv 中途失败，先还原
+                                if (!dbExists && tmpOldLeft) {
+                                    runShizukuCmd(
+                                        arrayOf("sh", "-c", "mv \"$tmpOld\" \"$mcDbPath\"")
+                                    ).waitFor()
+                                    AppLogger.info("Save", "已把原目录从 tmpOld 还原")
+                                } else if (dbExists && tmpOldLeft) {
+                                    runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$tmpOld\"")).waitFor()
+                                }
+                            }
+
                             runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"$bridgeSave\"")).waitFor()
 
                             // 必须检查退出码：非 0 时数据其实没写进去，绝不能提示成功
@@ -1360,13 +1467,21 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                                 // 区分「Shizuku 压根写不了」和「这条命令本身失败」，
                                 // 因为前者在小米/HyperOS 上很常见（USB 调试安全设置没开），
                                 // 提示要能直接指到解决办法。
-                                val shizukuCanWrite = canShizukuWrite(mcDbDir)
+                                // 文案要跟着当前模式走：root 模式下不该提 Shizuku
+                                val canWrite = canShizukuWrite(mcDbDir)
                                 throw Exception(
-                                    if (!shizukuCanWrite)
-                                        getString(R.string.msg_shizuku_cannot_write, mcDbPath)
-                                    else
-                                        getString(R.string.msg_write_denied, mcDbPath)
+                                    when {
+                                        PrivilegedExec.mode() == PrivilegedExec.Mode.ROOT && !canWrite ->
+                                            getString(R.string.msg_root_cannot_write, mcDbPath)
+                                        PrivilegedExec.mode() == PrivilegedExec.Mode.ROOT ->
+                                            getString(R.string.msg_write_denied_root, mcDbPath)
+                                        !canWrite ->
+                                            getString(R.string.msg_shizuku_cannot_write, mcDbPath)
+                                        else ->
+                                            getString(R.string.msg_write_denied, mcDbPath)
+                                    }
                                 )
+
                             }
                             AppLogger.info("Save", R.string.log_save_player_shizuku_ok, mcDbPath)
                         } else {

@@ -849,4 +849,6 @@ Uses one map ID near map_%3$d</string>
 Please delete it manually and retry.</string>
     <string name="msg_cannot_restore_owner">Cannot determine the owner of the world folder (%1$s). Aborted to avoid corrupting the save.
 Make sure the path belongs to an installed app.</string>
+    <string name="msg_root_cannot_write">Cannot write to: \n%1$s\\n\nROOT is connected but cannot write to this folder.\n\nCheck:\n1. Is Nibnya authorized in your superuser app?\n2. Is the folder locked by another app (Minecraft must be fully closed)?</string>
+    <string name="msg_write_denied_root">Cannot write to: \n%1$s\\n\nROOT works, but the write step failed. Please export the debug log.</string>
 </resources>

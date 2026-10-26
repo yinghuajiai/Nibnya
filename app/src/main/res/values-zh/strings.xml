@@ -851,4 +851,6 @@ ID：%3$s
 请手动删除该目录后重试</string>
     <string name="msg_cannot_restore_owner">无法确认存档目录的归属（%1$s），为避免写坏存档已中止。
 请确认该路径属于已安装的应用。</string>
+    <string name="msg_root_cannot_write">无法写入：\n%1$s\\n\nROOT 已连接，但实际写不进这个目录。\n\n请检查：\n1. 超级用户应用里是否已给樱喵NBT 授权\n2. 该目录是否被其他应用占用（Minecraft 需完全退出）</string>
+    <string name="msg_write_denied_root">无法写入：\n%1$s\\n\nROOT 权限正常，但写入这一步失败了。请导出调试日志查看具体原因。</string>
 </resources>
