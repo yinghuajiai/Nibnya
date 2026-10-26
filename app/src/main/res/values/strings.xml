@@ -835,4 +835,6 @@ Uses one map ID near map_%3$d</string>
     <string name="status_no_privilege">No privilege (normal mode only)</string>
     <string name="btn_su_reset">Reset to default</string>
     <string name="path_internal">App internal (requires root)</string>
+    <string name="toast_root_unavailable">ROOT unavailable: su failed. Check your superuser app authorization.</string>
+    <string name="toast_perm_root_ok">ROOT OK — can read and write the target folder ✓</string>
 </resources>

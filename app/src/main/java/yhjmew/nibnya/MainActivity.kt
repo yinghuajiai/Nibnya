@@ -1076,24 +1076,38 @@ class MainActivity : ComponentActivity() {
         val needsShizuku = worldVM.isRestrictedPath(path)
         // 只有「确实需要提权」且「当前不是正常模式」时才提示
         if (needsShizuku && PrivilegedExec.canAttemptPrivileged()) {
+            // 提示文案要跟着当前模式走：ROOT 模式下不该再提 Shizuku，
+            // 否则用户明明有 root 却被告知「Shizuku 未运行」，非常困惑。
             when (val status = worldVM.checkShizukuStatus(applicationContext)) {
+                is WorldViewModel.ShizukuStatus.Available -> {
+                    // 继续
+                }
                 is WorldViewModel.ShizukuStatus.NotInstalled -> {
-                    showShizukuNotInstalledDialog()
-                    return
+                    if (PrivilegedExec.mode() == PrivilegedExec.Mode.ROOT) {
+                        toast(getString(R.string.toast_root_unavailable))
+                    } else {
+                        showShizukuNotInstalledDialog()
+                        return
+                    }
                 }
                 is WorldViewModel.ShizukuStatus.NotRunning -> {
                     // 非阻断：提示后可继续（可能靠 MANAGE_EXTERNAL_STORAGE 直接访问）
-                    toast(getString(R.string.toast_shizuku_not_running))
+                    if (PrivilegedExec.mode() == PrivilegedExec.Mode.ROOT) {
+                        toast(getString(R.string.toast_root_unavailable))
+                    } else {
+                        toast(getString(R.string.toast_shizuku_not_running))
+                    }
                 }
                 is WorldViewModel.ShizukuStatus.PermissionDenied -> {
                     worldVM.requestShizukuPermission()
                     toast(getString(R.string.toast_shizuku_perm_failed))
                 }
-                is WorldViewModel.ShizukuStatus.Available -> {
+                else -> {
                     // 继续
                 }
             }
         }
+
 
         pendingWorldSelector = true
         if (worldVM.safTreeUri != null) {

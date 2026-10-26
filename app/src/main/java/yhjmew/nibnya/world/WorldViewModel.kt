@@ -1878,15 +1878,45 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         object PermissionDenied : ShizukuStatus()
     }
 
+    /**
+     * 当前提权能力是否可用。
+     *
+     * ⚠️ 设计原则：**各模式独立判断，互不影响**。
+     *    · ROOT   只看 su 是否真的能执行（不看 Shizuku 有没有装/在跑）
+     *    · SHIZUKU 只看 binder 通不通、权限有没有给
+     *    · NORMAL 恒为不可提权
+     *
+     *    以前这里是「先看 canAttemptPrivileged 再一律去查 Shizuku」，
+     *    结果用户明明有 root（超管里也能看到授权），
+     *    却因为没启动 Shizuku 被判成「Shizuku 未运行」。
+     *
+     * 降级只发生在**启动解析模式**时（PrivilegedExec.resolveMode），
+     * 不在这里做 —— 这里只回答「当前这个模式现在还能用吗」。
+     */
     fun checkShizukuStatus(context: Context? = null): ShizukuStatus {
         if (!useShizuku) return ShizukuStatus.NotInstalled
-        // 用户选了「正常模式」，或设备上 root/Shizuku 都不可用 -> 不提权
-        if (!PrivilegedExec.canAttemptPrivileged()) return ShizukuStatus.NotInstalled
+
+        return when (PrivilegedExec.mode()) {
+            // ① ROOT：只认 su，和 Shizuku 状态无关
+            PrivilegedExec.Mode.ROOT ->
+                if (PrivilegedExec.detectRoot(appContext ?: context ?: return ShizukuStatus.NotRunning))
+                    ShizukuStatus.Available
+                else ShizukuStatus.NotRunning
+
+            // ② NORMAL：用户明确不要提权
+            PrivilegedExec.Mode.NORMAL -> ShizukuStatus.NotInstalled
+
+            // ③ SHIZUKU：只看 binder + 权限
+            PrivilegedExec.Mode.SHIZUKU -> checkShizukuOnly(context)
+        }
+    }
+
+    /** 只检测 Shizuku 自身状态，与 root 完全无关 */
+    private fun checkShizukuOnly(context: Context?): ShizukuStatus {
         try {
             val c = Class.forName("rikka.shizuku.Shizuku")
-            val ping = c.getMethod("pingBinder").invoke(null) as? Boolean ?: return ShizukuStatus.NotRunning
+            val ping = c.getMethod("pingBinder").invoke(null) as? Boolean ?: false
             if (!ping) {
-                // ping 失败，检查 Shizuku App 是否安装
                 val isInstalled = context?.let { ctx ->
                     try {
                         ctx.packageManager.getPackageInfo("moe.shizuku.privileged.api", 0)
@@ -1894,7 +1924,7 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                     } catch (_: Exception) {
                         false
                     }
-                } ?: true // 没传 context 时默认 NotRunning
+                } ?: true
                 return if (isInstalled) ShizukuStatus.NotRunning else ShizukuStatus.NotInstalled
             }
             val perm = c.getMethod("checkSelfPermission").invoke(null) as? Int
@@ -1914,9 +1944,9 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
      * 名字保留 checkShizukuAvailable 是因为有 50 处调用；语义已经泛化。
      */
     fun checkShizukuAvailable(): Boolean {
-        return PrivilegedExec.canAttemptPrivileged() &&
-            checkShizukuStatus() is ShizukuStatus.Available
+        return checkShizukuStatus(appContext) is ShizukuStatus.Available
     }
+
 
     fun checkShizukuReady(): Boolean {
         if (!useShizuku) return true

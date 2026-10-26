@@ -837,4 +837,6 @@ ID：%3$s
     <string name="status_no_privilege">无提权（仅正常模式）</string>
     <string name="btn_su_reset">恢复默认</string>
     <string name="path_internal">软件内部 (需要 root)</string>
+    <string name="toast_root_unavailable">ROOT 不可用：su 执行失败，请检查超级用户授权</string>
+    <string name="toast_perm_root_ok">ROOT 正常，可以读写目标目录 ✓</string>
 </resources>

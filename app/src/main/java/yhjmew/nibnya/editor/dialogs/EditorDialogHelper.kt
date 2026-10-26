@@ -858,32 +858,54 @@ fun MainActivity.showAppInfoDialog() {
 
     // ⓪ 权限检查：点击立即检测，并把结果直接告诉用户
     dialogView.findViewById<Button?>(R.id.btn_check_permission_in_settings)?.setOnClickListener {
-        val shizukuOk = try { worldVM.checkShizukuReady() } catch (_: Throwable) { false }
-        // Android 11+ 才有「所有文件访问」；低版本按已授权处理
+        // ⚠️ 按当前模式给出对应结论，不要一律说 Shizuku。
+        //    root 用户看到「Shizuku 未运行」会非常困惑。
+        val mode = PrivilegedExec.mode()
         val allFilesOk = android.os.Build.VERSION.SDK_INT < 30 ||
             try { android.os.Environment.isExternalStorageManager() } catch (_: Throwable) { false }
 
-        // 只看「Shizuku 是否连接」不够：小米 / HyperOS 上它会显示已连接，
-        // 但 shell 被降权，cp 依然失败。所以真的往目标目录写一次试试。
+        // 目标目录：优先当前工作副本，否则用当前路径
         val targetDir = worldVM.currentWorkingDbPath?.let { java.io.File(it) }
             ?: java.io.File(worldVM.currentPath.value)
-        val shizukuCanWrite = shizukuOk &&
-            try { worldVM.canShizukuWrite(targetDir) } catch (_: Throwable) { false }
 
-        when {
-            shizukuOk && !shizukuCanWrite ->
-                // 连上了但写不了 —— 最常见是 HyperOS 的「USB 调试（安全设置）」没开
-                toast(getString(R.string.toast_shizuku_no_write))
-            shizukuOk && allFilesOk ->
-                toast(getString(R.string.toast_perm_all_granted))
-            shizukuOk ->
-                toast(getString(R.string.toast_perm_shizuku_only))
-            allFilesOk ->
-                toast(getString(R.string.toast_perm_files_only))
+        // 真的往目标目录写一次，而不是只看「是否连接」
+        val canWrite = try { worldVM.canShizukuWrite(targetDir) } catch (_: Throwable) { false }
+
+        when (mode) {
+            PrivilegedExec.Mode.ROOT -> {
+                if (canWrite) {
+                    toast(getString(R.string.toast_perm_root_ok))
+                } else {
+                    toast(getString(R.string.toast_root_unavailable))
+                }
+            }
+
+            PrivilegedExec.Mode.SHIZUKU -> {
+                val shizukuOk = try { worldVM.checkShizukuReady() } catch (_: Throwable) { false }
+                when {
+                    shizukuOk && !canWrite ->
+                        // 连上了但写不了 —— 最常见是 HyperOS 的「USB 调试（安全设置）」没开
+                        toast(getString(R.string.toast_shizuku_no_write))
+                    shizukuOk && allFilesOk ->
+                        toast(getString(R.string.toast_perm_all_granted))
+                    shizukuOk ->
+                        toast(getString(R.string.toast_perm_shizuku_only))
+                    allFilesOk ->
+                        toast(getString(R.string.toast_perm_files_only))
+                    else -> {
+                        toast(getString(R.string.toast_perm_none))
+                        askAllFilesPermission(reason = null)
+                    }
+                }
+            }
+
             else -> {
-                toast(getString(R.string.toast_perm_none))
-                // 没权限就顺手引导去授予，省得用户再找入口
-                askAllFilesPermission(reason = null)
+                // 正常模式：只能靠「所有文件访问」写公共目录
+                if (allFilesOk) toast(getString(R.string.toast_perm_files_only))
+                else {
+                    toast(getString(R.string.toast_perm_none))
+                    askAllFilesPermission(reason = null)
+                }
             }
         }
     }
