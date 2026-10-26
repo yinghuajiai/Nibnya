@@ -310,6 +310,31 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
     }
 
     /**
+     * 用提权方式判断「这个路径存在吗」。
+     *
+     * 为什么需要：/data/user/0/... 只有 root 看得见，
+     * File.exists() 会恒为 false，导致「存档明明在却提示找不到」。
+     */
+    fun dirExists(path: String): Boolean {
+        if (!checkShizukuAvailable()) return false
+        return try {
+            runShizukuCmd(arrayOf("sh", "-c", "test -d \"$path\"")).waitFor() == 0
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /** 同 [dirExists]，但判断的是文件 */
+    fun fileExists(path: String): Boolean {
+        if (!checkShizukuAvailable()) return false
+        return try {
+            runShizukuCmd(arrayOf("sh", "-c", "test -f \"$path\"")).waitFor() == 0
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
      * 用 Shizuku 真实探测「能否往这个目录写」。
      *
      * 为什么要实测而不是只看 checkShizukuAvailable()：
@@ -1554,15 +1579,26 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
         }
 
         val src = File(resolveWorldPath(folder))
-        if (!src.exists()) return Pair(false, getString(R.string.msg_world_dir_not_found))
-
-        // 能不能写？不能写就别白忙（Android/data 需要 Shizuku 或所有文件权限）
         val parent = src.parentFile
         val canNative = parent != null && canWriteDirectly(parent)
         val canShizuku = checkShizukuAvailable()
+
+        // ⚠️ 不能用 src.exists() 判断「档在不在」——
+        //    /data/user/0/... 只有 root 能看见，File.exists() 恒为 false，
+        //    结果是明明存档存在却提示「找不到存档目录」。
+        //    改成「原生看得见」或「提权看得见」任一条成立即可。
+        val existsNatively = try { src.exists() } catch (_: Exception) { false }
+        val existsViaPrivilege = !existsNatively && canShizuku &&
+            try { dirExists(src.absolutePath) } catch (_: Exception) { false }
+        if (!existsNatively && !existsViaPrivilege) {
+            return Pair(false, getString(R.string.msg_world_dir_not_found))
+        }
+
+        // 能不能动？不能写就别白忙（Android/data 需要 Shizuku 或所有文件权限）
         if (!canNative && !canShizuku) {
             return Pair(false, getString(R.string.msg_delete_need_permission))
         }
+
 
         val slotName = TrashStore.newSlotName(worldName)
         val slot = TrashStore.slotDir(context, slotName)
@@ -1587,16 +1623,21 @@ class WorldViewModel : ViewModel(), DraftAutoSaver.Provider {
                 }
             }
         }
-        // 3) Shizuku mv
+        // 3) 提权 mv
         if (!moved && canShizuku) {
             try {
                 runShizukuCmd(arrayOf("sh", "-c", "mkdir -p \"${slot.absolutePath}\"")).waitFor()
+                // ⚠️ 目标 dest 可能已存在（上面 mkdirs / 复制用过），
+                //    此时 `mv src dest` 会把 src 整个塞进 dest 里面，
+                //    变成 dest/<存档名>，回收站结构就错了。先清干净再改名。
+                runShizukuCmd(arrayOf("sh", "-c", "rm -rf \"${dest.absolutePath}\"")).waitFor()
                 val p = runShizukuCmd(arrayOf("sh", "-c",
                     "mv \"${src.absolutePath}\" \"${dest.absolutePath}\""))
                 moved = p.waitFor() == 0
             } catch (_: Exception) {
             }
         }
+
 
         if (!moved) return Pair(false, getString(R.string.label_sub_delete_failed))
 

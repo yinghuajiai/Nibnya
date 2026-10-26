@@ -235,9 +235,23 @@ object PrivilegedExec {
             val target = extractLastQuotedPath(c)
                 ?: return "cannot extract rm target"
             if (!isSafeDestructiveTarget(target, strictBridgeOnly = true)) {
-                return "rm target outside bridge: $target"
+                return "rm target outside allowed area: $target"
             }
         }
+
+        // mv 也必须校验：root 下 `mv /data/... /` 同样能毁掉数据。
+        //   · 源路径：允许存档区、Bridge、Trash、/data 下的我们的临时目录
+        //   · 目标路径：同上，且不能是「上一级」目录
+        if (c.trimStart().startsWith("mv ")) {
+            val paths = Regex("""["'](/[^"']*)["']""").findAll(c).map { it.groupValues[1] }.toList()
+            if (paths.size < 2) return "mv needs source and destination"
+            for (p in paths) {
+                if (!isSafeDestructiveTarget(p, strictBridgeOnly = false)) {
+                    return "mv path outside allowed area: $p"
+                }
+            }
+        }
+
         return null
     }
 
@@ -273,14 +287,18 @@ object PrivilegedExec {
 
 
         if (strictBridgeOnly) {
-            // rm -rf 只允许两种目标：
+            // rm -rf 允许的目标（除此之外一律拒绝）：
             //  ① Bridge/ 下的临时目录
             val bridge = BRIDGE_ROOT.trimEnd('/')
             val inBridge = p.startsWith("$bridge/") && p.trimEnd('/') != bridge
             //  ② 我们自己的隐藏临时目录（原子替换用的 .nibnya_tmp_*）
             val isOwnTmp = p.substringAfterLast('/').startsWith(TMP_PREFIX)
-            return inBridge || isOwnTmp
+            //  ③ 回收站 Trash 下的内容 —— 删除存档时 mv 之前要先清掉占位目录
+            val inTrash = p.contains("/Trash/") && p.substringAfterLast('/').isNotEmpty()
+            return inBridge || isOwnTmp || inTrash
         }
+
+
         return true
     }
 

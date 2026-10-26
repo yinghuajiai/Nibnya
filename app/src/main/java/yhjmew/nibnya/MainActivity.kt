@@ -1378,7 +1378,9 @@ class MainActivity : ComponentActivity() {
      */
     private fun exportWorldAsMcWorld(w: WorldItem) {
         val srcDir = File(worldVM.resolveWorldPathPublic(w.folderName))
-        if (!srcDir.exists()) { toast(getString(R.string.msg_world_dir_not_found)); return }
+        // /data 路径只有 root 看得见，File.exists() 恒为 false —— 要允许提权探测
+        val exists = srcDir.exists() || worldVM.dirExists(srcDir.absolutePath)
+        if (!exists) { toast(getString(R.string.msg_world_dir_not_found)); return }
         // 世界名读不到时（levelname.txt 缺失/无权限）回退用文件夹名，
         // 避免导出成 "Unknown.mcworld"
         val nameHint = w.displayName.takeIf { it.isNotBlank() && it != "Unknown" }
