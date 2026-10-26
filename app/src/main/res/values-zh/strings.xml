@@ -839,4 +839,11 @@ ID：%3$s
     <string name="path_internal">软件内部 (需要 root)</string>
     <string name="toast_root_unavailable">ROOT 不可用：su 执行失败，请检查超级用户授权</string>
     <string name="toast_perm_root_ok">ROOT 正常，可以读写目标目录 ✓</string>
+    <string name="label_su_presets">预设模板</string>
+    <string name="su_preset_plain">su -c {cmd}　（Magisk / KernelSU 默认）</string>
+    <string name="su_preset_zero">su -0 -c {cmd}　（某些改版）</string>
+    <string name="su_preset_mount_master">su --mount-master -c {cmd}　（需要挂载命名空间）</string>
+    <string name="label_su_custom">自定义（可直接编辑下方输入框）</string>
+    <string name="toast_su_preset_ok">模板已保存，ROOT 可用 ✓</string>
+    <string name="toast_su_preset_fail">模板已保存，但当前模板拿不到 ROOT，请换一个预设</string>
 </resources>

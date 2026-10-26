@@ -832,9 +832,29 @@ fun MainActivity.showAppInfoDialog() {
         dialogView.findViewById<View?>(R.id.opt_exec_shizuku)?.setOnClickListener { pick("shizuku") }
         dialogView.findViewById<View?>(R.id.opt_exec_normal)?.setOnClickListener { pick("normal") }
 
+        // su 预设：点一下直接把模板填进输入框并保存
+        val suEt = dialogView.findViewById<android.widget.EditText?>(R.id.et_su_template)
+        fun applyPreset(template: String) {
+            suEt?.setText(template)
+            prefs?.edit()?.putString(PrivilegedExec.PREF_SU_TEMPLATE, template)?.apply()
+            // 立刻按新模板重新检测一次，让用户马上知道这个模板通不通
+            val ok = PrivilegedExec.detectRoot(this)
+            toast(getString(if (ok) R.string.toast_su_preset_ok else R.string.toast_su_preset_fail))
+        }
+        dialogView.findViewById<View?>(R.id.opt_su_plain)?.setOnClickListener {
+            applyPreset("su -c {cmd}")
+        }
+        dialogView.findViewById<View?>(R.id.opt_su_zero)?.setOnClickListener {
+            applyPreset("su -0 -c {cmd}")
+        }
+        dialogView.findViewById<View?>(R.id.opt_su_mount_master)?.setOnClickListener {
+            applyPreset("su --mount-master -c {cmd}")
+        }
+
         // su 模板输入
         dialogView.findViewById<android.widget.EditText?>(R.id.et_su_template)?.let { et ->
             et.setText(PrivilegedExec.suTemplate(this))
+
             et.setOnFocusChangeListener { _, hasFocus ->
                 if (!hasFocus) {
                     val v = et.text.toString().trim()

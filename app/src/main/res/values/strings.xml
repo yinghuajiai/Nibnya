@@ -837,4 +837,11 @@ Uses one map ID near map_%3$d</string>
     <string name="path_internal">App internal (requires root)</string>
     <string name="toast_root_unavailable">ROOT unavailable: su failed. Check your superuser app authorization.</string>
     <string name="toast_perm_root_ok">ROOT OK — can read and write the target folder ✓</string>
+    <string name="label_su_presets">Presets</string>
+    <string name="su_preset_plain">su -c {cmd}   (Magisk / KernelSU default)</string>
+    <string name="su_preset_zero">su -0 -c {cmd}   (some variants)</string>
+    <string name="su_preset_mount_master">su --mount-master -c {cmd}   (needs mount namespace)</string>
+    <string name="label_su_custom">Custom (edit the field below)</string>
+    <string name="toast_su_preset_ok">Template saved — ROOT works ✓</string>
+    <string name="toast_su_preset_fail">Template saved, but it cannot get ROOT. Try another preset.</string>
 </resources>

@@ -766,6 +766,63 @@
                     android:layout_marginTop="4dp"
                     android:visibility="gone">
 
+                    <!-- su 预设：点一下直接填入输入框。
+                         不同 root 方案对 su 的调用方式不一样，
+                         给几个常见写法比单纯让人手敲靠谱得多。 -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_su_presets"
+                        android:textColor="@color/app_text_secondary"
+                        android:textSize="12sp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp" />
+
+                    <TextView
+                        android:id="@+id/opt_su_plain"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:gravity="center_vertical"
+                        android:text="@string/su_preset_plain"
+                        android:textColor="@color/app_text_primary"
+                        android:textSize="13sp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView
+                        android:id="@+id/opt_su_zero"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:gravity="center_vertical"
+                        android:text="@string/su_preset_zero"
+                        android:textColor="@color/app_text_primary"
+                        android:textSize="13sp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView
+                        android:id="@+id/opt_su_mount_master"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:gravity="center_vertical"
+                        android:text="@string/su_preset_mount_master"
+                        android:textColor="@color/app_text_primary"
+                        android:textSize="13sp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?android:attr/selectableItemBackground" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_su_custom"
+                        android:textColor="@color/app_text_secondary"
+                        android:textSize="12sp"
+                        android:paddingTop="6dp"
+                        android:paddingBottom="2dp" />
+
                     <EditText
                         android:id="@+id/et_su_template"
                         android:layout_width="match_parent"
