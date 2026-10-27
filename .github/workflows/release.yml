@@ -29,6 +29,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      # 版本规则（用户约定）：
+      #   tag 不带字母后缀  -> 正式版：assembleRelease + 正式 release（非 prerelease）
+      #   tag 带字母后缀    -> 测试版：assembleDebug  + prerelease
+      #   例：v1.0.4 正式 / v1.0.4a、v1.0.4b 测试
+      - name: Decide build kind
+        id: kind
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          BASE="${TAG#v}"
+          # 去掉所有数字、点、横线后还剩字母 -> 测试版
+          SUFFIX=$(echo "$BASE" | tr -d "0-9.-")
+          if [ -z "$SUFFIX" ]; then
+            echo "is_stable=true"  >> "$GITHUB_OUTPUT"
+            echo "kind=stable"    >> "$GITHUB_OUTPUT"
+          else
+            echo "is_stable=false" >> "$GITHUB_OUTPUT"
+            echo "kind=test"      >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "判定结果: $TAG -> kind=$( [ -z "$SUFFIX" ] && echo stable || echo test )"
+
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -51,7 +73,7 @@ jobs:
             echo "No KEYSTORE_BASE64 secret; the build will fall back to the in-repo debug keystore."
           fi
 
-      - name: Build debug APK
+      - name: Build APK
         env:
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -63,51 +85,87 @@ jobs:
           else
             echo "Signing with the fallback debug keystore."
           fi
-          ./gradlew assembleDebug --console=plain
+          if [ "${{ steps.kind.outputs.is_stable }}" = "true" ]; then
+            echo "正式版：assembleRelease"
+            ./gradlew assembleRelease --console=plain
+          else
+            echo "测试版：assembleDebug"
+            ./gradlew assembleDebug --console=plain
+          fi
+
 
       - name: Show APK info
         run: |
-          ls -l app/build/outputs/apk/debug/
-          echo "---- versionName in output ----"
-          ls app/build/outputs/apk/debug/*.apk
+          if [ "${{ steps.kind.outputs.is_stable }}" = "true" ]; then
+            ls -l app/build/outputs/apk/release/
+          else
+            ls -l app/build/outputs/apk/debug/
+          fi
+
 
       - name: Rename APK
         id: apk
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          SRC=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
-          OUT="Nibnya-${TAG}-debug.apk"
+          if [ "${{ steps.kind.outputs.is_stable }}" = "true" ]; then
+            SRC=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+            OUT="Nibnya-${TAG}-release.apk"
+          else
+            SRC=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+            OUT="Nibnya-${TAG}-debug.apk"
+          fi
           cp "$SRC" "$OUT"
           echo "file=$OUT" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           ls -l "$OUT"
 
-      - name: Create pre-release
+
+      - name: Create release
         if: github.repository == 'yinghuajimew/Nibnya'
         env:
-          # ⚠️ 用作者本人的 PAT 而不是 GITHUB_TOKEN。
+          # ⚠️ 用作者的 PAT 而不是 GITHUB_TOKEN。
           #    GITHUB_TOKEN 创建的 Release，发布者恒显示 github-actions[bot]；
           #    换成 AUTHOR_PAT 后，发布者显示为 PAT 所属账号（yinghuajiai）。
           #    没配这个 secret 的 fork 会退回 GITHUB_TOKEN，不至于失败。
           GH_TOKEN: ${{ secrets.AUTHOR_PAT || secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           TAG="${{ steps.apk.outputs.tag }}"
+          IS_STABLE="${{ steps.kind.outputs.is_stable }}"
+
           # 优先用 release-notes/<tag>.md；没有就退回 release-notes/<tag去掉v>.md；
           # 再没有就只写一行标题，保证工作流不会因为缺文件而失败
           NOTES="release-notes/${TAG}.md"
           [ -f "$NOTES" ] || NOTES="release-notes/${TAG#v}.md"
+
+          # 按版本类型决定标题与 prerelease 标记
+          if [ "$IS_STABLE" = "true" ]; then
+            TITLE="Nibnya ${TAG} 正式版 / Stable"
+            FLAGS="--latest"
+          else
+            TITLE="Nibnya ${TAG}（测试版 / Test build）"
+            FLAGS="--prerelease"
+          fi
+
+          # 若同名 Release 已存在（例如重推 tag），先删掉再建，避免 create 失败
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG 已存在，先删除后重建"
+            gh release delete "$TAG" --yes --cleanup-tag=false
+          fi
+
           if [ -f "$NOTES" ]; then
             echo "Using notes file: $NOTES"
             gh release create "$TAG" "${{ steps.apk.outputs.file }}" \
-              --title "Nibnya $TAG（测试版 / Test build）" \
-              --notes-file "$NOTES" \
-              --prerelease
+              --title "$TITLE" --notes-file "$NOTES" $FLAGS
           else
             echo "No notes file found, creating release without detailed notes"
             gh release create "$TAG" "${{ steps.apk.outputs.file }}" \
-              --title "Nibnya $TAG（测试版 / Test build）" \
-              --notes "Test build (pre-release). Debug APK only." \
-              --prerelease
+              --title "$TITLE" --notes "Nibnya ${TAG}" $FLAGS
+          fi
+
+          # 正式版额外标为 latest（prerelease 加 --latest 会被 GitHub 拒绝）
+          if [ "$IS_STABLE" = "true" ]; then
+            gh release edit "$TAG" --latest
           fi
 
       - name: Skipped on fork
