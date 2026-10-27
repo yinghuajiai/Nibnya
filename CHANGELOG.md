@@ -130,3 +130,46 @@ Fixed
 3. Switching language left stale text behind: recreate() does not destroy the ViewModel, so the translation cache and already-rendered rows were never refreshed. Now the app is **fully restarted**; as requested, a confirmation dialog explains this first (edits are saved to the draft box), and it only proceeds if you accept
 4. The permission dialog was "pushed away by the system settings page": there were two request paths on startup and one of them jumped to system settings with no dialog at all. The unconditional startup request is gone; there is now a single entry point that always explains first and only opens settings after you tap "Go to grant". Requests now happen when actually needed (save / switch path / manual button) and support "Don't ask again"
 5. The old-data migration prompt never appeared: it was hidden behind the permission dialog, and the original "remind only once" design meant that being hidden or dismissed once silenced it forever. It now reminds **as long as the old folder still has content** (and stops naturally once it is migrated or emptied)
+
+## Nibnya_1.0.4-Update Log (Stable)
+
+> First stable release. Feature set matches the 1.0.4b test build. **The signing key has changed.**
+
+### ⚠️ Signing key changed (must read)
+
+The stable build uses a **brand-new signing key**. Android treats the signature as part of the app's identity, therefore:
+
+- **You cannot install over the old version.** You must uninstall the previous build (including the 1.0.4a / 1.0.4b test builds) first.
+- **Uninstalling clears**: the draft box and all settings (path / theme / language / thread count…). If "All files access" was never granted, backups and the recycle bin inside the old app-private directory are lost too.
+- **Public folders are unaffected**: working copies, backups, the recycle bin and exports under `Download/Nibnya/` all survive. They keep working after you install the new build.
+- From now on every build (test builds included) uses this new key, so you will not need to uninstall again.
+
+Suggested order: **export or back up anything you need → uninstall the old build → install the stable build → use "Migrate old data" in Settings**.
+
+### Added
+
+1. ROOT support: a unified privilege layer with ROOT / Shizuku / Normal modes. Root detection actually runs `su -c id` and checks for `uid=0`, so "su installed but not granted" and fake root are never misdetected.
+2. Execution mode selector: one tap expands it in place in Settings (no pop-up). Choosing ROOT without root falls back to Shizuku, then to Normal, with a toast reporting the mode that actually took effect.
+3. Custom su command template: you can change the `su -c {cmd}` form (Magisk / KernelSU / modified su). Three presets are included; tapping one runs a real test and tells you whether it works. A template must contain `{cmd}` to be saved.
+4. "App internal" path: `/data/user/0/<package>/games/com.mojang/minecraftWorlds/`, shown only when real root is available and re-tested every time.
+5. Atomic write-back: new data is fully staged in a temp directory on the same partition, the original is renamed aside, the new one takes its place; the old copy is removed only on success and any failure rolls back immediately. A structural self-check rolls back automatically on anomalies.
+6. World thumbnails now genuinely appear: bytes are streamed through the privilege channel and decoded in memory instead of relying on direct file reads.
+7. Three-line world list: name / folder ID / last played on separate rows, so long names no longer squeeze out the timestamp.
+8. Edge-swipe sidebar: swipe right within 18dp of the left edge to open, swipe left anywhere to close.
+9. Dark mode properly supported: two palettes, all 76 hard-coded colours replaced with theme colours; system dialogs (settings / backups / restore / root-node actions…) follow along.
+10. Permission check moved into Settings and changed to a real probe.
+11. Seed copies on a single tap, and the emoji is no longer copied.
+12. Free crop now honours the row/column count: 5×5 correctly produces 25 maps instead of 1.
+13. Square lock adjusts automatically: enabling "Lock ratio (square)" instantly snaps the crop box to the largest square.
+
+### Fixed
+
+1. **Saves written under root were unreadable by the game (most serious)**: files written as root are owned by `root:root` while Minecraft runs as its own uid with `rw-------` permissions, so the files existed and looked the right size, yet the game reported "Unable to connect to world" and the list showed an absurd `4167549952`. Ownership is now handed back to the owning app before the write completes.
+2. **Ownership repair looped on itself**: the old logic preferred the ownership of the current db directory, so once corrupted to root it read root back and corrupted it again on every save. The app's own directory is now authoritative.
+3. **The su command was split by the outer shell**: with `&&` in the command, only the first part ran as root while the rest ran as the ordinary app uid, so `cp` failed with `Permission denied`. The whole command is now passed as a single argument.
+4. **Deleting an "app internal" world failed under root**: `/data/...` is only visible to root, so the native existence check always said the folder was missing.
+5. **Automatic repair for already-broken saves**: ownership is verified when a world is opened, so saves corrupted by earlier builds can be rescued without re-saving.
+6. **Android 16 / HyperOS only said "cannot write"**: it now probes real writability and gives an actionable fix.
+7. **Three sidebar interaction bugs**: swiping stopped working after closing, taps on the scrim fell through to the main screen, and there was no right-to-left close gesture.
+8. **First swipe only showed the scrim / wrong width**: the width read as 0 right after the view became visible.
+9. **Command safety hardening**: `rm -rf` is limited to temp directories and the recycle bin; parent directories, wildcards and bare variables are refused. `mv` source and destination go through the same checks.

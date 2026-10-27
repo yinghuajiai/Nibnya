@@ -115,6 +115,38 @@ Introduction and usage tutorial：
 > Obtaining all file permissions is for the download directory to read and write to the old directory and the private directory.
 
 ## 📄 Change log
+<details>
+<summary><kbd>This release (1.0.4 stable)</kbd></summary>
+
+#### Added
+
+- [x] **ROOT support**: a unified privilege layer with three modes — ROOT / Shizuku / Normal. Root detection does not check whether a `su` binary exists; it actually runs `su -c id` and looks for `uid=0`, so "su installed but not granted" and fake root are never misdetected.
+- [x] **Execution mode selector**: a new "Execution mode" row in Settings that expands in place (no pop-up): Auto / ROOT / Shizuku / Normal. Choosing ROOT on a device without root falls back to Shizuku, then to Normal, with a toast telling you what actually took effect.
+- [x] **Custom su command template**: you can change the `su -c {cmd}` form to match Magisk / KernelSU / modified su. Three presets are included (`su -c`, `su -0 -c`, `su --mount-master -c`); tapping one runs a real test immediately and tells you whether it works. A template must contain `{cmd}` to be saved.
+- [x] **"App internal" path**: the path picker now offers `/data/user/0/<package>/games/com.mojang/minecraftWorlds/` — Minecraft's actual private directory. It is **only shown when real root is available**, and re-tested every time the picker opens.
+- [x] **Write-back now uses atomic replacement**: new data is fully staged in a temp directory on the same partition, the original is renamed aside, the new one takes its place, and only then is the old copy removed; any failure rolls back immediately. A self-check (`CURRENT` must exist, no nested folders) rolls back automatically on anomalies.
+- [x] **World thumbnails actually appear**: the standard path lives under `Android/data`, where Android 11+ scoped storage makes direct reads fail, so the three tiles used to stay grey forever. Bytes are now streamed through the privilege channel and decoded in memory, never touching disk.
+- [x] **Three-line world list layout**: world name / folder ID / last played are separate rows now, so a long name can no longer squeeze out the timestamp; the folder ID elides in the middle so the trailing `=` stays visible.
+- [x] **Edge-swipe sidebar**: swipe right within 18dp of the left edge to open; when open, swipe left anywhere to close. The scrim is fully transparent but still handles tap-to-close.
+- [x] **Dark mode properly supported**: two palettes (light / dark) were added and all 76 hard-coded colours in layouts and code now use theme colours; system dialogs (settings / backups / restore / root-node actions, etc.) follow along instead of staying white and unreadable.
+- [x] **Permission check moved into Settings**: the home header is now just "Clear cache / Switch path"; the permission check lives in Settings and runs a real test on tap, with a clear verdict.
+- [x] **Seed copies on a single tap**: no more long-press-and-select, and the emoji is no longer copied along with the number.
+- [x] **Free-crop now honours the row/column count**: previously choosing 5×5 and then switching to "Free crop" produced only 1 map; it now splits into the full 25.
+- [x] **Square lock adjusts automatically**: turning on "Lock ratio (square)" immediately snaps the crop box to the largest square, instead of waiting for you to drag it.
+
+#### Fixed
+
+- [x] **Saves written under root were unreadable by the game** (most serious): files written as root are owned by `root:root`, while Minecraft runs as its own uid with `rw-------` permissions — so the files were there and the size looked fine, yet the game reported "Unable to connect to world" and the list showed an absurd `4167549952`. Ownership is now handed back to the owning app before the write completes.
+- [x] **Ownership repair looped on itself**: the old logic preferred the ownership of the *current* db directory, so once it had been corrupted to root it stayed root and every save corrupted it again. The authoritative source is now the app's own directory.
+- [x] **su command was split by the outer shell**: when the command contained `&&`, only the first part ran as root while the rest ran as the ordinary app uid, so `cp` failed with `Permission denied` — it looked like "root can't write". The whole command is now passed as a single argument.
+- [x] **Deleting an "app internal" world failed under root**: `/data/...` is only visible to root, so the native existence check always returned false and the app claimed the world folder was missing.
+- [x] **Automatic repair for already-broken saves**: ownership is checked when a world is opened, so save files corrupted by earlier builds can be rescued without re-saving.
+- [x] **Android 16 / HyperOS only said "cannot write"**: it now probes real writability and gives an actionable fix (HyperOS requires enabling "USB debugging (Security settings)" separately).
+- [x] **Three sidebar interaction bugs**: swiping stopped working after closing, the scrim was unclickable (taps fell through to the main screen), and there was no right-to-left close gesture.
+- [x] **First swipe only showed the scrim / wrong width**: the width read as 0 right after the view became visible, so positions were computed incorrectly.
+
+</details>
+
 <details open>
 <summary><kbd>Resolved</kbd></summary>
 
