@@ -331,13 +331,53 @@ object PrivilegedExec {
         }
     }
 
+    /**
+     * 用 su 执行命令。
+     *
+     * ⚠️ 关键：必须把整条命令**当成一个参数**交给 su，
+     *    否则 shell 会先在外层按 && / ; / | 拆分，
+     *    只有第一段进 su，后面的段落跑在普通 uid 上。
+     *
+     *    曾经的实际故障（日志已证实）：
+     *      sh -c 'su -c mkdir -p "/path" && cp -rf "/src" "/dst"'
+     *      -> mkdir 以 root 成功，cp 以普通应用身份执行，Permission denied
+     *
+     *    而且目录已经建出来了（tmpNewLeft=true），看起来像「root 写不了」，
+     *    实际只是后半段根本没走 su。
+     */
+    /**
+     * 用 su 执行命令。
+     *
+     * ⚠️ 关键：整条命令必须作为**单个参数**交给 su，
+     *    绝不能让外层 shell 再按 && / ; / | 拆分。
+     *
+     *    曾经的实际故障（日志已证实）：
+     *      sh -c "su -c mkdir -p /path && cp -rf /src /dst"
+     *      -> mkdir 以 root 成功，cp 以普通应用身份执行，Permission denied；
+     *         而且目录已经建出来了（tmpNewLeft=true），
+     *         看起来像「root 写不了」，实际只是后半段没走 su。
+     *
+     * 做法：不拼 shell 字符串，直接把版式拆成 argv 交给 su。
+     *       自定义模板里若含 {cmd}，也只替换成单个 argv 元素。
+     */
     private fun execRoot(context: Context, cmd: String): Process {
         val template = suTemplate(context)
         if (!isTemplateValid(template)) {
             throw IllegalStateException("invalid su template: $template")
         }
-        val full = template.replace(CMD_PLACEHOLDER, cmd)
-        return Runtime.getRuntime().exec(arrayOf("sh", "-c", full))
+        // 模板拆成 argv：例如 "su -c {cmd}" -> ["su", "-c", "{cmd}"]
+        val parts = template.trim().split(Regex("\\s+"))
+        val argv = mutableListOf<String>()
+        for (p in parts) {
+            if (p.contains(CMD_PLACEHOLDER)) {
+                // {cmd} 必须独占一个参数才能保证不被拆分；
+                // 万一用户写成 su -c"{cmd}" 也照样按字面替进去。
+                argv.add(p.replace(CMD_PLACEHOLDER, cmd))
+            } else {
+                argv.add(p)
+            }
+        }
+        return ProcessBuilder(argv).redirectErrorStream(false).start()
     }
 
     private fun execShizuku(cmd: String): Process {
