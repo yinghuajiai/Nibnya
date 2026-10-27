@@ -759,8 +759,7 @@ Source %5$d×%6$d → %7$d×%8$d each</string>
     <string name="btn_redo">↷ Redo</string>
     <string name="btn_reset">⟲ Reset</string>
     <string name="msg_puzzle_lock_ratio">Lock ratio (square)</string>
-    <string name="msg_puzzle_crop_info">Crop %1$d×%2$d → one 128×128 map
-Uses one map ID near map_%3$d</string>
+    <string name="msg_puzzle_crop_info">Crop %1$d×%2$d → %3$d×%4$d, %5$d maps (128×128 each)</string>
     <string name="msg_puzzle_crop_not_square">⚠ Keep the crop square so it will not stretch</string>
     <!-- Puzzle: crop settings -->
     <string name="label_crop_min_size">Minimum crop size</string>

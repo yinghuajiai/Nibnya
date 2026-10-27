@@ -760,8 +760,7 @@ ID：%3$s
     <string name="btn_redo">↷ 重做</string>
     <string name="btn_reset">⟲ 重置</string>
     <string name="msg_puzzle_lock_ratio">锁定比例（正方形）</string>
-    <string name="msg_puzzle_crop_info">裁出 %1$d×%2$d → 输出 1 张 128×128
-将占用 map_%3$d 附近的一个 ID</string>
+    <string name="msg_puzzle_crop_info">裁出 %1$d×%2$d → %3$d×%4$d 共 %5$d 张（每张 128×128）</string>
     <string name="msg_puzzle_crop_not_square">⚠ 当前裁剪比例接近正方形，上墙才不会变形</string>
     <!-- 拼图：裁剪相关设置 -->
     <string name="label_crop_min_size">裁剪框最小尺寸</string>

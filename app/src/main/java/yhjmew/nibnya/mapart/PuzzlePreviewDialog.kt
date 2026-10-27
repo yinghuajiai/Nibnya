@@ -55,7 +55,7 @@ private const val TAB_CROP = 1
 internal fun MainActivity.showPuzzlePreview(
     uri: Uri,
     onConfirm: (rows: Int, cols: Int, padEnabled: Boolean, padColor: Int) -> Unit,
-    onCropConfirm: (cropRect: RectF) -> Unit,
+    onCropConfirm: (cropRect: RectF, rows: Int, cols: Int) -> Unit,
     onCancel: () -> Unit
 ) {
     val density = resources.displayMetrics.density
@@ -96,7 +96,20 @@ internal fun MainActivity.showPuzzlePreview(
     var ratioW = 1f
     var ratioH = 1f
     // 裁剪框：**原图像素坐标**（不是屏幕坐标），缩放/转屏都不会错位
-    val crop = RectF(0f, 0f, originalSize.first.toFloat(), originalSize.second.toFloat())
+    //
+    // ⚠️ 默认要求「正方形」（lockRatio 初始为 true），
+    //    所以初始框不能直接取整张图 —— 非正方形图会一上来就不满足锁定，
+    //    必须手动拖一下才被纠正。这里直接取最大内接正方形，居中。
+    val crop = RectF()
+    run {
+        val w = originalSize.first.toFloat()
+        val h = originalSize.second.toFloat()
+        val side = minOf(w, h)
+        val l = (w - side) / 2f
+        val t0 = (h - side) / 2f
+        crop.set(l, t0, l + side, t0 + side)
+    }
+
 
     data class Snap(
         val mode: Int, val rows: Int, val cols: Int,
@@ -239,8 +252,18 @@ internal fun MainActivity.showPuzzlePreview(
     switchLock.setOnCheckedChangeListener { _, checked ->
         lockRatio = checked
         previewView.lockRatio = checked
+        // 打开锁定时立刻把现有框收敛成目标比例，
+        // 否则用户要手动拖一下才会生效。以当前中心为基准放大到最大。
+        if (checked) fitCropToRatio(
+            crop, originalSize.first.toFloat(), originalSize.second.toFloat(),
+            cols.toFloat(), rows.toFloat()
+        )
+        previewView.cropImage = RectF(crop)
         previewView.invalidate()
+        refresh()          // 同步文案里的张数/尺寸
     }
+
+
     lockRow.addView(switchLock)
     root.addView(lockRow)
 
@@ -353,10 +376,16 @@ internal fun MainActivity.showPuzzlePreview(
             pushHistory(snapshot()); mode = TAB_CROP; refresh()
         }
 
-        val total = if (isGrid) rows * cols else 1
+        // 自由裁剪同样是「裁出的区域 -> 再切成 rows x cols 张」，
+        // 所以张数一样是 rows * cols（之前写死 1，选 5x5 也只出一张）
+        val total = rows * cols
         val layers = (total + 25) / 26
-        val cellW = if (isGrid) originalSize.first / cols else cropW(crop).roundToInt()
-        val cellH = if (isGrid) originalSize.second / rows else cropH(crop).roundToInt()
+        // 每张地图对应的原图像素尺寸
+        val cellW = if (isGrid) originalSize.first / cols
+                    else (cropW(crop) / cols).roundToInt()
+        val cellH = if (isGrid) originalSize.second / rows
+                    else (cropH(crop) / rows).roundToInt()
+
 
         tvRows.text = getString(R.string.msg_puzzle_rows, rows)
         tvCols.text = getString(R.string.msg_puzzle_cols, cols)
@@ -372,9 +401,10 @@ internal fun MainActivity.showPuzzlePreview(
         } else {
             getString(
                 R.string.msg_puzzle_crop_info,
-                cellW, cellH,
-                cropW(crop).roundToInt(), cropH(crop).roundToInt()
+                cropW(crop).roundToInt(), cropH(crop).roundToInt(),
+                rows, cols, total
             )
+
         }
 
         tvWarn.text = if (isGrid) {
@@ -421,7 +451,7 @@ internal fun MainActivity.showPuzzlePreview(
                 puzzleCols = cols
                 onConfirm(rows, cols, padEnabled, padColor)
             } else {
-                onCropConfirm(RectF(crop))
+                onCropConfirm(RectF(crop), rows, cols)
             }
         }
         .setNegativeButton(R.string.btn_cancel) { _, _ -> onCancel() }
@@ -464,6 +494,38 @@ private fun MainActivity.cropCoverageNote(
 
 private fun cropW(r: RectF) = r.right - r.left
 private fun cropH(r: RectF) = r.bottom - r.top
+
+/**
+ * 把裁剪框收敛成「目标比例」的最大内接矩形，并以原框中心对齐。
+ *
+ * 为什么需要：lockRatio 原本只在拖动时生效，
+ * 所以默认初始框（整张图）对非正方形图来说并不满足锁定，
+ * 用户必须手动拖一下才会被纠正 —— 看起来像「不会自己调整」。
+ *
+ * 取「最大」而不是「保持面积」：用户开锁定通常是想尽量多裁内容。
+ */
+private fun MainActivity.fitCropToRatio(
+    r: RectF, imageW: Float, imageH: Float, ratioW: Float, ratioH: Float
+) {
+    if (imageW <= 0f || imageH <= 0f) return
+    val ratio = if (ratioH > 0f) ratioW / ratioH else 1f
+    if (ratio <= 0f) return
+
+    // 以图片能容纳的最大尺寸为准
+    var w = imageW
+    var h = w / ratio
+    if (h > imageH) { h = imageH; w = h * ratio }
+
+    // 以当前框中心对齐，再夹回图片内
+    val cx = (r.left + r.right) / 2f
+    val cy = (r.top + r.bottom) / 2f
+    var l = cx - w / 2f
+    var t0 = cy - h / 2f
+    l = l.coerceIn(0f, (imageW - w).coerceAtLeast(0f))
+    t0 = t0.coerceIn(0f, (imageH - h).coerceAtLeast(0f))
+    r.set(l, t0, l + w, t0 + h)
+}
+
 
 /**
  * 把裁剪框修正到「可操作」的范围：

@@ -260,12 +260,16 @@ class MainActivity : ComponentActivity() {
                 pendingPuzzleCrop = null
                 mapVM.scanInventory(this)
             },
-            onCropConfirm = { rect ->
-                // 自由裁剪：只出 1 张，先记下矩形再走同一套「选槽位」流程
+            onCropConfirm = { rect, cRows, cCols ->
+                // 自由裁剪：裁出的区域同样切成 rows x cols 张
+                // （之前写死 1 张，选 5x5 也只出一张）
                 puzzleImageUri = uri
                 pendingPuzzleCrop = rect
+                puzzleRows = cRows
+                puzzleCols = cCols
                 mapVM.scanInventory(this)
             },
+
             onCancel = { puzzleImageUri = null }
         )
     }
@@ -2576,7 +2580,7 @@ class MainActivity : ComponentActivity() {
                         .setPositiveButton(getString(R.string.btn_puzzle_confirm_overwrite)) { _, _ ->
                             // 裁剪模式固定 1x1：只出 1 张地图
                         if (pendingPuzzleCrop != null) {
-                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop, -1)
+                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, pendingPuzzleCrop, -1)
                         } else {
                             mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null, pendingPuzzlePad)
                         }
@@ -2589,7 +2593,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     // 裁剪模式固定 1x1：只出 1 张地图
                         if (pendingPuzzleCrop != null) {
-                            mapVM.generatePuzzleMap(this, uri, 1, 1, targetSlot, pendingPuzzleCrop, -1)
+                            mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, pendingPuzzleCrop, -1)
                         } else {
                             mapVM.generatePuzzleMap(this, uri, puzzleRows, puzzleCols, targetSlot, null, pendingPuzzlePad)
                         }
