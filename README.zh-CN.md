@@ -206,7 +206,7 @@ _其他想法和修改还在实现中_
 
 <!-- 这里是底部的链接定义-->
 
-[version-shield]: https://img.shields.io/badge/版本-v1.0.4a-369eff?style=flat-square&labelColor=black
+[version-shield]: https://img.shields.io/badge/版本-v1.0.4-369eff?style=flat-square&labelColor=black
 [version-link]: https://github.com/yinghuajimew/Nibnya/releases
 
 [issues-shield]: https://img.shields.io/github/issues/yinghuajimew/Nibnya?color=ff80eb&labelColor=black&style=flat-square
