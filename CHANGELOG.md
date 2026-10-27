@@ -135,16 +135,14 @@ Fixed
 
 > First stable release. Feature set matches the 1.0.4b test build. **The signing key has changed.**
 
-### ⚠️ Signing key changed (must read)
+### ⚠️ Signing key changed
 
-The stable build uses a **brand-new signing key**. Android treats the signature as part of the app's identity, therefore:
+The stable build uses a **brand-new signing key** (previously the temporary `debugmt.keystore` signature).
 
-- **You cannot install over the old version.** You must uninstall the previous build (including the 1.0.4a / 1.0.4b test builds) first.
-- **Uninstalling clears**: the draft box and all settings (path / theme / language / thread count…). If "All files access" was never granted, backups and the recycle bin inside the old app-private directory are lost too.
-- **Public folders are unaffected**: working copies, backups, the recycle bin and exports under `Download/Nibnya/` all survive. They keep working after you install the new build.
-- From now on every build (test builds included) uses this new key, so you will not need to uninstall again.
-
-Suggested order: **export or back up anything you need → uninstall the old build → install the stable build → use "Migrate old data" in Settings**.
+- **You do not need to uninstall anything.** The stable build is `yhjmew.nibnya` while test builds are `yhjmew.nibnya.debug` — different package names, so they coexist happily and can be installed side by side.
+- You only need to uninstall if you previously had a build with the **same** `yhjmew.nibnya` package (i.e. an older stable build), because a signature change prevents installing over it.
+- Neither the public `Download/Nibnya/` folder nor any test build's private data is affected.
+- From now on both stable and test builds use this new key.
 
 ### Added
 
